@@ -231,16 +231,8 @@ else:
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
 
-       with col_form:
-            # --- CORREÇÃO: INICIALIZAÇÃO DAS VARIÁVEIS ---
+        with col_form:
             quantidades_extras = {}
-            descricao_diverso = ""
-            valor_diverso = 0.0
-            quantidade_diverso = 0
-            quantidade = 0
-            servico_info = None
-            # --- FIM DA CORREÇÃO ---
-
             st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
             with st.container(border=True):
                 obra_selecionada = st.session_state['obra_logada']
@@ -250,7 +242,7 @@ else:
                     funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
                     st.metric(label="Função do Colaborador", value=funcao_selecionada)
 
-            st.markdown("##### 🛠️ Passo 2: Selecione o Serviço Principal")
+            st.markdown("##### 🛠️ Selecione o Serviço Principal")
             with st.container(border=True):
                 disciplinas = precos_df['DISCIPLINA'].unique()
                 disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...")
@@ -271,13 +263,13 @@ else:
                         valor_parcial_servico = quantidade * valor_unitario
                         st.metric(label="Subtotal do Serviço", value=format_currency(valor_parcial_servico))
             
-            st.markdown("##### Passo 3: Adicione Itens Extras (Opcional)")
+            st.markdown("##### Adicione Itens Extras")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso")
-                valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=0.01, format="%.2f", key="valor_diverso")
+                valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
                 quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
 
-            with st.expander("➕ Lançar Valores Extras da Tabela"):
+            with st.expander("➕ Lançar Valores Extras"):
                 if valores_extras_df.empty:
                     st.info("Nenhum item na tabela de 'Valores Extras' da planilha.")
                 else:
@@ -322,6 +314,7 @@ else:
                             novo_lancamento = {"Data": datetime.now(), "Obra": obra_selecionada, "Funcionário": funcionario_selecionado, "Disciplina": disciplina_selecionada, "Serviço": servico_selecionado, "Quantidade": quantidade, "Unidade": servico_info['UNIDADE'], "Valor Unitário": servico_info['VALOR'], "Valor Parcial": valor_calculado}
                             ws_lancamentos.append_row(prepare_row_for_gsheet(novo_lancamento), value_input_option='USER_ENTERED')
                             st.session_state.lancamentos.append(novo_lancamento)
+
                         for extra, qty_extra_val in quantidades_extras.items():
                             if qty_extra_val > 0:
                                 extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
@@ -329,6 +322,7 @@ else:
                                 novo_extra = {"Data": datetime.now(), "Obra": obra_selecionada, "Funcionário": funcionario_selecionado, "Disciplina": "VALOR EXTRA", "Serviço": extra, "Quantidade": qty_extra_val, "Unidade": extra_info['UNIDADE'], "Valor Unitário": extra_info['VALOR'], "Valor Parcial": valor_calculado_extra}
                                 ws_lancamentos.append_row(prepare_row_for_gsheet(novo_extra), value_input_option='USER_ENTERED')
                                 st.session_state.lancamentos.append(novo_extra)
+
                         if descricao_diverso and valor_diverso > 0 and quantidade_diverso > 0:
                             valor_calculado_diverso = quantidade_diverso * valor_diverso
                             novo_diverso = {"Data": datetime.now(), "Obra": obra_selecionada, "Funcionário": funcionario_selecionado, "Disciplina": "DIVERSOS", "Serviço": descricao_diverso, "Quantidade": quantidade_diverso, "Unidade": "UN", "Valor Unitário": valor_diverso, "Valor Parcial": valor_calculado_diverso}
@@ -476,5 +470,5 @@ else:
                 
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
-
                 st.line_chart(prod_dia)
+
