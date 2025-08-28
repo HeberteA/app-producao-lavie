@@ -128,7 +128,7 @@ def safe_float(value):
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=1000) 
+        st.image("Lavie.png", width=300) 
     
     st.header("Login")
     
@@ -233,6 +233,12 @@ else:
 
         with col_form:
             quantidades_extras = {}
+            descricao_diverso = ""
+            valor_diverso = 0.0
+            quantidade_diverso = 0
+            quantidade = 0
+            servico_info = None
+
             st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
             with st.container(border=True):
                 obra_selecionada = st.session_state['obra_logada']
