@@ -445,12 +445,6 @@ else:
         st.header("Gerenciar Funcionários 👥")
 
         st.subheader("Adicionar Novo Funcionário")
-
-        lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
-        funcao = st.selectbox("1. Selecione a Função", options=lista_funcoes, index=0)
-
-        tipo = ""
-        salario = 0.0
         
         if funcao:
             info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao].iloc[0]
@@ -852,5 +846,6 @@ else:
 
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
