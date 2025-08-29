@@ -93,7 +93,7 @@ def load_data_from_gsheets(url):
                 lancamentos_df[col] = pd.to_numeric(lancamentos_df[col], errors='coerce')
         
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
-        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
+        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce', dayfirst=True)
         lancamentos_df.dropna(subset=['Data'], inplace=True)
         return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df
 
@@ -129,7 +129,7 @@ def safe_float(value):
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=300) 
+        st.image("Lavie.png", width=1000) 
     
     st.header("Login")
     
@@ -258,16 +258,23 @@ else:
                         valor_parcial_servico = quantidade * valor_unitario
                         st.metric(label="Subtotal do Serviço", value=format_currency(valor_parcial_servico))
                     
-                    data_servico_principal = st.date_input("Data de Realização do Serviço", value=datetime.now().date(), key="data_principal")
-                    obs_principal = st.text_area("Observação (Obrigatório se houver quantidade)", key="obs_principal")
+                    col_data_princ, col_obs_princ = st.columns(2)
+                    with col_data_princ:
+                        data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_principal")
+                    with col_obs_princ:
+                        obs_principal = st.text_area("Observação", key="obs_principal", placeholder="Obrigatório se houver quantidade")
             
             st.markdown("##### Adicione Itens Extras")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso")
                 valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
                 quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
-                data_servico_diverso = st.date_input("Data de Realização do Item Diverso", value=datetime.now().date(), key="data_diverso")
-                obs_diverso = st.text_area("Observação (Obrigatório se houver quantidade)", key="obs_diverso")
+                
+                col_data_div, col_obs_div = st.columns(2)
+                with col_data_div:
+                    data_servico_diverso = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_diverso")
+                with col_obs_div:
+                    obs_diverso = st.text_area("Observação", key="obs_diverso")
 
             with st.expander("➕ Lançar Valores Extras"):
                 if valores_extras_df.empty:
@@ -296,8 +303,12 @@ else:
                                 valor_parcial_extra = qty_extra * valor_unitario
                                 st.metric(label="Subtotal do Extra", value=format_currency(valor_parcial_extra))
                             
-                            datas_servico_extras[extra] = st.date_input("Data de Realização (Obrigatório se houver quantidade)", value=datetime.now().date(), key=f"data_{key_slug}")
-                            observacoes_extras[extra] = st.text_area("Observação (Obrigatório se houver quantidade)", key=f"obs_{key_slug}")
+                            col_data_extra, col_obs_extra = st.columns(2)
+                            with col_data_extra:
+                                datas_servico_extras[extra] = st.date_input("Data do Serviço", value=None, key=f"data_{key_slug}", help="Este campo é obrigatório")
+                            with col_obs_extra:
+                                observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}")
+                            
                             quantidades_extras[extra] = qty_extra
 
             with st.form("lancamento_form"):
@@ -313,8 +324,11 @@ else:
 
                     for extra, qty in quantidades_extras.items():
                         if qty > 0:
+                            if not datas_servico_extras.get(extra):
+                                st.error(f"Erro em '{extra}': A data de realização é obrigatória.")
+                                erro_validacao = True
                             if not observacoes_extras.get(extra) or not observacoes_extras.get(extra).strip():
-                                st.error(f"Erro em '{extra}': A observação é obrigatória quando a quantidade é maior que zero.")
+                                st.error(f"Erro em '{extra}': A observação é obrigatória.")
                                 erro_validacao = True
                     
                     if not erro_validacao:
@@ -328,11 +342,10 @@ else:
                             
                             def prepare_row_for_gsheet(data_dict):
                                 ordered_values = [data_dict.get(col, '') for col in colunas_lancamentos]
-                                row_values = ordered_values
-                                for i, v in enumerate(row_values):
-                                    if isinstance(v, (datetime, pd.Timestamp)):
-                                        row_values[i] = v.strftime("%Y-%m-%d") if i == 9 else v.strftime("%Y-%m-%d %H:%M:%S")
-                                return [str(v) for v in row_values]
+                                for i, v in enumerate(ordered_values):
+                                    if isinstance(v, (datetime, pd.Timestamp, pd.core.indexes.datetimes.DatetimeIndex)):
+                                        ordered_values[i] = v.strftime("%Y-%m-%d") if i == 9 else v.strftime("%Y-%m-%d %H:%M:%S")
+                                return [str(val) for val in ordered_values]
 
                             if quantidade > 0 and servico_selecionado:
                                 valor_calculado = quantidade * safe_float(servico_info['VALOR'])
@@ -363,7 +376,8 @@ else:
             if st.session_state.lancamentos:
                 lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
                 lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
-                st.dataframe(lancamentos_da_obra.tail(10).style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
+                colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
+                st.dataframe(lancamentos_da_obra[colunas_display].tail(10).style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
             else:
                 st.info("Nenhum lançamento adicionado ainda.")
 
@@ -497,3 +511,4 @@ else:
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
                 st.line_chart(prod_dia)
+
