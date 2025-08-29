@@ -320,8 +320,8 @@ else:
                 del st.session_state[key]
             st.rerun()
         
-    # ESTRUTURA DE NAVEGAÇÃO CORRIGIDA
-if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+    # --- ESTRUTURA DE NAVEGAÇÃO CORRIGIDA ---
+    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
 
@@ -393,7 +393,6 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                             datas_servico_extras[extra] = col_extra2.date_input("Data do Serviço", value=datetime.now().date(), key=f"data_{key_slug}")
                             observacoes_extras[extra] = col_extra2.text_area("Observação", key=f"obs_{key_slug}", placeholder="Detalhes...")
 
-                # Botão de submissão do formulário
                 submitted = st.form_submit_button("✅ Adicionar Lançamento", use_container_width=True, type="primary")
                 if submitted:
                     if not funcionario_selecionado:
@@ -401,8 +400,6 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                     else:
                         novos_lancamentos = []
                         agora = datetime.now()
-
-                        # Lançamento do serviço principal
                         if servico_selecionado and quantidade_principal > 0:
                             valor_unitario = safe_float(servico_info.get('VALOR', 0))
                             valor_parcial = quantidade_principal * valor_unitario
@@ -413,8 +410,6 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                                 'Valor Unitário': valor_unitario, 'Valor Parcial': valor_parcial,
                                 'Data do Serviço': pd.to_datetime(data_servico_principal), 'Observação': obs_principal
                             })
-
-                        # Lançamento do item diverso
                         if descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
                             novos_lancamentos.append({
                                 'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
@@ -423,8 +418,6 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                                 'Valor Unitário': valor_diverso, 'Valor Parcial': quantidade_diverso * valor_diverso,
                                 'Data do Serviço': pd.to_datetime(data_servico_diverso), 'Observação': obs_diverso
                             })
-
-                        # Lançamentos dos valores extras
                         for extra, qty in quantidades_extras.items():
                             if qty > 0:
                                 extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
@@ -436,62 +429,27 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                                     'Valor Unitário': valor_unitario, 'Valor Parcial': qty * valor_unitario,
                                     'Data do Serviço': pd.to_datetime(datas_servico_extras[extra]), 'Observação': observacoes_extras[extra]
                                 })
-                        
                         if not novos_lancamentos:
                             st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
                         else:
                             try:
                                 gc = get_gsheets_connection()
                                 ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                                
                                 df_novos = pd.DataFrame(novos_lancamentos)
                                 df_novos['Data'] = df_novos['Data'].dt.strftime('%Y-%m-%d %H:%M:%S')
                                 df_novos['Data do Serviço'] = df_novos['Data do Serviço'].dt.strftime('%Y-%m-%d')
-
-                                # Adiciona as novas linhas na planilha
                                 for _, row in df_novos.iterrows():
                                     ws_lancamentos.append_row(row.tolist(), value_input_option='USER_ENTERED')
-                                
                                 st.success("Lançamento(s) adicionado(s) com sucesso!")
                                 st.cache_data.clear()
                             except Exception as e:
                                 st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
-
-        with col_view:
-            if funcionario_selecionado:
-                st.subheader("Status da Auditoria")
-                obra_logada = st.session_state['obra_logada']
-                status_da_obra = status_df[status_df['Obra'] == obra_logada]
-                
-                func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
-                status = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
-                st.markdown(f"**{funcionario_selecionado}:** {get_status_color_html(status)}", unsafe_allow_html=True)
-                st.markdown("---")
-
-            st.subheader("Histórico Recente na Obra")
-            if 'lancamentos' in st.session_state and st.session_state.lancamentos:
-                lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-                lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
-                colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
-                colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
-                # Convert 'Data' to datetime if it's not already, for correct sorting
-                if 'Data' in lancamentos_da_obra.columns:
-                    lancamentos_da_obra['Data'] = pd.to_datetime(lancamentos_da_obra['Data'])
-                    st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
-                else:
-                    st.dataframe(lancamentos_da_obra.tail(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
-
-            else:
-                st.info("Nenhum lançamento adicionado ainda.")
-                if submitted:
-                    pass
         
         with col_view:
             if funcionario_selecionado:
                 st.subheader("Status da Auditoria")
                 obra_logada = st.session_state['obra_logada']
                 status_da_obra = status_df[status_df['Obra'] == obra_logada]
-                
                 func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
                 status = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 st.markdown(f"**{funcionario_selecionado}:** {get_status_color_html(status)}", unsafe_allow_html=True)
@@ -503,14 +461,17 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                 lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
                 colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
                 colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
-                st.dataframe(lancamentos_da_obra[colunas_existentes].tail(10).style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
+                if 'Data' in lancamentos_da_obra.columns:
+                    lancamentos_da_obra['Data'] = pd.to_datetime(lancamentos_da_obra['Data'])
+                    st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
+                else:
+                    st.dataframe(lancamentos_da_obra.tail(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
             else:
                 st.info("Nenhum lançamento adicionado ainda.")
 
     elif st.session_state.page == "Gerenciar Funcionários" and st.session_state['role'] == 'admin':
         st.header("Gerenciar Funcionários 👥")
         st.subheader("Adicionar Novo Funcionário")
-
         with st.container(border=True):
             lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
             funcao_selecionada = st.selectbox(
@@ -528,7 +489,6 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                 col_tipo, col_salario = st.columns(2)
                 col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True)
                 col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True)
-
             with st.form("add_funcionario_form", clear_on_submit=True):
                 nome = st.text_input("2. Nome do Funcionário")
                 obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
@@ -631,16 +591,12 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
         if base_para_resumo.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
-            if 'lancamentos' in st.session_state and st.session_state.lancamentos:
-                lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-                producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-                producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-                resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-                if 'Funcionário' in resumo_df.columns:
-                    resumo_df = resumo_df.drop(columns=['Funcionário'])
-            else:
-                resumo_df = base_para_resumo.copy()
-                resumo_df['PRODUÇÃO (R$)'] = 0.0
+            lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+            producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
+            resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+            if 'Funcionário' in resumo_df.columns:
+                resumo_df = resumo_df.drop(columns=['Funcionário'])
             resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
             resumo_final_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
@@ -859,5 +815,3 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
-
-
