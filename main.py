@@ -9,14 +9,12 @@ from gspread_dataframe import set_with_dataframe
 import plotly.express as px
 import io
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Cadastro de Produção",
     page_icon="Lavie1.png",
     layout="wide"
 )
 
-# --- FUNÇÕES DE CONEXÃO E DADOS ---
 @st.cache_resource
 def get_gsheets_connection():
     creds = Credentials.from_service_account_info(
@@ -103,7 +101,6 @@ def load_data_from_gsheets(url):
         st.error(f"Ocorreu um erro ao processar os dados da planilha: {e}")
         st.stop()
 
-# --- FUNÇÕES AUXILIARES ---
 def calcular_salario_final(row):
     if str(row['TIPO']).upper() == 'PRODUCAO':
         return max(row['SALÁRIO BASE (R$)'], row['PRODUÇÃO (R$)'])
@@ -128,7 +125,7 @@ def safe_float(value):
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=300) 
+        st.image("Lavie.png", width=1100) 
     
     st.header("Login")
     
@@ -157,7 +154,6 @@ def login_page(obras_df):
         else:
             st.warning("Por favor, selecione a obra e insira o código.")
 
-# --- LÓGICA PRINCIPAL DO APP ---
 sheet_url = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP97sLKZ_dAwiiVwiI/edit?usp=sharing"
 
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
@@ -477,4 +473,5 @@ else:
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
                 st.line_chart(prod_dia)
+
 
