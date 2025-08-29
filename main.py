@@ -12,7 +12,7 @@ import io
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="App de Produção",
-    page_icon="seu_logo.png",
+    page_icon="Lavie1.png",
     layout="wide"
 )
 
@@ -129,7 +129,7 @@ def safe_float(value):
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("seu_logo.png", width=300) 
+        st.image("Lavie.png", width=1000) 
     
     st.header("Login por Obra")
     
@@ -177,7 +177,7 @@ else:
         st.session_state.lancamentos = lancamentos_historico_df.to_dict('records')
 
     with st.sidebar:
-        st.image("seu_logo.png", use_container_width=True)
+        st.image("Lavie.png", use_container_width=True)
         st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
         
         if st.button("Logout 🚪", use_container_width=True):
@@ -514,3 +514,4 @@ else:
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
                 st.line_chart(prod_dia)
+
