@@ -349,24 +349,40 @@ else:
                     opcoes_servico = precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()
                 servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina...", disabled=(not disciplina_selecionada))
                 
-                quantidade_principal = 0 # Inicializa a variável
+                quantidade_principal = 0 
                 if servico_selecionado:
                     servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
                     kpi1, kpi2 = st.columns(2)
                     kpi1.metric(label="Unidade", value=servico_info['UNIDADE'])
                     kpi2.metric(label="Valor Unitário", value=format_currency(servico_info['VALOR']))
                     
-                    quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="qty_principal")
-                    data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_principal")
-                    obs_principal = st.text_area("Observação", key="obs_principal")
+                    # Layout corrigido: Quantidade ao lado do Subtotal
+                    col_qtd, col_parcial = st.columns(2)
+                    with col_qtd:
+                        quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="qty_principal")
+                    with col_parcial:
+                        valor_unitario = safe_float(servico_info.get('VALOR'))
+                        valor_parcial_servico = quantidade_principal * valor_unitario
+                        st.metric(label="Subtotal do Serviço", value=format_currency(valor_parcial_servico))
+                    
+                    # Layout corrigido: Data ao lado da Observação
+                    col_data_princ, col_obs_princ = st.columns(2)
+                    with col_data_princ:
+                        data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_principal")
+                    with col_obs_princ:
+                        obs_principal = st.text_area("Observação", key="obs_principal")
             
             st.markdown("##### Adicione Itens Extras")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso")
                 valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
                 quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
-                data_servico_diverso = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_diverso")
-                obs_diverso = st.text_area("Observação", key="obs_diverso")
+                
+                col_data_div, col_obs_div = st.columns(2)
+                with col_data_div:
+                    data_servico_diverso = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_diverso")
+                with col_obs_div:
+                    obs_diverso = st.text_area("Observação", key="obs_diverso")
 
             with st.expander("➕ Lançar Valores Extras"):
                 if valores_extras_df.empty:
@@ -382,11 +398,21 @@ else:
                             kpi1.metric(label="Unidade", value=extra_info['UNIDADE'])
                             kpi2.metric(label="Valor Unitário", value=format_currency(extra_info['VALOR']))
                             key_slug = re.sub(r'[^a-zA-Z0-9]', '', extra)
-                            quantidades_extras[extra] = st.number_input("Quantidade", min_value=0, step=1, key=f"qty_{key_slug}")
-                            datas_servico_extras[extra] = st.date_input("Data do Serviço", value=datetime.now().date(), key=f"data_{key_slug}", help="Este campo é obrigatório")
-                            observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}", placeholder="Obrigatório se houver quantidade")
+                            
+                            col_qtd_extra, col_parcial_extra = st.columns(2)
+                            with col_qtd_extra:
+                                quantidades_extras[extra] = st.number_input("Quantidade", min_value=0, step=1, key=f"qty_{key_slug}")
+                            with col_parcial_extra:
+                                valor_unitario_extra = safe_float(extra_info.get('VALOR'))
+                                valor_parcial_extra_calc = quantidades_extras[extra] * valor_unitario_extra
+                                st.metric(label="Subtotal do Extra", value=format_currency(valor_parcial_extra_calc))
 
-            # Botão de submissão corrigido (fora de um form isolado)
+                            col_data_extra, col_obs_extra = st.columns(2)
+                            with col_data_extra:
+                                datas_servico_extras[extra] = st.date_input("Data do Serviço", value=datetime.now().date(), key=f"data_{key_slug}", help="Este campo é obrigatório")
+                            with col_obs_extra:
+                                observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}", placeholder="Obrigatório se houver quantidade")
+
             if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
@@ -394,8 +420,7 @@ else:
                     novos_lancamentos = []
                     agora = datetime.now()
                     
-                    # Lançamento do serviço principal
-                    if servico_selecionado and quantidade_principal > 0:
+                    if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
                         valor_unitario = safe_float(servico_info.get('VALOR', 0))
                         novos_lancamentos.append({
                             'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
@@ -405,8 +430,7 @@ else:
                             'Data do Serviço': pd.to_datetime(data_servico_principal), 'Observação': obs_principal
                         })
 
-                    # Lançamento do item diverso
-                    if descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
+                    if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
                         novos_lancamentos.append({
                             'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
                             'Disciplina': "Diverso", 'Serviço': descricao_diverso,
@@ -415,7 +439,6 @@ else:
                             'Data do Serviço': pd.to_datetime(data_servico_diverso), 'Observação': obs_diverso
                         })
 
-                    # Lançamentos dos valores extras
                     if 'extras_selecionados' in locals() and extras_selecionados:
                         for extra, qty in quantidades_extras.items():
                             if qty > 0:
@@ -435,19 +458,22 @@ else:
                         try:
                             gc = get_gsheets_connection()
                             ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
+                            
                             df_novos = pd.DataFrame(novos_lancamentos)
                             df_novos['Data'] = df_novos['Data'].dt.strftime('%Y-%m-%d %H:%M:%S')
                             df_novos['Data do Serviço'] = df_novos['Data do Serviço'].dt.strftime('%Y-%m-%d')
+                            
                             for _, row in df_novos.iterrows():
                                 ws_lancamentos.append_row(row.tolist(), value_input_option='USER_ENTERED')
+                            
                             st.success("Lançamento(s) adicionado(s) com sucesso!")
                             st.cache_data.clear()
-                            st.rerun() # Força a atualização da tela
+                            st.rerun()
                         except Exception as e:
                             st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
         
         with col_view:
-            if funcionario_selecionado:
+            if 'funcionario_selecionado' in locals() and funcionario_selecionado:
                 st.subheader("Status da Auditoria")
                 obra_logada = st.session_state['obra_logada']
                 status_da_obra = status_df[status_df['Obra'] == obra_logada]
@@ -814,5 +840,6 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
