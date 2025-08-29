@@ -320,7 +320,7 @@ else:
                 del st.session_state[key]
             st.rerun()
         
-if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
 
@@ -833,6 +833,7 @@ if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
