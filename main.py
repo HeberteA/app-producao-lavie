@@ -29,43 +29,55 @@ def get_gsheets_connection():
     )
     return gspread.authorize(creds)
 
-# Função para carregar os status de auditoria
+# Função para carregar os status de auditoria (CORRIGIDA)
 def load_status_data(spreadsheet):
     try:
         ws_status = spreadsheet.worksheet("StatusAuditoria")
         status_data = ws_status.get_all_records()
-        return pd.DataFrame(status_data)
+        # Se a aba existe mas está vazia, get_all_records() retorna []
+        if not status_data:
+            return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
+        
+        df = pd.DataFrame(status_data)
+        # Garante que as colunas essenciais existam
+        for col in ['Obra', 'Funcionario', 'Status']:
+            if col not in df.columns:
+                df[col] = np.nan # Adiciona a coluna vazia se não existir
+        return df
+
     except gspread.exceptions.WorksheetNotFound:
-        st.warning("Aba 'StatusAuditoria' não encontrada na planilha. Os status não serão salvos permanentemente.")
+        st.warning("Aba 'StatusAuditoria' não encontrada. Para salvar o status das auditorias, crie uma aba com esse nome e as colunas: Obra, Funcionario, Status.")
         return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
 
-# Função para salvar os status de auditoria
-def save_status_data(spreadsheet, obra, funcionario, status):
+# Função para salvar os status de auditoria (AJUSTADA)
+def save_status_data(status_df, obra, funcionario, status):
     try:
-        ws_status = spreadsheet.worksheet("StatusAuditoria")
-        status_df = pd.DataFrame(ws_status.get_all_records())
-
-        # Verifica se a combinação obra/funcionário já existe
+        # Tenta encontrar a linha existente
         condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
-        existing_row = status_df[condition]
-
-        if not existing_row.empty:
-            # Atualiza o status
+        
+        if condition.any():
+            # Atualiza a linha existente no DataFrame local
             status_df.loc[condition, 'Status'] = status
         else:
-            # Adiciona nova linha
+            # Adiciona uma nova linha ao DataFrame local
             new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': status}])
             status_df = pd.concat([status_df, new_row], ignore_index=True)
-
-        # Salva o dataframe de volta na planilha
+        
+        # Salva o DataFrame inteiro de volta na planilha
+        gc = get_gsheets_connection()
+        spreadsheet = gc.open_by_url(SHEET_URL)
+        ws_status = spreadsheet.worksheet("StatusAuditoria")
         set_with_dataframe(ws_status, status_df, include_index=False, resize=True)
         st.toast(f"Status de '{funcionario}' atualizado para '{status}'", icon="💾")
+        # Limpa o cache para recarregar os dados na próxima execução
+        st.cache_data.clear()
+        return status_df
 
     except gspread.exceptions.WorksheetNotFound:
-        # A aba não existe, então não podemos salvar
-        pass # O aviso já é dado na função de carregamento
+        pass 
     except Exception as e:
         st.error(f"Erro ao salvar o status: {e}")
+    return status_df
 
 
 @st.cache_data(ttl=60)
@@ -306,6 +318,7 @@ else:
         col_form, col_view = st.columns(2)
 
         with col_form:
+            # ... (código do formulário de lançamento permanece o mesmo)
             quantidades_extras = {}
             observacoes_extras = {}
             datas_servico_extras = {}
@@ -416,7 +429,7 @@ else:
                     status = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                     status_list.append(f"**{func_nome}:** {get_status_color_html(status)}")
                 
-                num_cols = 3
+                num_cols = 2 if len(status_list) > 1 else 1
                 cols = st.columns(num_cols)
                 for i, status_html in enumerate(status_list):
                     cols[i % num_cols].markdown(status_html, unsafe_allow_html=True)
@@ -433,6 +446,7 @@ else:
                 st.info("Nenhum lançamento adicionado ainda.")
 
     elif st.session_state.page == "Resumo da Folha 📊":
+        # ... (código do resumo da folha permanece o mesmo)
         st.header("Resumo da Folha")
         
         base_para_resumo = funcionarios_df.copy()
@@ -473,6 +487,7 @@ else:
             st.dataframe(resumo_final_df.style.format(formatter={'SALÁRIO BASE (R$)': '{:,.2f}', 'PRODUÇÃO (R$)': '{:,.2f}', 'SALÁRIO A RECEBER (R$)': '{:,.2f}'}), use_container_width=True)
 
     elif st.session_state.page == "Editar Lançamentos ✏️":
+        # ... (código de editar lançamentos permanece o mesmo)
         st.header("Gerenciar Lançamentos")
         
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
@@ -529,6 +544,7 @@ else:
                             st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
 
     elif st.session_state.page == "Dashboard de Análise 📈":
+        # ... (código do dashboard permanece o mesmo)
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         
@@ -622,12 +638,12 @@ else:
                 
                 with st.popover("Alterar Status da Obra"):
                     status_options = ['A Revisar', 'Aprovado', 'Analisar']
-                    selected_status_obra = st.radio("Defina um novo status para a obra", options=status_options, index=status_options.index(status_atual_obra), horizontal=True)
-                    if selected_status_obra != status_atual_obra:
-                        gc = get_gsheets_connection()
-                        spreadsheet = gc.open_by_url(SHEET_URL)
-                        save_status_data(spreadsheet, obra_selecionada, 'GERAL', selected_status_obra)
-                        st.rerun()
+                    idx = status_options.index(status_atual_obra)
+                    selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True, key=f"radio_status_obra_{obra_selecionada}")
+                    if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
+                        if selected_status_obra != status_atual_obra:
+                            status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra)
+                            st.rerun()
 
             with col_total_obra:
                 total_produzido_obra = resumo_df['PRODUÇÃO (R$)'].sum()
@@ -658,13 +674,13 @@ else:
                     
                     with st.expander("Ver Lançamentos e Alterar Status", expanded=False):
                         status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
-                        selected_status_func = st.radio("Definir Status do Funcionário:", options=status_options_func, index=status_options_func.index(status_atual_func), horizontal=True, key=f"status_{obra_selecionada}_{funcionario}")
+                        idx_func = status_options_func.index(status_atual_func)
+                        selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario}")
                         
-                        if selected_status_func != status_atual_func:
-                            gc = get_gsheets_connection()
-                            spreadsheet = gc.open_by_url(SHEET_URL)
-                            save_status_data(spreadsheet, obra_selecionada, funcionario, selected_status_func)
-                            st.rerun()
+                        if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}"):
+                            if selected_status_func != status_atual_func:
+                                status_df = save_status_data(status_df, obra_selecionada, funcionario, selected_status_func)
+                                st.rerun()
 
                         st.markdown("##### Lançamentos")
                         lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario]
