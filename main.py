@@ -29,29 +29,24 @@ def get_gsheets_connection():
     )
     return gspread.authorize(creds)
 
-# Função para carregar os status de auditoria
 def load_status_data(spreadsheet):
     try:
         ws_status = spreadsheet.worksheet("StatusAuditoria")
         status_data = ws_status.get_all_records()
         if not status_data:
             return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
-        
         df = pd.DataFrame(status_data)
         for col in ['Obra', 'Funcionario', 'Status']:
             if col not in df.columns:
                 df[col] = np.nan
         return df
-
     except gspread.exceptions.WorksheetNotFound:
         st.warning("Aba 'StatusAuditoria' não encontrada. Para salvar o status das auditorias, crie uma aba com esse nome e as colunas: Obra, Funcionario, Status.")
         return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
 
-# Função para salvar os status de auditoria
 def save_status_data(status_df, obra, funcionario, status):
     try:
         condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
-        
         if condition.any():
             status_df.loc[condition, 'Status'] = status
         else:
@@ -65,15 +60,13 @@ def save_status_data(status_df, obra, funcionario, status):
         st.toast(f"Status de '{funcionario}' atualizado para '{status}'", icon="💾")
         st.cache_data.clear()
         return status_df
-
     except gspread.exceptions.WorksheetNotFound:
         pass 
     except Exception as e:
         st.error(f"Erro ao salvar o status: {e}")
     return status_df
 
-
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)
 def load_data_from_gsheets(url):
     try:
         gc = get_gsheets_connection()
@@ -154,7 +147,6 @@ def load_data_from_gsheets(url):
             funcoes_df = pd.DataFrame(columns=['FUNÇÃO', 'TIPO', 'SALARIO_BASE'])
 
         return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df
-
     except gspread.exceptions.WorksheetNotFound as e:
         st.error(f"Aba da planilha não encontrada: '{e}'. Verifique o nome.")
         st.stop()
@@ -189,48 +181,7 @@ def get_status_color_html(status, font_size='1.1em'):
         color = 'green'
     elif status == 'Analisar':
         color = 'red'
-    
     return f'<span style="color:{color}; font-weight:bold; font-size:{font_size};">● {status}</span>'
-
-def login_page(obras_df):
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("Lavie.png", width=1000) 
-    
-    st.header("Login")
-    
-    admin_login = st.checkbox("Entrar como Administrador")
-
-    if admin_login:
-        admin_password = st.text_input("Senha de Administrador", type="password")
-        if st.button("Entrar como Admin", use_container_width=True, type="primary"):
-            if 'admin' in st.secrets and st.secrets.admin.password == admin_password:
-                st.session_state['logged_in'] = True
-                st.session_state['role'] = 'admin'
-                st.session_state['obra_logada'] = 'Todas'
-                st.rerun()
-            else:
-                st.error("Senha de administrador incorreta.")
-    else:
-        codigos_obras = st.secrets.get("códigos_obras", {})
-        if not codigos_obras:
-            st.error("Códigos de acesso não configurados nos Secrets do Streamlit.")
-            return
-
-        obra_login = st.selectbox("Selecione a Obra", options=obras_df['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
-        codigo_login = st.text_input("Código de Acesso", type="password")
-
-        if st.button("Entrar", use_container_width=True, type="primary"):
-            if obra_login and codigo_login:
-                if obra_login in codigos_obras and codigos_obras[obra_login] == codigo_login:
-                    st.session_state['logged_in'] = True
-                    st.session_state['role'] = 'user'
-                    st.session_state['obra_logada'] = obra_login
-                    st.rerun()
-                else:
-                    st.error("Obra ou código de acesso incorreto.")
-            else:
-                st.warning("Por favor, selecione a obra e insira o código.")
 
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     try:
@@ -260,7 +211,6 @@ else:
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada = st.session_state['obra_logada']
-            
             status_geral_obra_row = status_df[(status_df['Obra'] == obra_logada) & (status_df['Funcionario'] == 'GERAL')]
             status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
@@ -269,17 +219,13 @@ else:
 
         st.markdown("---")
         st.subheader("Menu")
-        
         if 'page' not in st.session_state:
-            if st.session_state['role'] == 'admin':
-                st.session_state.page = "Auditoria ✏️"
-            else:
-                st.session_state.page = "Lançamento Folha 📝"
+            st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
         
         if st.session_state['role'] == 'user':
             if st.button("Lançamento Folha 📝", use_container_width=True):
                 st.session_state.page = "Lançamento Folha 📝"
-        else: # Menu do Administrador
+        else:
             if st.button("Auditoria ✏️", use_container_width=True):
                 st.session_state.page = "Auditoria ✏️"
             if st.button("Gerenciar Funcionários 👥", use_container_width=True):
@@ -305,7 +251,6 @@ else:
                 precos_df.to_excel(writer, sheet_name='Tabela de Preços', index=False)
                 valores_extras_df.to_excel(writer, sheet_name='Valores Extras', index=False)
                 obras_df.to_excel(writer, sheet_name='Obras', index=False)
-            
             st.download_button(
                 label="Clique para baixar o backup",
                 data=output.getvalue(),
@@ -313,7 +258,6 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-            
         st.markdown("---")
         if st.button("Sair 🚪", use_container_width=True):
             for key in list(st.session_state.keys()):
@@ -845,6 +789,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
