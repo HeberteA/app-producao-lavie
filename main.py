@@ -445,25 +445,25 @@ else:
         st.header("Gerenciar Funcionários 👥")
 
         st.subheader("Adicionar Novo Funcionário")
-        with st.form("add_funcionario", clear_on_submit=True):
-            nome = st.text_input("Nome do Funcionário")
+
+        lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
+        funcao = st.selectbox("1. Selecione a Função", options=lista_funcoes, index=0)
+
+        tipo = ""
+        salario = 0.0
+        
+        if funcao:
+            info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao].iloc[0]
+            tipo = info_funcao['TIPO']
+            salario = info_funcao['SALARIO_BASE']
             
-            lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
-            funcao = st.selectbox("Função", options=lista_funcoes, index=0)
-            
-            tipo = ""
-            salario = 0.0
-            
-            if funcao:
-                info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao].iloc[0]
-                tipo = info_funcao['TIPO']
-                salario = info_funcao['SALARIO_BASE']
-                
-                col_tipo, col_salario = st.columns(2)
-                col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True)
-                col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True)
-            
-            obra = st.selectbox("Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
+            col_tipo, col_salario = st.columns(2)
+            col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True, key="tipo_contrato")
+            col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True, key="salario_base")
+
+        with st.form("add_funcionario_form", clear_on_submit=True):
+            nome = st.text_input("2. Nome do Funcionário")
+            obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
             
             submitted = st.form_submit_button("Adicionar Funcionário")
             if submitted:
@@ -549,7 +549,8 @@ else:
                             st.error("Obra não encontrada na planilha.")
                     except Exception as e:
                         st.error(f"Ocorreu um erro ao remover a obra: {e}")
-
+    
+    # O restante das páginas
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
         
