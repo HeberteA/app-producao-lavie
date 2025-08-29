@@ -420,17 +420,6 @@ else:
                     pass
         
         with col_view:
-            st.subheader("Histórico Recente na Obra")
-            if st.session_state.lancamentos:
-                lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-                lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
-                colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
-                colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
-                st.dataframe(lancamentos_da_obra[colunas_existentes].tail(10).style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
-            else:
-                st.info("Nenhum lançamento adicionado ainda.")
-        
-        with col_view:
             if funcionario_selecionado:
                 st.subheader("Status da Auditoria")
                 obra_logada = st.session_state['obra_logada']
@@ -797,5 +786,6 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
