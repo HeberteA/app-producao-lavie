@@ -408,7 +408,6 @@ else:
                     pass
         
         with col_view:
-            # Mostra o status apenas se um funcionário foi selecionado
             if funcionario_selecionado:
                 st.subheader("Status da Auditoria")
                 obra_logada = st.session_state['obra_logada']
@@ -562,15 +561,26 @@ else:
                 
                 st.subheader("Produção por Funcionário")
                 prod_func = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
-                fig_bar = px.bar(prod_func, x='Funcionário', y='Valor Parcial', text_auto=True)
-                fig_bar.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
-                st.plotly_chart(fig_bar, use_container_width=True)
+                fig_bar_func = px.bar(prod_func, x='Funcionário', y='Valor Parcial', text_auto=True, title="Produção Total por Funcionário")
+                fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
+                st.plotly_chart(fig_bar_func, use_container_width=True)
                 
-                st.subheader("Produção Diária")
-                prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
-                fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True)
-                fig_line.update_traces(marker=dict(color='#E37731'))
-                st.plotly_chart(fig_line, use_container_width=True)
+                col_diag, col_mes = st.columns(2)
+                with col_diag:
+                    st.subheader("Produção Diária")
+                    prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
+                    fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
+                    fig_line.update_traces(marker=dict(color='#E37731'))
+                    st.plotly_chart(fig_line, use_container_width=True)
+                
+                with col_mes:
+                    st.subheader("Produção Mensal")
+                    prod_mes = df_filtrado_dash.set_index('Data').resample('ME')['Valor Parcial'].sum().reset_index()
+                    prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%Y-%m')
+                    fig_bar_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Total Mensal")
+                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#008B8B')
+                    st.plotly_chart(fig_bar_mes, use_container_width=True)
+
 
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
         st.header("Auditoria de Lançamentos")
@@ -610,9 +620,27 @@ else:
                 st.markdown(get_status_color_html(status_atual_obra, font_size='1.2em'), unsafe_allow_html=True)
 
                 with st.popover("Alterar Status"):
-                    status_options = ['A Revisar', 'Aprovado', 'Analisar']
-                    idx = status_options.index(status_atual_obra)
+                    # Verifica se todos os funcionários estão aprovados
+                    todos_aprovados = True
+                    nomes_funcionarios_obra = funcionarios_obra_df['NOME'].unique()
+                    if len(nomes_funcionarios_obra) > 0:
+                        status_funcionarios_obra = status_df[status_df['Obra'] == obra_selecionada]
+                        for nome in nomes_funcionarios_obra:
+                            status_func_row = status_funcionarios_obra[status_funcionarios_obra['Funcionario'] == nome]
+                            status_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else 'A Revisar'
+                            if status_func != 'Aprovado':
+                                todos_aprovados = False
+                                break
+                    
+                    status_options = ['A Revisar', 'Analisar']
+                    if todos_aprovados:
+                        status_options.append('Aprovado')
+                    else:
+                        st.info("Para aprovar a obra, todos os funcionários devem ter o status 'Aprovado'.")
+
+                    idx = status_options.index(status_atual_obra) if status_atual_obra in status_options else 0
                     selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True, key=f"radio_status_obra_{obra_selecionada}")
+                    
                     if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
                         if selected_status_obra != status_atual_obra:
                             status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra)
