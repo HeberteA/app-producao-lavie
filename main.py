@@ -20,11 +20,6 @@ st.set_page_config(
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP97sLKZ_dAwiiVwiI/edit?usp=sharing"
 COLUNAS_LANCAMENTOS = ['Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
 STATUS_OPTIONS = ["A Revisar", "Aprovado", "Analisar"]
-STATUS_COLORS = {
-    "Aprovado": "green",
-    "Analisar": "red",
-    "A Revisar": "gray"
-}
 
 # --- FUNÇÕES DE CONEXÃO E DADOS ---
 @st.cache_resource
@@ -140,10 +135,6 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
-def display_status(status):
-    color = STATUS_COLORS.get(status, "gray")
-    st.markdown(f"**Status:** <span style='color:{color}; font-weight:bold;'>{status}</span>", unsafe_allow_html=True)
-
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -212,8 +203,6 @@ else:
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            obra_status = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada'], 'Status'].iloc[0]
-            display_status(obra_status)
         
         if st.button("Sair 🚪", use_container_width=True):
             for key in list(st.session_state.keys()):
@@ -265,55 +254,8 @@ else:
 
     if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
-        col_form, col_view = st.columns(2)
-
-        with col_form:
-            st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
-            with st.container(border=True):
-                obra_selecionada = st.session_state['obra_logada']
-                opcoes_funcionario = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique()
-                funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=opcoes_funcionario, index=None, placeholder="Selecione um funcionário...")
-                if funcionario_selecionado:
-                    funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
-                    st.metric(label="Função do Colaborador", value=funcao_selecionada)
-
-            st.markdown("##### 🛠️ Selecione o Serviço Principal")
-            with st.container(border=True):
-                # (código da seção de serviço principal)
-                pass
-            
-            st.markdown("##### Adicione Itens Extras")
-            with st.expander("📝 Lançar Item Diverso"):
-                # (código da seção de item diverso)
-                pass
-
-            with st.expander("➕ Lançar Valores Extras"):
-                # (código da seção de valores extras)
-                pass
-
-            with st.form("lancamento_form"):
-                submitted = st.form_submit_button("✅ Adicionar Lançamento", use_container_width=True)
-                if submitted:
-                    # (lógica de submissão do formulário)
-                    pass
-        
-        with col_view:
-            st.subheader("Histórico Recente na Obra")
-            if funcionario_selecionado:
-                st.markdown("---")
-                st.markdown("##### Status do Funcionário Selecionado")
-                status_func = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'Status'].iloc[0]
-                display_status(status_func)
-                st.markdown("---")
-
-            if st.session_state.lancamentos:
-                lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-                lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
-                colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
-                colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
-                st.dataframe(lancamentos_da_obra[colunas_existentes].tail(10).style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
-            else:
-                st.info("Nenhum lançamento adicionado ainda.")
+        # (código da página de lançamento)
+        pass
 
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
@@ -339,7 +281,7 @@ else:
         if not obras_filtradas:
             st.info("Selecione uma obra para iniciar a auditoria.")
         else:
-            lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+            lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
             lancamentos_filtrados = lancamentos_df[lancamentos_df['Obra'].isin(obras_filtradas)]
             funcionarios_da_obra = funcionarios_df[funcionarios_df['OBRA'].isin(obras_filtradas)]
 
