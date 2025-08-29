@@ -343,24 +343,166 @@ else:
             with st.form("lancamento_form"):
                 submitted = st.form_submit_button("✅ Adicionar Lançamento", use_container_width=True)
                 if submitted:
-                    # (código de submissão do formulário)
+                    # (Lógica de submissão do formulário)
                     pass
         
         with col_view:
-            # (código da visualização do histórico)
-            pass
+            st.subheader("Histórico Recente na Obra")
+            if st.session_state.lancamentos:
+                lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+                lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
+                colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
+                colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
+                st.dataframe(lancamentos_da_obra[colunas_existentes].tail(10).style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
+            else:
+                st.info("Nenhum lançamento adicionado ainda.")
 
     elif st.session_state.page == "Resumo da Folha 📊":
-        # (código da página de resumo)
-        pass
+        st.header("Resumo da Folha")
+        
+        base_para_resumo = funcionarios_df.copy()
+        if st.session_state['role'] == 'user':
+            st.header(f"Obra: {st.session_state['obra_logada']}")
+            base_para_resumo = base_para_resumo[base_para_resumo['OBRA'] == st.session_state['obra_logada']]
+        else: # Admin
+            obras_disponiveis = obras_df['NOME DA OBRA'].unique()
+            obras_filtradas = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
+            if obras_filtradas:
+                base_para_resumo = base_para_resumo[base_para_resumo['OBRA'].isin(obras_filtradas)]
+
+        funcionarios_disponiveis = base_para_resumo['NOME'].unique()
+        funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s) específico(s):", options=funcionarios_disponiveis)
+        
+        if funcionarios_filtrados:
+            base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
+
+        if base_para_resumo.empty:
+            st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
+        else:
+            if st.session_state.lancamentos:
+                lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+                producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+                producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
+                resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+                if 'Funcionário' in resumo_df.columns:
+                    resumo_df = resumo_df.drop(columns=['Funcionário'])
+            else:
+                resumo_df = base_para_resumo.copy()
+                resumo_df['PRODUÇÃO (R$)'] = 0.0
+
+            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
+            resumo_final_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
+            resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
+            colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
+            resumo_final_df = resumo_final_df[colunas_finais].reset_index(drop=True)
+            st.dataframe(resumo_final_df.style.format(formatter={'SALÁRIO BASE (R$)': '{:,.2f}', 'PRODUÇÃO (R$)': '{:,.2f}', 'SALÁRIO A RECEBER (R$)': '{:,.2f}'}), use_container_width=True)
 
     elif st.session_state.page == "Editar Lançamentos ✏️":
-        # (código da página de edição)
-        pass
-    
+        st.header("Gerenciar Lançamentos")
+        
+        lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
+        if st.session_state['role'] == 'user':
+            lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
+        
+        if lancamentos_df.empty:
+            st.info("Nenhum lançamento para editar.")
+        else:
+            lancamentos_df.reset_index(inplace=True)
+            lancamentos_df.rename(columns={'index': 'id_lancamento'}, inplace=True)
+            
+            funcionarios_para_filtrar = sorted(lancamentos_df['Funcionário'].unique())
+            funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar)
+
+            df_filtrado = lancamentos_df.copy()
+            if funcionario_filtrado:
+                df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
+
+            if df_filtrado.empty:
+                st.warning("Nenhum lançamento encontrado.")
+            else:
+                df_filtrado['Remover'] = False
+                colunas_visiveis = ['Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação', 'Data do Serviço', 'id_lancamento']
+                colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
+                st.write("Marque as caixas dos lançamentos que deseja apagar e clique no botão de remoção.")
+                df_modificado = st.data_editor(
+                    df_filtrado[colunas_existentes],
+                    hide_index=True,
+                    column_config={"Remover": st.column_config.CheckboxColumn(required=True), "id_lancamento": None},
+                    disabled=df_filtrado.columns.drop(['Remover', 'id_lancamento'])
+                )
+                linhas_para_remover = df_modificado[df_modificado['Remover']]
+
+                if not linhas_para_remover.empty:
+                    st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
+                    st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento']))
+                    confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
+                    if st.button("Remover Itens Selecionados", disabled=(not confirmacao_remocao), type="primary"):
+                        ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
+                        df_original = pd.DataFrame(st.session_state.lancamentos).reset_index().rename(columns={'index': 'id_lancamento'})
+                        df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
+                        df_atualizado_final = df_atualizado.drop(columns=['id_lancamento'])
+
+                        try:
+                            gc = get_gsheets_connection()
+                            ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
+                            ws_lancamentos.clear()
+                            set_with_dataframe(ws_lancamentos, df_atualizado_final, include_index=False, resize=True)
+                            st.session_state.lancamentos = df_atualizado_final.to_dict('records')
+                            st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
+
     elif st.session_state.page == "Dashboard de Análise 📈":
-        # (código da página de dashboard)
-        pass
+        st.header("Dashboard de Análise")
+        lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+        
+        base_para_dash = lancamentos_df.copy()
+        if st.session_state['role'] == 'user':
+            st.header(f"Obra: {st.session_state['obra_logada']}")
+            base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
+
+        if base_para_dash.empty:
+            st.info("Ainda não há lançamentos para analisar.")
+        else:
+            st.markdown("#### Filtros do Dashboard")
+            col1, col2 = st.columns(2)
+            data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date())
+            data_fim = col2.date_input("Data de Fim", value=datetime.now().date())
+            
+            data_inicio_ts = pd.to_datetime(data_inicio)
+            data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
+            df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
+
+            funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+            funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+            if funcionarios_filtrados:
+                df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados)]
+
+            if df_filtrado_dash.empty:
+                st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
+            else:
+                st.markdown("---")
+                kpi1, kpi2, kpi3 = st.columns(3)
+                total_produzido = df_filtrado_dash['Valor Parcial'].sum()
+                kpi1.metric("Produção Total", format_currency(total_produzido))
+                top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
+                kpi2.metric("Funcionário Destaque", top_funcionario)
+                top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
+                kpi3.metric("Serviço de Maior Custo", top_servico)
+                st.markdown("---")
+                
+                st.subheader("Produção por Funcionário")
+                prod_func = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
+                fig_bar = px.bar(prod_func, x='Funcionário', y='Valor Parcial', text_auto=True)
+                fig_bar.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
+                st.plotly_chart(fig_bar, use_container_width=True)
+                
+                st.subheader("Produção Diária")
+                prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
+                fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True)
+                fig_line.update_traces(marker=dict(color='#E37731'))
+                st.plotly_chart(fig_line, use_container_width=True)
 
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
         st.header("Auditoria de Lançamentos")
