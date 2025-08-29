@@ -260,9 +260,9 @@ else:
                     
                     col_data_princ, col_obs_princ = st.columns(2)
                     with col_data_princ:
-                        data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_principal")
+                        data_servico_principal = st.date_input("Data do Serviço", value=None, key="data_principal")
                     with col_obs_princ:
-                        obs_principal = st.text_area("Observação", key="obs_principal", placeholder="Obrigatório se houver quantidade")
+                        obs_principal = st.text_area("Observação", key="obs_principal")
             
             st.markdown("##### Adicione Itens Extras")
             with st.expander("📝 Lançar Item Diverso"):
@@ -272,7 +272,7 @@ else:
                 
                 col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
-                    data_servico_diverso = st.date_input("Data do Serviço", value=datetime.now().date(), key="data_diverso")
+                    data_servico_diverso = st.date_input("Data do Serviço", value=None, key="data_diverso")
                 with col_obs_div:
                     obs_diverso = st.text_area("Observação", key="obs_diverso")
 
@@ -316,10 +316,10 @@ else:
                 if submitted:
                     erro_validacao = False
                     if quantidade > 0 and (not obs_principal or not obs_principal.strip()):
-                        st.error("Erro no Serviço Principal: A observação é obrigatória quando a quantidade é maior que zero.")
+                        st.error("Erro no Serviço Principal: A observação é obrigatória.")
                         erro_validacao = True
                     if quantidade_diverso > 0 and (not obs_diverso or not obs_diverso.strip()):
-                        st.error("Erro no Item Diverso: A observação é obrigatória quando a quantidade é maior que zero.")
+                        st.error("Erro no Item Diverso: A observação é obrigatória.")
                         erro_validacao = True
 
                     for extra, qty in quantidades_extras.items():
@@ -511,4 +511,5 @@ else:
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
                 st.line_chart(prod_dia)
+
 
