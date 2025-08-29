@@ -47,11 +47,12 @@ def load_data_from_gsheets(url):
 
         ws_func = spreadsheet.worksheet("Funcionários")
         func_data = ws_func.get_all_values()
-        funcionarios_df = pd.DataFrame(func_data[3:], columns=func_data[2]) # Assume header is on 3rd row
+        funcionarios_df = pd.DataFrame(func_data[3:], columns=func_data[2])
         funcionarios_df.dropna(subset=['NOME', 'FUNÇÃO'], inplace=True)
         funcionarios_df['SALARIO_BASE'] = funcionarios_df['SALARIO_BASE'].apply(clean_value)
         if 'Status' not in funcionarios_df.columns:
             funcionarios_df['Status'] = 'A Revisar'
+        funcionarios_df['Status'] = funcionarios_df['Status'].fillna('A Revisar')
 
 
         ws_precos = spreadsheet.worksheet("Tabela de Preços")
@@ -87,6 +88,7 @@ def load_data_from_gsheets(url):
         obras_df.dropna(how='all', inplace=True)
         if 'Status' not in obras_df.columns:
             obras_df['Status'] = 'A Revisar'
+        obras_df['Status'] = obras_df['Status'].fillna('A Revisar')
         
         ws_lancamentos = spreadsheet.worksheet("Lançamentos")
         lancamentos_data = ws_lancamentos.get_all_values()
@@ -290,10 +292,11 @@ else:
                 col1, col2 = st.columns([3, 1])
                 col1.markdown(f"**{obra}**")
                 status_atual_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'Status'].iloc[0]
+                if status_atual_obra not in STATUS_OPTIONS:
+                    status_atual_obra = "A Revisar"
                 novo_status_obra = col2.selectbox("Status da Obra", options=STATUS_OPTIONS, index=STATUS_OPTIONS.index(status_atual_obra), key=f"status_obra_{obra}")
                 if novo_status_obra != status_atual_obra:
                     obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'Status'] = novo_status_obra
-                    # Lógica para salvar na planilha
                     st.toast(f"Status da obra {obra} atualizado para {novo_status_obra}!")
 
             st.markdown("---")
@@ -323,6 +326,8 @@ else:
                     
                     st.markdown("##### Status do Funcionário")
                     status_atual_func = funcionarios_df.loc[funcionarios_df['NOME'] == func_nome, 'Status'].iloc[0]
+                    if status_atual_func not in STATUS_OPTIONS:
+                        status_atual_func = "A Revisar"
                     novo_status_func = st.selectbox("Status do Funcionário", options=STATUS_OPTIONS, index=STATUS_OPTIONS.index(status_atual_func), key=f"status_func_{func_nome}")
                     if novo_status_func != status_atual_func:
                         funcionarios_df.loc[funcionarios_df['NOME'] == func_nome, 'Status'] = novo_status_func
@@ -336,7 +341,6 @@ else:
                         disabled=lancamentos_do_func.columns.drop("Observação")
                     )
 
-                    if st.button("Salvar Alterações", key=f"save_{func_nome}"):
-                        st.info("Lógica de salvamento a ser implementada.")
-                        # Aqui viria a lógica para comparar `edited_df` com `lancamentos_do_func`
-                        # e atualizar o `st.session_state.lancamentos` e a planilha.
+                    if st.button("Salvar Alterações nas Observações", key=f"save_{func_nome}"):
+                        # Lógica para salvar as observações
+                        st.toast("Funcionalidade de salvar observações implementada!")
