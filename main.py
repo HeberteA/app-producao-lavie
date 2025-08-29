@@ -198,10 +198,6 @@ else:
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
         
-        if st.button("Sair 🚪", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
         
         st.markdown("---")
         st.subheader("Menu")
@@ -226,6 +222,12 @@ else:
             st.session_state.page = "Editar Lançamentos ✏️"
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
+
+        st.markdown("---")
+        if st.button("Sair 🚪", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
 
     # --- Renderização das Páginas ---
     if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
@@ -278,6 +280,7 @@ else:
                 
                 with st.expander(f"Funcionário: **{func}** | Total Produzido: **{format_currency(total_produzido)}**"):
                     st.dataframe(lancamentos_do_func, use_container_width=True)
+
 
 
 
