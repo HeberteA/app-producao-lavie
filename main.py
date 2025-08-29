@@ -562,7 +562,7 @@ else:
                 st.subheader("Produção por Funcionário")
                 prod_func = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
                 fig_bar_func = px.bar(prod_func, x='Funcionário', y='Valor Parcial', text_auto=True, title="Produção Total por Funcionário")
-                fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
+                fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37026')
                 st.plotly_chart(fig_bar_func, use_container_width=True)
                 
                 col_diag, col_mes = st.columns(2)
@@ -570,7 +570,7 @@ else:
                     st.subheader("Produção Diária")
                     prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
                     fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
-                    fig_line.update_traces(marker=dict(color='#E37731'))
+                    fig_line.update_traces(line_color='#E37026', marker=dict(color='#E37026'))
                     st.plotly_chart(fig_line, use_container_width=True)
                 
                 with col_mes:
@@ -578,7 +578,7 @@ else:
                     prod_mes = df_filtrado_dash.set_index('Data').resample('ME')['Valor Parcial'].sum().reset_index()
                     prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%Y-%m')
                     fig_bar_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Total Mensal")
-                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#008B8B')
+                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37026')
                     st.plotly_chart(fig_bar_mes, use_container_width=True)
 
 
@@ -620,7 +620,6 @@ else:
                 st.markdown(get_status_color_html(status_atual_obra, font_size='1.2em'), unsafe_allow_html=True)
 
                 with st.popover("Alterar Status"):
-                    # Verifica se todos os funcionários estão aprovados
                     todos_aprovados = True
                     nomes_funcionarios_obra = funcionarios_obra_df['NOME'].unique()
                     if len(nomes_funcionarios_obra) > 0:
