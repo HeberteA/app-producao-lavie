@@ -553,6 +553,11 @@ else:
                 
                 # Junta com as informações dos funcionários
                 resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+
+                # <<<--- LINHA ADICIONADA PARA CORRIGIR O ERRO ---<<<
+                if 'Funcionário' in resumo_df.columns:
+                    resumo_df = resumo_df.drop(columns=['Funcionário'])
+                
                 resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
                 resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
                 resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
