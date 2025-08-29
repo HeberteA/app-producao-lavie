@@ -326,7 +326,6 @@ else:
         col_form, col_view = st.columns(2)
 
         with col_form:
-            # Dicionários para armazenar os dados dos itens extras
             quantidades_extras = {}
             observacoes_extras = {}
             datas_servico_extras = {}
@@ -349,7 +348,7 @@ else:
                     opcoes_servico = precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()
                 servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina...", disabled=(not disciplina_selecionada))
                 
-                quantidade_principal = 0 
+                quantidade_principal = 0
                 if servico_selecionado:
                     servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
                     kpi1, kpi2 = st.columns(2)
@@ -457,17 +456,26 @@ else:
                             gc = get_gsheets_connection()
                             ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
                             
-                            df_novos = pd.DataFrame(lancamentos_para_salvar)
-                            # Ordena o DataFrame para garantir a consistência com as colunas da planilha
-                            df_novos = df_novos[COLUNAS_LANCAMENTOS]
+                            linhas_formatadas = []
+                            for item in lancamentos_para_salvar:
+                                linha = [
+                                    item['Data'].strftime('%Y-%m-%d %H:%M:%S'),
+                                    item['Obra'],
+                                    item['Funcionário'],
+                                    item['Disciplina'],
+                                    item['Serviço'],
+                                    item['Quantidade'],
+                                    item['Unidade'],
+                                    item['Valor Unitário'],
+                                    item['Valor Parcial'],
+                                    item['Data do Serviço'].strftime('%Y-%m-%d'),
+                                    item['Observação']
+                                ]
+                                linhas_formatadas.append(linha)
                             
-                            df_novos['Data'] = df_novos['Data'].dt.strftime('%Y-%m-%d %H:%M:%S')
-                            df_novos['Data do Serviço'] = df_novos['Data do Serviço'].dt.strftime('%Y-%m-%d')
-                            
-                            ws_lancamentos.append_rows(df_novos.values.tolist(), value_input_option='USER_ENTERED')
+                            ws_lancamentos.append_rows(linhas_formatadas, value_input_option='USER_ENTERED')
                             
                             st.success("Lançamento(s) adicionado(s) com sucesso!")
-                            # **CORREÇÃO AQUI:** Limpa o cache e recarrega a página
                             st.cache_data.clear()
                             st.rerun()
                         except Exception as e:
@@ -841,6 +849,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
