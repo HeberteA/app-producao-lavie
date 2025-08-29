@@ -9,18 +9,15 @@ from gspread_dataframe import set_with_dataframe
 import plotly.express as px
 import io
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Cadastro de Produção",
     page_icon="Lavie1.png",
     layout="wide"
 )
 
-# --- CONSTANTES GLOBAIS ---
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP97sLKZ_dAwiiVwiI/edit?usp=sharing"
 COLUNAS_LANCAMENTOS = ['Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
 
-# --- FUNÇÕES DE CONEXÃO E DADOS ---
 @st.cache_resource
 def get_gsheets_connection():
     creds = Credentials.from_service_account_info(
@@ -107,7 +104,6 @@ def load_data_from_gsheets(url):
         st.error(f"Ocorreu um erro ao processar os dados da planilha: {e}")
         st.stop()
 
-# --- FUNÇÕES AUXILIARES ---
 def calcular_salario_final(row):
     if str(row['TIPO']).upper() == 'PRODUCAO':
         return max(row['SALÁRIO BASE (R$)'], row['PRODUÇÃO (R$)'])
@@ -132,7 +128,7 @@ def safe_float(value):
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=300) 
+        st.image("Lavie.png", width=1000) 
     
     st.header("Login")
     
@@ -169,7 +165,6 @@ def login_page(obras_df):
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
-# --- LÓGICA PRINCIPAL DO APP ---
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     try:
         gc = get_gsheets_connection()
@@ -197,11 +192,6 @@ else:
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-        
-        if st.button("Sair 🚪", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
         
         st.markdown("---")
         st.subheader("Menu")
@@ -245,7 +235,13 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-
+            
+        st.markdown("---")
+        if st.button("Sair 🚪", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+        
     if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
@@ -343,7 +339,6 @@ else:
             with st.form("lancamento_form"):
                 submitted = st.form_submit_button("✅ Adicionar Lançamento", use_container_width=True)
                 if submitted:
-                    # (Lógica de submissão do formulário)
                     pass
         
         with col_view:
@@ -364,7 +359,7 @@ else:
         if st.session_state['role'] == 'user':
             st.header(f"Obra: {st.session_state['obra_logada']}")
             base_para_resumo = base_para_resumo[base_para_resumo['OBRA'] == st.session_state['obra_logada']]
-        else: # Admin
+        else: 
             obras_disponiveis = obras_df['NOME DA OBRA'].unique()
             obras_filtradas = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
             if obras_filtradas:
@@ -534,3 +529,4 @@ else:
                 
                 with st.expander(f"Funcionário: **{func}** | Total Produzido: **{format_currency(total_produzido)}**"):
                     st.dataframe(lancamentos_do_func, use_container_width=True)
+
