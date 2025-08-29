@@ -445,17 +445,27 @@ else:
                             gc = get_gsheets_connection()
                             ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
                             
+                            # 1. Cria o DataFrame a partir dos dicionários
+                            df_novos = pd.DataFrame(novos_lancamentos_dicts)
+                            
+                            # 2. Garante a ordem correta das colunas
                             df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
-
-# Formata as colunas de data
+                            
+                            # 3. Formata as colunas de data como texto
                             df_novos_ordenado['Data'] = df_novos_ordenado['Data'].dt.strftime('%Y-%m-%d %H:%M:%S')
                             df_novos_ordenado['Data do Serviço'] = df_novos_ordenado['Data do Serviço'].dt.strftime('%Y-%m-%d')
-
-# Converte colunas numéricas para o formato de moeda como string
-                            for col in ['Valor Unitário', 'Valor Parcial']:
+                            
+                            # 4. Formata as colunas de moeda como texto para evitar erros de interpretação
+                            for col in ['Valor Unitário', 'Valor Parcial', 'Quantidade']:
                                 if col in df_novos_ordenado.columns:
-                                    df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{float(x):.2f}')
-
+                                    # Garante que o valor é numérico antes de formatar
+                                    df_novos_ordenado[col] = pd.to_numeric(df_novos_ordenado[col], errors='coerce').fillna(0)
+                                    if col in ['Valor Unitário', 'Valor Parcial']:
+                                        df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{x:.2f}'.replace('.', ','))
+                                    else:
+                                        df_novos_ordenado[col] = df_novos_ordenado[col].astype(str)
+                            
+                            # 5. Salva na planilha
                             ws_lancamentos.append_rows(df_novos_ordenado.values.tolist(), value_input_option='USER_ENTERED')
                             
                             st.success("Lançamento(s) adicionado(s) com sucesso!")
@@ -839,6 +849,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
