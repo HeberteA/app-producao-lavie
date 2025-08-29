@@ -509,9 +509,26 @@ else:
                 
                 st.subheader("Produção por Funcionário na Obra")
                 prod_func = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().sort_values(ascending=False)
-                st.bar_chart(prod_func)
+                fig_bar = px.bar(prod_func, text_auto=True, title="Produção por Funcionário")
+                fig_bar.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='orange')
+                st.plotly_chart(fig_bar, use_container_width=True)
                 
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
-                st.line_chart(prod_dia)
+                fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', text='Valor Parcial', title="Produção Diária")
+                fig_line.update_traces(texttemplate='%{text:,.2f}', textposition='top_center', marker=dict(color='orange'))
+                st.plotly_chart(fig_line, use_container_width=True)
+
+                st.markdown("---")
+                st.subheader("Análise Mensal")
+                
+                prod_mes = df_filtrado_dash.set_index('Data').resample('M')['Valor Parcial'].sum().reset_index()
+                prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%b/%Y')
+                
+                mes_destaque = prod_mes.loc[prod_mes['Valor Parcial'].idxmax()]
+                st.metric("Mês de Maior Produção", f"{mes_destaque['Mês']}", f"{format_currency(mes_destaque['Valor Parcial'])}")
+
+                fig_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Mensal Total")
+                fig_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='orange')
+                st.plotly_chart(fig_mes, use_container_width=True)
 
