@@ -460,6 +460,10 @@ else:
 
         with st.form("add_funcionario_form", clear_on_submit=True):
             nome = st.text_input("2. Nome do Funcionário")
+            lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
+            funcao = st.selectbox("1. Selecione a Função", options=lista_funcoes, index=0)
+            tipo = ""
+            salario = 0.0
             col_tipo, col_salario = st.columns(2)
             col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True, key="tipo_contrato")
             col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True, key="salario_base")
@@ -848,4 +852,5 @@ else:
 
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
