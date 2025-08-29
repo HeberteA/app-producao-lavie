@@ -529,4 +529,5 @@ else:
                     fig_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Mensal Total")
                     fig_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
                     st.plotly_chart(fig_mes, use_container_width=True)
-�
+
+
