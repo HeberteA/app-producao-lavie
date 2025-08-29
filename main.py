@@ -125,6 +125,14 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
+def get_status_color(status):
+    if status == 'Aprovado':
+        return 'green'
+    elif status == 'Analisar':
+        return 'red'
+    else: # A Revisar
+        return 'gray'
+
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -503,30 +511,95 @@ else:
         st.header("Auditoria de Lançamentos")
         
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+        obras_disponiveis = sorted(lancamentos_df['Obra'].unique())
         
-        st.info("Filtre para auditar lançamentos específicos.")
-        filt_col1, filt_col2 = st.columns(2)
-        
-        obras_para_filtrar = sorted(lancamentos_df['Obra'].unique())
-        obra_filtrada = filt_col1.multiselect("Filtrar por Obra", options=obras_para_filtrar)
+        obra_selecionada = st.selectbox("Selecione a Obra para auditar", options=obras_disponiveis, index=None, placeholder="Selecione uma obra...")
 
-        funcionarios_para_filtrar = sorted(lancamentos_df['Funcionário'].unique())
-        funcionario_filtrado = filt_col2.multiselect("Filtrar por Funcionário", options=funcionarios_para_filtrar)
-
-        df_filtrado = lancamentos_df.copy()
-        if obra_filtrada:
-            df_filtrado = df_filtrado[df_filtrado['Obra'].isin(obra_filtrada)]
-        if funcionario_filtrado:
-            df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
-
-        if df_filtrado.empty:
-            st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
-        else:
-            funcionarios_na_lista = df_filtrado['Funcionário'].unique()
-            for func in funcionarios_na_lista:
-                lancamentos_do_func = df_filtrado[df_filtrado['Funcionário'] == func]
-                total_produzido = lancamentos_do_func['Valor Parcial'].sum()
+        if obra_selecionada:
+            # Lógica para o status da obra
+            st.markdown("---")
+            col_status_obra, col_total_obra = st.columns([1, 2])
+            with col_status_obra:
+                # Carregar status salvo ou usar default
+                # TODO: Implementar a leitura da aba "StatusAuditoria"
+                status_atual_obra = "A Revisar" # Default
                 
-                with st.expander(f"Funcionário: **{func}** | Total Produzido: **{format_currency(total_produzido)}**"):
-                    st.dataframe(lancamentos_do_func, use_container_width=True)
+                status_options = ['A Revisar', 'Aprovado', 'Analisar']
+                selected_status_obra = st.radio(
+                    "Status Geral da Obra:",
+                    options=status_options,
+                    index=status_options.index(status_atual_obra),
+                    horizontal=True,
+                )
+                
+                # TODO: Salvar o status da obra na planilha
+                # if selected_status_obra != status_atual_obra:
+                #    ...código para salvar na planilha...
+                #    st.toast("Status da obra atualizado!")
+                
+                cor_status = get_status_color(selected_status_obra)
+                st.markdown(f'Status Atual: <strong style="color:{cor_status};">{selected_status_obra}</strong>', unsafe_allow_html=True)
+            
+            # Filtra os dataframes para a obra selecionada
+            lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
+            funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
 
+            if funcionarios_obra_df.empty:
+                st.warning("Nenhum funcionário cadastrado para esta obra.")
+            else:
+                # Calcula a produção de cada funcionário na obra
+                producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+                producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
+                
+                # Junta com as informações dos funcionários
+                resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+                resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
+                resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
+                resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
+
+                with col_total_obra:
+                    total_produzido_obra = resumo_df['PRODUÇÃO (R$)'].sum()
+                    st.metric("Total Produzido na Obra", format_currency(total_produzido_obra))
+
+                st.markdown("---")
+                st.subheader("Análise por Funcionário")
+
+                for index, row in resumo_df.iterrows():
+                    funcionario = row['Funcionário']
+                    
+                    header_cols = st.columns([3, 2, 2, 2, 2])
+                    header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
+                    header_cols[1].metric("Salário Base", format_currency(row['SALÁRIO BASE (R$)']))
+                    header_cols[2].metric("Produção", format_currency(row['PRODUÇÃO (R$)']))
+                    header_cols[3].metric("Salário a Receber", format_currency(row['SALÁRIO A RECEBER (R$)']))
+                    
+                    with st.expander("Ver/Editar Detalhes e Lançamentos", expanded=False):
+                        st.markdown("##### Status do Funcionário na Obra")
+                        
+                        # TODO: Implementar a leitura do status do funcionário na aba "StatusAuditoria"
+                        status_atual_func = "A Revisar" # Default
+                        status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
+                        
+                        selected_status_func = st.radio(
+                            "Definir Status:",
+                            options=status_options_func,
+                            index=status_options_func.index(status_atual_func),
+                            horizontal=True,
+                            key=f"status_{obra_selecionada}_{funcionario}"
+                        )
+                        
+                        # TODO: Salvar o status do funcionário na planilha
+                        # if selected_status_func != status_atual_func:
+                        #    ...código para salvar na planilha...
+                        #    st.toast(f"Status de {funcionario} atualizado!")
+
+                        cor_status_func = get_status_color(selected_status_func)
+                        st.markdown(f'Status Atual: <strong style="color:{cor_status_func};">{selected_status_func}</strong>', unsafe_allow_html=True)
+
+                        st.markdown("##### Lançamentos")
+                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario]
+                        
+                        if lancamentos_do_funcionario.empty:
+                            st.info("Nenhum lançamento de produção para este funcionário na obra.")
+                        else:
+                            st.dataframe(lancamentos_do_funcionario[['Data', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']], use_container_width=True)
