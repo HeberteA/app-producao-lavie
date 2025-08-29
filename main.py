@@ -534,4 +534,3 @@ else:
                 
                 with st.expander(f"Funcionário: **{func}** | Total Produzido: **{format_currency(total_produzido)}**"):
                     st.dataframe(lancamentos_do_func, use_container_width=True)
-
