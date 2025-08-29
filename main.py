@@ -476,7 +476,7 @@ else:
                         except Exception as e:
                             st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
 
-     elif st.session_state.page == "Dashboard de Análise 📈":
+    elif st.session_state.page == "Dashboard de Análise 📈":
         st.header(f"Dashboard de Análise - Obra: {st.session_state['obra_logada']}")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
@@ -545,5 +545,6 @@ else:
                     fig_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Mensal Total")
                     fig_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
                     st.plotly_chart(fig_mes, use_container_width=True)
+
 
 
