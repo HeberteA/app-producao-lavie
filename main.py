@@ -321,7 +321,7 @@ else:
             st.rerun()
         
     # ESTRUTURA DE NAVEGAÇÃO CORRIGIDA
-    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
 
@@ -483,49 +483,6 @@ else:
 
             else:
                 st.info("Nenhum lançamento adicionado ainda.")
-            
-            st.markdown("##### Adicione Itens Extras")
-            with st.expander("📝 Lançar Item Diverso"):
-                descricao_diverso = st.text_input("Descrição do Item Diverso")
-                valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
-                quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
-                col_data_div, col_obs_div = st.columns(2)
-                with col_data_div:
-                    data_servico_diverso = st.date_input("Data do Serviço", value=None, key="data_diverso")
-                with col_obs_div:
-                    obs_diverso = st.text_area("Observação", key="obs_diverso")
-
-            with st.expander("➕ Lançar Valores Extras"):
-                if valores_extras_df.empty:
-                    st.info("Nenhum item na tabela de 'Valores Extras' da planilha.")
-                else:
-                    extras_options = valores_extras_df['VALORES EXTRAS'].unique()
-                    extras_selecionados = st.multiselect("Selecione", options=extras_options, key="valores_extras_multiselect", label_visibility="collapsed")
-                    if extras_selecionados:
-                        for extra in extras_selecionados:
-                            extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                            st.markdown(f"--- \n **{extra}**")
-                            kpi1, kpi2 = st.columns(2)
-                            kpi1.metric(label="Unidade", value=extra_info['UNIDADE'])
-                            kpi2.metric(label="Valor Unitário", value=format_currency(extra_info['VALOR']))
-                            col_qtd, col_parcial = st.columns(2)
-                            key_slug = re.sub(r'[^a-zA-Z0-9]', '', extra)
-                            with col_qtd:
-                                qty_extra = st.number_input("Quantidade", min_value=0, step=1, key=f"qty_{key_slug}")
-                            with col_parcial:
-                                valor_unitario = safe_float(extra_info.get('VALOR'))
-                                valor_parcial_extra = qty_extra * valor_unitario
-                                st.metric(label="Subtotal do Extra", value=format_currency(valor_parcial_extra))
-                            
-                            col_data_extra, col_obs_extra = st.columns(2)
-                            with col_data_extra:
-                                datas_servico_extras[extra] = st.date_input("Data do Serviço", value=None, key=f"data_{key_slug}", help="Este campo é obrigatório")
-                            with col_obs_extra:
-                                observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}", placeholder="Obrigatório se houver quantidade")
-                            quantidades_extras[extra] = qty_extra
-
-            with st.form("lancamento_form"):
-                submitted = st.form_submit_button("✅ Adicionar Lançamento", use_container_width=True)
                 if submitted:
                     pass
         
@@ -902,4 +859,5 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
