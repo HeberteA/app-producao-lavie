@@ -132,28 +132,42 @@ def safe_float(value):
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=1000) 
+        st.image("Lavie.png", width=300) 
     
     st.header("Login")
     
-    codigos_obras = st.secrets.get("códigos_obras", {})
-    if not codigos_obras:
-        st.error("Códigos de acesso não configurados nos Secrets do Streamlit.")
-        return
+    admin_login = st.checkbox("Entrar como Administrador")
 
-    obra_login = st.selectbox("Selecione a Obra", options=obras_df['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
-    codigo_login = st.text_input("Código de Acesso", type="password")
-
-    if st.button("Entrar", use_container_width=True, type="primary"):
-        if obra_login and codigo_login:
-            if obra_login in codigos_obras and codigos_obras[obra_login] == codigo_login:
+    if admin_login:
+        admin_password = st.text_input("Senha de Administrador", type="password")
+        if st.button("Entrar como Admin", use_container_width=True, type="primary"):
+            if 'admin' in st.secrets and st.secrets.admin.password == admin_password:
                 st.session_state['logged_in'] = True
-                st.session_state['obra_logada'] = obra_login
+                st.session_state['role'] = 'admin'
+                st.session_state['obra_logada'] = 'Todas'
                 st.rerun()
             else:
-                st.error("Obra ou código de acesso incorreto.")
-        else:
-            st.warning("Por favor, selecione a obra e insira o código.")
+                st.error("Senha de administrador incorreta.")
+    else:
+        codigos_obras = st.secrets.get("códigos_obras", {})
+        if not codigos_obras:
+            st.error("Códigos de acesso não configurados nos Secrets do Streamlit.")
+            return
+
+        obra_login = st.selectbox("Selecione a Obra", options=obras_df['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
+        codigo_login = st.text_input("Código de Acesso", type="password")
+
+        if st.button("Entrar", use_container_width=True, type="primary"):
+            if obra_login and codigo_login:
+                if obra_login in codigos_obras and codigos_obras[obra_login] == codigo_login:
+                    st.session_state['logged_in'] = True
+                    st.session_state['role'] = 'user'
+                    st.session_state['obra_logada'] = obra_login
+                    st.rerun()
+                else:
+                    st.error("Obra ou código de acesso incorreto.")
+            else:
+                st.warning("Por favor, selecione a obra e insira o código.")
 
 # --- LÓGICA PRINCIPAL DO APP ---
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
@@ -179,16 +193,32 @@ else:
 
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
-        st.metric(label="Obra", value=st.session_state['obra_logada'])
+        if st.session_state['role'] == 'admin':
+            st.warning("Visão de Administrador")
+        else:
+            st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
+        
+        if st.button("Sair 🚪", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
         
         st.markdown("---")
         st.subheader("Menu")
         
         if 'page' not in st.session_state:
-            st.session_state.page = "Lançamento Folha 📝"
+            if st.session_state['role'] == 'admin':
+                st.session_state.page = "Auditoria ✏️"
+            else:
+                st.session_state.page = "Lançamento Folha 📝"
+        
+        if st.session_state['role'] == 'user':
+            if st.button("Lançamento Folha 📝", use_container_width=True):
+                st.session_state.page = "Lançamento Folha 📝"
+        else:
+             if st.button("Auditoria ✏️", use_container_width=True):
+                st.session_state.page = "Auditoria ✏️"
 
-        if st.button("Lançamento Folha 📝", use_container_width=True):
-            st.session_state.page = "Lançamento Folha 📝"
         if st.button("Resumo da Folha 📊", use_container_width=True):
             st.session_state.page = "Resumo da Folha 📊"
         if st.button("Editar Lançamentos ✏️", use_container_width=True):
@@ -215,15 +245,8 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-        st.markdown("---")
-        if st.button("Sair🚪", use_container_width=True):
-            del st.session_state['logged_in']
-            del st.session_state['obra_logada']
-            if 'page' in st.session_state:
-                del st.session_state['page']
-            st.rerun()
 
-    if st.session_state.page == "Lançamento Folha �":
+    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
 
@@ -529,5 +552,4 @@ else:
                     fig_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Mensal Total")
                     fig_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
                     st.plotly_chart(fig_mes, use_container_width=True)
-
 
