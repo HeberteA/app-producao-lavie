@@ -16,6 +16,10 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- CONSTANTES GLOBAIS ---
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP97sLKZ_dAwiiVwiI/edit?usp=sharing"
+COLUNAS_LANCAMENTOS = ['Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
+
 # --- FUNÇÕES DE CONEXÃO E DADOS ---
 @st.cache_resource
 def get_gsheets_connection():
@@ -81,19 +85,18 @@ def load_data_from_gsheets(url):
         
         ws_lancamentos = spreadsheet.worksheet("Lançamentos")
         lancamentos_data = ws_lancamentos.get_all_values()
-        colunas_lancamentos = ['Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
         if len(lancamentos_data) > 1:
-            data_rows = [row[:len(colunas_lancamentos)] for row in lancamentos_data[1:]]
-            lancamentos_df = pd.DataFrame(data_rows, columns=colunas_lancamentos)
+            data_rows = [row[:len(COLUNAS_LANCAMENTOS)] for row in lancamentos_data[1:]]
+            lancamentos_df = pd.DataFrame(data_rows, columns=COLUNAS_LANCAMENTOS)
         else:
-            lancamentos_df = pd.DataFrame(columns=colunas_lancamentos)
+            lancamentos_df = pd.DataFrame(columns=COLUNAS_LANCAMENTOS)
         
         for col in ['Quantidade', 'Valor Unitário', 'Valor Parcial']:
             if col in lancamentos_df.columns:
                 lancamentos_df[col] = pd.to_numeric(lancamentos_df[col], errors='coerce')
         
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
-        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce', dayfirst=True)
+        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
         lancamentos_df.dropna(subset=['Data'], inplace=True)
         return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df
 
@@ -153,12 +156,10 @@ def login_page(obras_df):
             st.warning("Por favor, selecione a obra e insira o código.")
 
 # --- LÓGICA PRINCIPAL DO APP ---
-sheet_url = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP97sLKZ_dAwiiVwiI/edit?usp=sharing"
-
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     try:
         gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(sheet_url)
+        spreadsheet = gc.open_by_url(SHEET_URL)
         ws_obras = spreadsheet.worksheet("Obras")
         obras_data = ws_obras.get_all_values()
         obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0])
@@ -167,7 +168,7 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     except Exception as e:
         st.error(f"Não foi possível conectar à planilha para o login. Erro: {e}")
 else:
-    data_tuple = load_data_from_gsheets(sheet_url)
+    data_tuple = load_data_from_gsheets(SHEET_URL)
     if not all(df is not None for df in data_tuple):
         st.error("Falha ao carregar os dados completos após o login.")
         st.stop()
@@ -269,7 +270,6 @@ else:
                 descricao_diverso = st.text_input("Descrição do Item Diverso")
                 valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
                 quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
-                
                 col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
                     data_servico_diverso = st.date_input("Data do Serviço", value=None, key="data_diverso")
@@ -321,14 +321,13 @@ else:
                     if quantidade_diverso > 0 and (not obs_diverso or not obs_diverso.strip()):
                         st.error("Erro no Item Diverso: A observação é obrigatória.")
                         erro_validacao = True
-
                     for extra, qty in quantidades_extras.items():
                         if qty > 0:
-                            if not datas_servico_extras.get(extra):
-                                st.error(f"Erro em '{extra}': A data de realização é obrigatória.")
-                                erro_validacao = True
                             if not observacoes_extras.get(extra) or not observacoes_extras.get(extra).strip():
                                 st.error(f"Erro em '{extra}': A observação é obrigatória.")
+                                erro_validacao = True
+                            if not datas_servico_extras.get(extra):
+                                st.error(f"Erro em '{extra}': A data de realização é obrigatória.")
                                 erro_validacao = True
                     
                     if not erro_validacao:
@@ -338,12 +337,12 @@ else:
                             st.warning("Adicione uma quantidade para o serviço principal, um valor extra ou um item diverso.")
                         else:
                             gc = get_gsheets_connection()
-                            ws_lancamentos = gc.open_by_url(sheet_url).worksheet("Lançamentos")
+                            ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
                             
                             def prepare_row_for_gsheet(data_dict):
-                                ordered_values = [data_dict.get(col, '') for col in colunas_lancamentos]
+                                ordered_values = [data_dict.get(col, '') for col in COLUNAS_LANCAMENTOS]
                                 for i, v in enumerate(ordered_values):
-                                    if isinstance(v, (datetime, pd.Timestamp, pd.core.indexes.datetimes.DatetimeIndex)):
+                                    if isinstance(v, (datetime, pd.Timestamp, pd.core.indexes.datetimes.DatetimeIndex, type(pd.to_datetime('today').date()))):
                                         ordered_values[i] = v.strftime("%Y-%m-%d") if i == 9 else v.strftime("%Y-%m-%d %H:%M:%S")
                                 return [str(val) for val in ordered_values]
 
@@ -511,5 +510,3 @@ else:
                 st.subheader("Produção Diária na Obra")
                 prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum()
                 st.line_chart(prod_dia)
-
-
