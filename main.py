@@ -445,11 +445,17 @@ else:
                             gc = get_gsheets_connection()
                             ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
                             
-                            df_novos = pd.DataFrame(novos_lancamentos_dicts)
                             df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
+
+# Formata as colunas de data
                             df_novos_ordenado['Data'] = df_novos_ordenado['Data'].dt.strftime('%Y-%m-%d %H:%M:%S')
                             df_novos_ordenado['Data do Serviço'] = df_novos_ordenado['Data do Serviço'].dt.strftime('%Y-%m-%d')
-                            
+
+# Converte colunas numéricas para o formato de moeda como string
+                            for col in ['Valor Unitário', 'Valor Parcial']:
+                                if col in df_novos_ordenado.columns:
+                                    df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{float(x):.2f}')
+
                             ws_lancamentos.append_rows(df_novos_ordenado.values.tolist(), value_input_option='USER_ENTERED')
                             
                             st.success("Lançamento(s) adicionado(s) com sucesso!")
@@ -833,6 +839,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
