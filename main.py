@@ -445,34 +445,45 @@ else:
         st.header("Gerenciar Funcionários 👥")
 
         st.subheader("Adicionar Novo Funcionário")
+
+        # PASSO 1: SELECIONAR A FUNÇÃO (FORA DO FORMULÁRIO)
+        lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
+        funcao_selecionada = st.selectbox(
+            "1. Selecione a Função",
+            options=lista_funcoes,
+            index=0,
+            help="A escolha da função preencherá o tipo e o salário automaticamente."
+        )
+
+        tipo = ""
+        salario = 0.0
         
-        if funcao:
-            info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao].iloc[0]
+        # PASSO 2: EXIBIR INFORMAÇÕES DA FUNÇÃO
+        if funcao_selecionada:
+            info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao_selecionada].iloc[0]
             tipo = info_funcao['TIPO']
             salario = info_funcao['SALARIO_BASE']
             
+            col_tipo, col_salario = st.columns(2)
+            col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True)
+            col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True)
 
+        # PASSO 3: FORMULÁRIO COM O RESTANTE DOS DADOS
         with st.form("add_funcionario_form", clear_on_submit=True):
             nome = st.text_input("2. Nome do Funcionário")
-            lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
-            funcao = st.selectbox("1. Selecione a Função", options=lista_funcoes, index=0)
-            tipo = ""
-            salario = 0.0
-            col_tipo, col_salario = st.columns(2)
-            col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True, key="tipo_contrato")
-            col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True, key="salario_base")
             obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
             
             submitted = st.form_submit_button("Adicionar Funcionário")
             if submitted:
-                if nome and funcao and obra:
+                if nome and funcao_selecionada and obra:
                     try:
                         gc = get_gsheets_connection()
                         ws_func = gc.open_by_url(SHEET_URL).worksheet("Funcionários")
-                        nova_linha = ['', nome, funcao, tipo, salario, obra]
+                        nova_linha = ['', nome, funcao_selecionada, tipo, salario, obra]
                         ws_func.append_row(nova_linha)
                         st.success(f"Funcionário '{nome}' adicionado com sucesso!")
                         st.cache_data.clear()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Ocorreu um erro ao adicionar o funcionário: {e}")
                 else:
@@ -518,6 +529,7 @@ else:
                         ws_obras.append_row([nome_obra])
                         st.success(f"Obra '{nome_obra}' adicionada com sucesso!")
                         st.cache_data.clear()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Ocorreu um erro ao adicionar a obra: {e}")
                 else:
@@ -846,6 +858,4 @@ else:
 
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
-
-
 
