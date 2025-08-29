@@ -328,7 +328,7 @@ else:
                 novo_status_obra = col2.selectbox("Status da Obra", options=STATUS_OPTIONS, index=STATUS_OPTIONS.index(status_atual_obra), key=f"status_obra_{obra}")
                 if novo_status_obra != status_atual_obra:
                     obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'Status'] = novo_status_obra
-                    st.toast(f"Status da obra {obra} atualizado para {novo_status_obra}!")
+                    st.toast(f"Status da obra {obra} alterado para {novo_status_obra}!")
 
             st.markdown("---")
             st.subheader("Auditoria por Funcionário")
@@ -362,7 +362,7 @@ else:
                     novo_status_func = st.selectbox("Status do Funcionário", options=STATUS_OPTIONS, index=STATUS_OPTIONS.index(status_atual_func), key=f"status_func_{func_nome}")
                     if novo_status_func != status_atual_func:
                         funcionarios_df.loc[funcionarios_df['NOME'] == func_nome, 'Status'] = novo_status_func
-                        st.toast(f"Status de {func_nome} atualizado para {novo_status_func}!")
+                        st.toast(f"Status de {func_nome} alterado para {novo_status_func}!")
 
                     st.markdown("##### Lançamentos")
                     edited_df = st.data_editor(
