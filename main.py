@@ -29,47 +29,40 @@ def get_gsheets_connection():
     )
     return gspread.authorize(creds)
 
-# Função para carregar os status de auditoria (CORRIGIDA)
+# Função para carregar os status de auditoria
 def load_status_data(spreadsheet):
     try:
         ws_status = spreadsheet.worksheet("StatusAuditoria")
         status_data = ws_status.get_all_records()
-        # Se a aba existe mas está vazia, get_all_records() retorna []
         if not status_data:
             return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
         
         df = pd.DataFrame(status_data)
-        # Garante que as colunas essenciais existam
         for col in ['Obra', 'Funcionario', 'Status']:
             if col not in df.columns:
-                df[col] = np.nan # Adiciona a coluna vazia se não existir
+                df[col] = np.nan
         return df
 
     except gspread.exceptions.WorksheetNotFound:
         st.warning("Aba 'StatusAuditoria' não encontrada. Para salvar o status das auditorias, crie uma aba com esse nome e as colunas: Obra, Funcionario, Status.")
         return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
 
-# Função para salvar os status de auditoria (AJUSTADA)
+# Função para salvar os status de auditoria
 def save_status_data(status_df, obra, funcionario, status):
     try:
-        # Tenta encontrar a linha existente
         condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
         
         if condition.any():
-            # Atualiza a linha existente no DataFrame local
             status_df.loc[condition, 'Status'] = status
         else:
-            # Adiciona uma nova linha ao DataFrame local
             new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': status}])
             status_df = pd.concat([status_df, new_row], ignore_index=True)
         
-        # Salva o DataFrame inteiro de volta na planilha
         gc = get_gsheets_connection()
         spreadsheet = gc.open_by_url(SHEET_URL)
         ws_status = spreadsheet.worksheet("StatusAuditoria")
         set_with_dataframe(ws_status, status_df, include_index=False, resize=True)
         st.toast(f"Status de '{funcionario}' atualizado para '{status}'", icon="💾")
-        # Limpa o cache para recarregar os dados na próxima execução
         st.cache_data.clear()
         return status_df
 
@@ -146,6 +139,8 @@ def load_data_from_gsheets(url):
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
         lancamentos_df.dropna(subset=['Data'], inplace=True)
+        lancamentos_df.reset_index(inplace=True)
+        lancamentos_df.rename(columns={'index': 'id_lancamento'}, inplace=True)
         
         status_df = load_status_data(spreadsheet)
         
@@ -179,13 +174,14 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
-def get_status_color_html(status):
+def get_status_color_html(status, font_size='1.1em'):
+    color = 'gray'
     if status == 'Aprovado':
-        return '<span style="color:green; font-weight:bold;">● Aprovado</span>'
+        color = 'green'
     elif status == 'Analisar':
-        return '<span style="color:red; font-weight:bold;">● Analisar</span>'
-    else: # A Revisar
-        return '<span style="color:gray; font-weight:bold;">● A Revisar</span>'
+        color = 'red'
+    
+    return f'<span style="color:{color}; font-weight:bold; font-size:{font_size};">● {status}</span>'
 
 def login_page(obras_df):
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -256,13 +252,11 @@ else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada = st.session_state['obra_logada']
             
-            # Exibir status da obra para o usuário normal
             status_geral_obra_row = status_df[(status_df['Obra'] == obra_logada) & (status_df['Funcionario'] == 'GERAL')]
+            status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
                 status_atual = status_geral_obra_row['Status'].iloc[0]
-                st.markdown(f"Status da Obra: {get_status_color_html(status_atual)}", unsafe_allow_html=True)
-            else:
-                st.markdown(f"Status da Obra: {get_status_color_html('A Revisar')}", unsafe_allow_html=True)
+            st.markdown(f"Status da Obra: {get_status_color_html(status_atual, font_size='1em')}", unsafe_allow_html=True)
 
         st.markdown("---")
         st.subheader("Menu")
@@ -318,7 +312,6 @@ else:
         col_form, col_view = st.columns(2)
 
         with col_form:
-            # ... (código do formulário de lançamento permanece o mesmo)
             quantidades_extras = {}
             observacoes_extras = {}
             datas_servico_extras = {}
@@ -331,6 +324,7 @@ else:
             servico_info = None
             obs_principal = ""
             data_servico_principal = None
+            funcionario_selecionado = None
             
             st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
             with st.container(border=True):
@@ -414,29 +408,19 @@ else:
                     pass
         
         with col_view:
-            st.subheader("Status da Auditoria")
-            obra_logada = st.session_state['obra_logada']
-            funcionarios_da_obra = funcionarios_df[funcionarios_df['OBRA'] == obra_logada]
-            status_da_obra = status_df[status_df['Obra'] == obra_logada]
+            # Mostra o status apenas se um funcionário foi selecionado
+            if funcionario_selecionado:
+                st.subheader("Status da Auditoria")
+                obra_logada = st.session_state['obra_logada']
+                status_da_obra = status_df[status_df['Obra'] == obra_logada]
+                
+                func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
+                status = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
+                st.markdown(f"**{funcionario_selecionado}:** {get_status_color_html(status)}", unsafe_allow_html=True)
+                st.markdown("---")
 
-            if funcionarios_da_obra.empty:
-                st.info("Nenhum funcionário cadastrado nesta obra.")
-            else:
-                status_list = []
-                for _, func_row in funcionarios_da_obra.iterrows():
-                    func_nome = func_row['NOME']
-                    func_status_row = status_da_obra[status_da_obra['Funcionario'] == func_nome]
-                    status = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
-                    status_list.append(f"**{func_nome}:** {get_status_color_html(status)}")
-                
-                num_cols = 2 if len(status_list) > 1 else 1
-                cols = st.columns(num_cols)
-                for i, status_html in enumerate(status_list):
-                    cols[i % num_cols].markdown(status_html, unsafe_allow_html=True)
-                
-            st.markdown("---")
             st.subheader("Histórico Recente na Obra")
-            if st.session_state.lancamentos:
+            if 'lancamentos' in st.session_state and st.session_state.lancamentos:
                 lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
                 lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
                 colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
@@ -446,7 +430,6 @@ else:
                 st.info("Nenhum lançamento adicionado ainda.")
 
     elif st.session_state.page == "Resumo da Folha 📊":
-        # ... (código do resumo da folha permanece o mesmo)
         st.header("Resumo da Folha")
         
         base_para_resumo = funcionarios_df.copy()
@@ -468,7 +451,7 @@ else:
         if base_para_resumo.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
-            if st.session_state.lancamentos:
+            if 'lancamentos' in st.session_state and st.session_state.lancamentos:
                 lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
                 producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
                 producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
@@ -487,7 +470,6 @@ else:
             st.dataframe(resumo_final_df.style.format(formatter={'SALÁRIO BASE (R$)': '{:,.2f}', 'PRODUÇÃO (R$)': '{:,.2f}', 'SALÁRIO A RECEBER (R$)': '{:,.2f}'}), use_container_width=True)
 
     elif st.session_state.page == "Editar Lançamentos ✏️":
-        # ... (código de editar lançamentos permanece o mesmo)
         st.header("Gerenciar Lançamentos")
         
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
@@ -497,9 +479,6 @@ else:
         if lancamentos_df.empty:
             st.info("Nenhum lançamento para editar.")
         else:
-            lancamentos_df.reset_index(inplace=True)
-            lancamentos_df.rename(columns={'index': 'id_lancamento'}, inplace=True)
-            
             funcionarios_para_filtrar = sorted(lancamentos_df['Funcionário'].unique())
             funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar)
 
@@ -528,23 +507,21 @@ else:
                     confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
                     if st.button("Remover Itens Selecionados", disabled=(not confirmacao_remocao), type="primary"):
                         ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
-                        df_original = pd.DataFrame(st.session_state.lancamentos).reset_index().rename(columns={'index': 'id_lancamento'})
+                        df_original = pd.DataFrame(st.session_state.lancamentos)
                         df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
-                        df_atualizado_final = df_atualizado.drop(columns=['id_lancamento'])
-
+                        
                         try:
                             gc = get_gsheets_connection()
                             ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                            ws_lancamentos.clear()
-                            set_with_dataframe(ws_lancamentos, df_atualizado_final, include_index=False, resize=True)
-                            st.session_state.lancamentos = df_atualizado_final.to_dict('records')
+                            set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento']), include_index=False, resize=True)
+                            st.session_state.lancamentos = df_atualizado.to_dict('records')
                             st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+                            st.cache_data.clear()
                             st.rerun()
                         except Exception as e:
                             st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
 
     elif st.session_state.page == "Dashboard de Análise 📈":
-        # ... (código do dashboard permanece o mesmo)
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         
@@ -566,9 +543,9 @@ else:
             df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
 
             funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-            funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
-            if funcionarios_filtrados:
-                df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados)]
+            funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+            if funcionarios_filtrados_dash:
+                df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
 
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
@@ -600,7 +577,6 @@ else:
         
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         
-        # Filtros
         col_filtro1, col_filtro2 = st.columns(2)
         obras_disponiveis = sorted(lancamentos_df['Obra'].unique())
         obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=obras_disponiveis, index=None, placeholder="Selecione uma obra...")
@@ -612,13 +588,11 @@ else:
 
         if obra_selecionada:
             st.markdown("---")
-            col_kpi_status, col_total_obra = st.columns([1, 2])
+            col_status, col_total_obra = st.columns([1, 2])
             
-            # Filtra os dataframes para a obra selecionada
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
 
-            # Calcula a produção
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
             
@@ -629,14 +603,13 @@ else:
             resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
-            # Lógica para o status da obra
-            with col_kpi_status:
+            with col_status:
+                st.markdown("##### Status Geral da Obra")
                 status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'GERAL')]
                 status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
-                
-                st.metric(label="Status Geral da Obra", value=status_atual_obra)
-                
-                with st.popover("Alterar Status da Obra"):
+                st.markdown(get_status_color_html(status_atual_obra, font_size='1.2em'), unsafe_allow_html=True)
+
+                with st.popover("Alterar Status"):
                     status_options = ['A Revisar', 'Aprovado', 'Analisar']
                     idx = status_options.index(status_atual_obra)
                     selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True, key=f"radio_status_obra_{obra_selecionada}")
@@ -644,7 +617,7 @@ else:
                         if selected_status_obra != status_atual_obra:
                             status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra)
                             st.rerun()
-
+            
             with col_total_obra:
                 total_produzido_obra = resumo_df['PRODUÇÃO (R$)'].sum()
                 st.metric("Total Produzido na Obra", format_currency(total_produzido_obra))
@@ -652,7 +625,6 @@ else:
             st.markdown("---")
             st.subheader("Análise por Funcionário")
 
-            # Aplica o filtro de funcionário, se houver
             if funcionarios_filtrados:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
 
@@ -670,9 +642,10 @@ else:
                     
                     status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                    header_cols[4].markdown(f"**Status:** {get_status_color_html(status_atual_func)}", unsafe_allow_html=True)
+                    header_cols[4].markdown(f"**Status:** {get_status_color_html(status_atual_func, font_size='1em')}", unsafe_allow_html=True)
                     
-                    with st.expander("Ver Lançamentos e Alterar Status", expanded=False):
+                    with st.expander("Ver Lançamentos, Alterar Status e Editar Observações", expanded=False):
+                        st.markdown("##### Status do Funcionário")
                         status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
                         idx_func = status_options_func.index(status_atual_func)
                         selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario}")
@@ -682,10 +655,46 @@ else:
                                 status_df = save_status_data(status_df, obra_selecionada, funcionario, selected_status_func)
                                 st.rerun()
 
-                        st.markdown("##### Lançamentos")
-                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario]
+                        st.markdown("---")
+                        st.markdown("##### Lançamentos e Observações")
+                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
                         
                         if lancamentos_do_funcionario.empty:
-                            st.info("Nenhum lançamento de produção para este funcionário na obra.")
+                            st.info("Nenhum lançamento de produção para este funcionário.")
                         else:
-                            st.dataframe(lancamentos_do_funcionario[['Data', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']], use_container_width=True)
+                            colunas_para_editar = {
+                                "id_lancamento": None,
+                                "Observação": st.column_config.TextColumn("Observação (Editável)", width="large"),
+                            }
+                            colunas_visiveis = ['Data', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação', 'id_lancamento']
+                            
+                            edited_df = st.data_editor(
+                                lancamentos_do_funcionario[colunas_visiveis],
+                                key=f"editor_{obra_selecionada}_{funcionario}",
+                                hide_index=True,
+                                column_config=colunas_para_editar,
+                                disabled=['Data', 'Serviço', 'Quantidade', 'Valor Parcial']
+                            )
+
+                            if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
+                                if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary"):
+                                    try:
+                                        lancamentos_df.set_index('id_lancamento', inplace=True)
+                                        edited_df.set_index('id_lancamento', inplace=True)
+                                        lancamentos_df.update(edited_df[['Observação']])
+                                        lancamentos_df.reset_index(inplace=True)
+
+                                        gc = get_gsheets_connection()
+                                        spreadsheet = gc.open_by_url(SHEET_URL)
+                                        ws_lancamentos = spreadsheet.worksheet("Lançamentos")
+                                        
+                                        df_to_save = lancamentos_df.drop(columns=['id_lancamento'])
+                                        set_with_dataframe(ws_lancamentos, df_to_save, include_index=False, resize=True)
+                                        
+                                        st.session_state.lancamentos = lancamentos_df.to_dict('records')
+                                        st.toast("Observações salvas com sucesso!", icon="✅")
+                                        st.cache_data.clear()
+                                        st.rerun()
+
+                                    except Exception as e:
+                                        st.error(f"Ocorreu um erro ao salvar as observações: {e}")
