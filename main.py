@@ -180,13 +180,6 @@ else:
         st.image("Lavie.png", use_container_width=True)
         st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
         
-        if st.button("Logout 🚪", use_container_width=True):
-            del st.session_state['logged_in']
-            del st.session_state['obra_logada']
-            if 'page' in st.session_state:
-                del st.session_state['page']
-            st.rerun()
-        
         st.markdown("---")
         st.subheader("Menu")
         
@@ -222,6 +215,14 @@ else:
                 use_container_width=True
             )
 
+        st.markdown("---")
+        if st.button("Sair 🚪", use_container_width=True):
+            del st.session_state['logged_in']
+            del st.session_state['obra_logada']
+            if 'page' in st.session_state:
+                del st.session_state['page']
+            st.rerun()
+            
     if st.session_state.page == "Lançamento Folha 📝":
         st.header("Adicionar Novo Lançamento de Produção")
         col_form, col_view = st.columns(2)
@@ -250,7 +251,7 @@ else:
                     funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
                     st.metric(label="Função do Colaborador", value=funcao_selecionada)
 
-            st.markdown("##### 🛠️ Passo 2: Selecione o Serviço Principal")
+            st.markdown("##### 🛠️ Selecione o Serviço Principal")
             with st.container(border=True):
                 disciplinas = precos_df['DISCIPLINA'].unique()
                 disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...")
@@ -277,7 +278,7 @@ else:
                     with col_obs_princ:
                         obs_principal = st.text_area("Observação", key="obs_principal")
             
-            st.markdown("##### Passo 3: Adicione Itens Extras (Opcional)")
+            st.markdown("##### Adicione Itens Extras")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso")
                 valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=0.01, format="%.2f", key="valor_diverso")
@@ -288,7 +289,7 @@ else:
                 with col_obs_div:
                     obs_diverso = st.text_area("Observação", key="obs_diverso")
 
-            with st.expander("➕ Lançar Valores Extras da Tabela"):
+            with st.expander("➕ Lançar Valores Extras"):
                 if valores_extras_df.empty:
                     st.info("Nenhum item na tabela de 'Valores Extras' da planilha.")
                 else:
@@ -314,7 +315,7 @@ else:
                             with col_data_extra:
                                 datas_servico_extras[extra] = st.date_input("Data do Serviço", value=None, key=f"data_{key_slug}", help="Este campo é obrigatório")
                             with col_obs_extra:
-                                observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}", placeholder="Este campo é obrigatório")
+                                observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}")
                             quantidades_extras[extra] = qty_extra
 
             with st.form("lancamento_form"):
@@ -546,6 +547,7 @@ else:
                     fig_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Mensal Total")
                     fig_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37731')
                     st.plotly_chart(fig_mes, use_container_width=True)
+
 
 
 
