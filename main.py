@@ -183,7 +183,15 @@ def get_status_color_html(status, font_size='1.1em'):
     elif status == 'Analisar':
         color = 'red'
     return f'<span style="color:{color}; font-weight:bold; font-size:{font_size};">● {status}</span>'
-    
+
+def display_status_box(label, status):
+    if status == 'Aprovado':
+        st.success(f"{label}: {status}")
+    elif status == 'Analisar':
+        st.error(f"{label}: {status}")
+    else:
+        st.info(f"{label}: {status}")
+        
 def style_status(status):
     color = 'gray'
     if status == 'Aprovado':
@@ -265,7 +273,7 @@ else:
             status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
                 status_atual = status_geral_obra_row['Status'].iloc[0]
-            st.warning(f"Status da Obra: {status_atual}")
+            display_status_box("Status Geral da Obra", status_atual_obra)
         st.markdown("---")
         st.subheader("Menu")
         if 'page' not in st.session_state:
@@ -519,7 +527,7 @@ else:
                 status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 
                 # Exibe o status com a formatação de cor
-                st.markdown(f"**{funcionario_selecionado}:** {get_status_color_html(status_atual)}", unsafe_allow_html=True)
+                display_status_box(f"Status de {funcionario_selecionado}", status_atual)
                 st.markdown("---")
             # --- FIM DA CORREÇÃO ---
 
@@ -839,7 +847,7 @@ else:
                 st.markdown("##### Status Geral da Obra")
                 status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'GERAL')]
                 status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
-                st.markdown(get_status_color_html(status_atual_obra, font_size='1.2em'), unsafe_allow_html=True)
+                display_status_box("Status Geral da Obra", status_atual_obra)
                 with st.popover("Alterar Status"):
                     todos_aprovados = True
                     nomes_funcionarios_obra = funcionarios_obra_df['NOME'].unique()
@@ -885,7 +893,7 @@ else:
                     # Busca e exibe o status atual com cor na última coluna do cabeçalho
                     status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                    header_cols[4].markdown(f"**Status:** {get_status_color_html(status_atual_func, font_size='1em')}", unsafe_allow_html=True)
+                    header_cols[4].display_status_box(f"Status de {funcionario_selecionado}", status_atual)
                     # --- FIM DA CORREÇÃO ---
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações", expanded=False):
@@ -930,6 +938,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
