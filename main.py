@@ -541,14 +541,16 @@ else:
         
         with col_view:
             if 'funcionario_selecionado' in locals() and funcionario_selecionado:
-                st.subheader("Status e Comentários")
+                st.subheader("Status do Funcionário")
                 obra_logada = st.session_state['obra_logada']
                 
                 status_da_obra = status_df[status_df['Obra'] == obra_logada]
                 func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
                 status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 display_status_box(f"Status de {funcionario_selecionado}", status_atual)
-
+                
+                st.markdown("---")
+                st.subheader("Comentários")
                 comment = ""
                 if not func_status_row.empty and 'Comentario' in func_status_row.columns:
                     comment = func_status_row['Comentario'].iloc[0]
@@ -993,6 +995,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
