@@ -183,6 +183,14 @@ def get_status_color_html(status, font_size='1.1em'):
     elif status == 'Analisar':
         color = 'red'
     return f'<span style="color:{color}; font-weight:bold; font-size:{font_size};">● {status}</span>'
+    
+def style_status(status):
+    color = 'gray'
+    if status == 'Aprovado':
+        color = 'green'
+    elif status == 'Analisar':
+        color = 'red'
+    return f'color: {color}; font-weight: bold;'
 
 # FUNÇÃO DE LOGIN RESTAURADA
 def login_page(obras_df):
@@ -500,14 +508,20 @@ else:
                                 st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
         
         with col_view:
+            # --- INÍCIO DA CORREÇÃO ---
             if 'funcionario_selecionado' in locals() and funcionario_selecionado:
                 st.subheader("Status da Auditoria")
                 obra_logada = st.session_state['obra_logada']
+                
+                # Busca o status atual do funcionário selecionado
                 status_da_obra = status_df[status_df['Obra'] == obra_logada]
                 func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
-                status = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
-                st.markdown(f"**{funcionario_selecionado}:** {get_status_color_html(status)}", unsafe_allow_html=True)
+                status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
+                
+                # Exibe o status com a formatação de cor
+                st.markdown(f"**{funcionario_selecionado}:** {get_status_color_html(status_atual)}", unsafe_allow_html=True)
                 st.markdown("---")
+            # --- FIM DA CORREÇÃO ---
 
             st.subheader("Histórico Recente na Obra")
             lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -656,8 +670,6 @@ else:
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
         
-        # --- INÍCIO DA CORREÇÃO ---
-        # Junção com a tabela de status
         resumo_com_status_df = pd.merge(
             resumo_df, 
             status_df, 
@@ -667,14 +679,16 @@ else:
         ).drop(columns=['Funcionario', 'Obra'])
         
         resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
-        # --- FIM DA CORREÇÃO ---
 
         resumo_com_status_df['PRODUÇÃO (R$)'] = resumo_com_status_df['PRODUÇÃO (R$)'].fillna(0)
         resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
         resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
         
-        # Adiciona a coluna 'Status' na visualização final
-        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'Status', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
+        # --- INÍCIO DA CORREÇÃO ---
+        # Reordena as colunas, colocando 'Status' no final
+        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status']
+        # --- FIM DA CORREÇÃO ---
+        
         colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
         resumo_final_df = resumo_final_df[colunas_existentes].reset_index(drop=True)
         
@@ -683,7 +697,7 @@ else:
                 'SALÁRIO BASE (R$)': 'R$ {:,.2f}',
                 'PRODUÇÃO (R$)': 'R$ {:,.2f}',
                 'SALÁRIO A RECEBER (R$)': 'R$ {:,.2f}'
-            }), 
+            }).applymap(style_status, subset=['Status']), # Aplica a função de cor na coluna 'Status'
             use_container_width=True
         )
 
@@ -860,14 +874,20 @@ else:
             else:
                 for index, row in resumo_df.iterrows():
                     funcionario = row['Funcionário']
+                    
+                    # --- INÍCIO DA CORREÇÃO ---
                     header_cols = st.columns([3, 2, 2, 2, 2])
                     header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
                     header_cols[1].metric("Salário Base", format_currency(row['SALÁRIO BASE (R$)']))
                     header_cols[2].metric("Produção", format_currency(row['PRODUÇÃO (R$)']))
                     header_cols[3].metric("Salário a Receber", format_currency(row['SALÁRIO A RECEBER (R$)']))
+
+                    # Busca e exibe o status atual com cor na última coluna do cabeçalho
                     status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                     header_cols[4].markdown(f"**Status:** {get_status_color_html(status_atual_func, font_size='1em')}", unsafe_allow_html=True)
+                    # --- FIM DA CORREÇÃO ---
+
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações", expanded=False):
                         st.markdown("##### Status do Funcionário")
                         status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
@@ -910,6 +930,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
