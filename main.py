@@ -641,7 +641,7 @@ else:
     elif st.session_state.page == "Editar Lançamentos ✏️":
         st.header("Gerenciar Lançamentos")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
-        if st.session_state['role'] == 'user':
+        if st.session_state['role'] == 'user' and not lancamentos_df.empty:
             lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
         if lancamentos_df.empty:
             st.info("Nenhum lançamento para editar.")
@@ -861,6 +861,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
