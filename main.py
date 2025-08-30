@@ -124,10 +124,11 @@ def load_data_from_gsheets(url):
             lancamentos_df = pd.DataFrame(data_rows, columns=COLUNAS_LANCAMENTOS)
         else:
             lancamentos_df = pd.DataFrame(columns=COLUNAS_LANCAMENTOS)
-        
+
+        # CORREÇÃO: Aplica a função clean_value que trata vírgulas e R$
         for col in ['Quantidade', 'Valor Unitário', 'Valor Parcial']:
             if col in lancamentos_df.columns:
-                lancamentos_df[col] = pd.to_numeric(lancamentos_df[col], errors='coerce')
+                lancamentos_df[col] = lancamentos_df[col].apply(clean_value).fillna(0))
         
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
@@ -610,7 +611,7 @@ else:
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
         base_para_resumo = funcionarios_df.copy()
-        if st.session_state['role'] == 'user':
+        if st.session_state['role'] == 'user' and not base_para_resumo.empty:
             st.header(f"Obra: {st.session_state['obra_logada']}")
             base_para_resumo = base_para_resumo[base_para_resumo['OBRA'] == st.session_state['obra_logada']]
         else: 
@@ -861,6 +862,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
