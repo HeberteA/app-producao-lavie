@@ -128,7 +128,7 @@ def load_data_from_gsheets(url):
         # CORREÇÃO: Aplica a função clean_value que trata vírgulas e R$
         for col in ['Quantidade', 'Valor Unitário', 'Valor Parcial']:
             if col in lancamentos_df.columns:
-                lancamentos_df[col] = lancamentos_df[col].apply(clean_value).fillna(0))
+                lancamentos_df[col] = lancamentos_df[col].apply(clean_value).fillna(0)
         
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
@@ -862,6 +862,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
