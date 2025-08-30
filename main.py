@@ -993,7 +993,6 @@ else:
                     aviso_atual = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'Aviso'].iloc[0]
                 
                 novo_aviso = st.text_area(
-                    "Edite o aviso:", 
                     value=aviso_atual, 
                     key=f"aviso_{obra_selecionada}"
                 )
@@ -1101,6 +1100,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
