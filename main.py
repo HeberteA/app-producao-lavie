@@ -652,10 +652,9 @@ else:
             if funcionario_filtrado:
                 df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
             if df_filtrado.empty:
-                st.warning("Nenhum lançamento encontrado.")
+                st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
                 df_filtrado['Remover'] = False
-                # Adicionando 'Valor Unitário' à lista de colunas
                 colunas_visiveis = ['Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 'Data do Serviço', 'id_lancamento']
                 colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
                 
@@ -667,23 +666,28 @@ else:
                     column_config={
                         "Remover": st.column_config.CheckboxColumn(required=True),
                         "id_lancamento": None,
-                        "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"), # Formatando como moeda
-                        "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")    # Formatando como moeda
+                        "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
+                        "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
                     },
-                    disabled=df_filtrado.columns.drop(['Remover', 'id_lancamento'])
+                    disabled=df_filtrado.columns.drop(['Remover', 'id_lancamento'], errors='ignore')
                 )
+                
+                linhas_para_remover = df_modificado[df_modificado['Remover']]
+                
                 if not linhas_para_remover.empty:
                     st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
-                    st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento']))
+                    st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento'], errors='ignore'))
                     confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
+                    
                     if st.button("Remover Itens Selecionados", disabled=(not confirmacao_remocao), type="primary"):
                         ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
                         df_original = pd.DataFrame(st.session_state.lancamentos)
                         df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
+                        
                         try:
                             gc = get_gsheets_connection()
                             ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                            set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento']), include_index=False, resize=True)
+                            set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento'], errors='ignore'), include_index=False, resize=True)
                             st.session_state.lancamentos = df_atualizado.to_dict('records')
                             st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
                             st.cache_data.clear()
@@ -857,6 +861,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
