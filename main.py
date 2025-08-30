@@ -906,6 +906,22 @@ else:
                 fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
                 st.plotly_chart(fig_bar_func, use_container_width=True)
                 
+                
+                st.markdown("---")
+                st.subheader("Produção ao Longo do Tempo")
+                col_diag, col_mes = st.columns(2)
+                with col_diag:
+                    prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
+                    fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
+                    fig_line.update_traces(line_color=cor_padrao, marker=dict(color=cor_padrao))
+                    st.plotly_chart(fig_line, use_container_width=True)
+                with col_mes:
+                    prod_mes = df_filtrado_dash.set_index('Data').resample('ME')['Valor Parcial'].sum().reset_index()
+                    prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%Y-%m')
+                    fig_bar_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Total Mensal")
+                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
+                    st.plotly_chart(fig_bar_mes, use_container_width=True)
+            
                 if st.session_state['role'] == 'admin':
                     st.markdown("---")
                     st.subheader("Análise de Serviços")
@@ -924,21 +940,6 @@ else:
                         fig_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
                         st.plotly_chart(fig_custo, use_container_width=True)
                 
-                st.markdown("---")
-                st.subheader("Produção ao Longo do Tempo")
-                col_diag, col_mes = st.columns(2)
-                with col_diag:
-                    prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
-                    fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
-                    fig_line.update_traces(line_color=cor_padrao, marker=dict(color=cor_padrao))
-                    st.plotly_chart(fig_line, use_container_width=True)
-                with col_mes:
-                    prod_mes = df_filtrado_dash.set_index('Data').resample('ME')['Valor Parcial'].sum().reset_index()
-                    prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%Y-%m')
-                    fig_bar_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Total Mensal")
-                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
-                    st.plotly_chart(fig_bar_mes, use_container_width=True)
-                # --- FIM DA CORREÇÃO 2 ---
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
         st.header("Auditoria de Lançamentos")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -1100,6 +1101,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
