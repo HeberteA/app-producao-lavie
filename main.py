@@ -575,12 +575,14 @@ else:
                 status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 display_status_box(f"Status de {funcionario_selecionado}", status_atual)
                 
-                st.markdown("---")
-                st.subheader("Comentários")
+                
                 comment = ""
                 if not func_status_row.empty and 'Comentario' in func_status_row.columns:
                     comment = func_status_row['Comentario'].iloc[0]
-
+                                
+                st.markdown("---")
+                st.subheader("Comentários")
+                
                 if comment and str(comment).strip():
                     st.warning(f"Comentário: {comment}")
                 
@@ -1036,6 +1038,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
