@@ -273,7 +273,7 @@ else:
             status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
                 status_atual = status_geral_obra_row['Status'].iloc[0]
-            display_status_box("Status Geral da Obra", status_atual_obra)
+            display_status_box("Status da Obra", status_atual)
         st.markdown("---")
         st.subheader("Menu")
         if 'page' not in st.session_state:
@@ -938,6 +938,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
