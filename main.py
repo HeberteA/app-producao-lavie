@@ -155,6 +155,9 @@ def load_data_from_gsheets(url):
         obras_data = ws_obras.get_all_values()
         obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0])
         obras_df.dropna(how='all', inplace=True)
+
+        if 'Aviso' not in obras_df.columns:
+            obras_df['Aviso'] = ''
         
         ws_lancamentos = spreadsheet.worksheet("Lançamentos")
         lancamentos_data = ws_lancamentos.get_all_values()
@@ -308,11 +311,19 @@ else:
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada = st.session_state['obra_logada']
+
             status_geral_obra_row = status_df[(status_df['Obra'] == obra_logada) & (status_df['Funcionario'] == 'GERAL')]
             status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
                 status_atual = status_geral_obra_row['Status'].iloc[0]
             display_status_box("Status da Obra", status_atual)
+
+            aviso_obra = ""
+            if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada].empty:
+                aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'Aviso'].iloc[0]
+            
+            if aviso_obra and str(aviso_obra).strip():
+                st.error(f"📢 Aviso: {aviso_obra}")
         st.markdown("---")
         st.subheader("Menu")
         if 'page' not in st.session_state:
@@ -876,24 +887,16 @@ else:
             funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
         if obra_selecionada:
             st.markdown("---")
-            col_status, col_total_obra = st.columns([1, 2])
-            lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
-            
-            funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
-            producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-            if 'Funcionário' in resumo_df.columns:
-                resumo_df = resumo_df.drop(columns=['Funcionário'])
-            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-            resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
-            resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
-            with col_status:
+            # --- INÍCIO DA CORREÇÃO ---
+            col_status_geral, col_aviso_geral = st.columns(2)
+
+            with col_status_geral:
                 st.markdown("##### Status Geral da Obra")
                 status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'GERAL')]
                 status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
-                display_status_box("Status Geral da Obra", status_atual_obra)
+                display_status_box("Status Geral", status_atual_obra)
                 with st.popover("Alterar Status"):
+                    # ... (o restante do código do popover continua aqui)
                     todos_aprovados = True
                     nomes_funcionarios_obra = funcionarios_obra_df['NOME'].unique()
                     if len(nomes_funcionarios_obra) > 0:
@@ -915,9 +918,23 @@ else:
                         if selected_status_obra != status_atual_obra:
                             status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra)
                             st.rerun()
-            with col_total_obra:
-                total_produzido_obra = resumo_df['PRODUÇÃO (R$)'].sum()
-                st.metric("Total Produzido na Obra", format_currency(total_produzido_obra))
+
+            with col_aviso_geral:
+                st.markdown("##### Aviso Geral da Obra")
+                # Busca o aviso atual no DataFrame de obras
+                aviso_atual = ""
+                if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_selecionada].empty:
+                    aviso_atual = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'Aviso'].iloc[0]
+                
+                novo_aviso = st.text_area(
+                    "Edite o aviso (visível no menu do usuário):", 
+                    value=aviso_atual, 
+                    key=f"aviso_{obra_selecionada}"
+                )
+                if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
+                    obras_df = save_aviso_data(obras_df, obra_selecionada, novo_aviso)
+                    st.rerun()
+            # --- FIM DA CORREÇÃO ---
             st.markdown("---")
             st.subheader("Análise por Funcionário")
             if funcionarios_filtrados:
@@ -1010,6 +1027,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
