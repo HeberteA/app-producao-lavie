@@ -886,8 +886,9 @@ else:
             funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
             funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
         if obra_selecionada:
+            lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
+            funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
             st.markdown("---")
-            # --- INÍCIO DA CORREÇÃO ---
             col_status_geral, col_aviso_geral = st.columns(2)
 
             with col_status_geral:
@@ -1027,6 +1028,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
