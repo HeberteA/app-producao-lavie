@@ -342,7 +342,7 @@ else:
 
         if st.button("Resumo da Folha 📊", use_container_width=True):
             st.session_state.page = "Resumo da Folha 📊"
-        if st.button("Remover Lançamentos ✏🗑️", use_container_width=True):
+        if st.button("Remover Lançamentos 🗑️", use_container_width=True):
             st.session_state.page = "Remover Lançamentos 🗑️"
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
@@ -1036,6 +1036,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
