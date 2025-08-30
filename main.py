@@ -257,8 +257,7 @@ else:
             status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
                 status_atual = status_geral_obra_row['Status'].iloc[0]
-            st.markdown(f"Status da Obra: {get_status_color_html(status_atual, font_size='1em')}", unsafe_allow_html=True)
-
+            st.warning(f"Status da Obra: {status_atual}")
         st.markdown("---")
         st.subheader("Menu")
         if 'page' not in st.session_state:
@@ -646,17 +645,47 @@ else:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
             lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+        if not lancamentos_df.empty:
             producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
             resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-            if 'Funcionário' in resumo_df.columns:
-                resumo_df = resumo_df.drop(columns=['Funcionário'])
-            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-            resumo_final_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
-            resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
-            colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
-            resumo_final_df = resumo_final_df[colunas_finais].reset_index(drop=True)
-            st.dataframe(resumo_final_df.style.format(formatter={'SALÁRIO BASE (R$)': '{:,.2f}', 'PRODUÇÃO (R$)': '{:,.2f}', 'SALÁRIO A RECEBER (R$)': '{:,.2f}'}), use_container_width=True)
+        else:
+            resumo_df = base_para_resumo.copy()
+            resumo_df['PRODUÇÃO (R$)'] = 0
+            
+        if 'Funcionário' in resumo_df.columns:
+            resumo_df = resumo_df.drop(columns=['Funcionário'])
+        
+        # --- INÍCIO DA CORREÇÃO ---
+        # Junção com a tabela de status
+        resumo_com_status_df = pd.merge(
+            resumo_df, 
+            status_df, 
+            left_on=['NOME', 'OBRA'], 
+            right_on=['Funcionario', 'Obra'], 
+            how='left'
+        ).drop(columns=['Funcionario', 'Obra'])
+        
+        resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
+        # --- FIM DA CORREÇÃO ---
+
+        resumo_com_status_df['PRODUÇÃO (R$)'] = resumo_com_status_df['PRODUÇÃO (R$)'].fillna(0)
+        resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
+        resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
+        
+        # Adiciona a coluna 'Status' na visualização final
+        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'Status', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
+        colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
+        resumo_final_df = resumo_final_df[colunas_existentes].reset_index(drop=True)
+        
+        st.dataframe(
+            resumo_final_df.style.format({
+                'SALÁRIO BASE (R$)': 'R$ {:,.2f}',
+                'PRODUÇÃO (R$)': 'R$ {:,.2f}',
+                'SALÁRIO A RECEBER (R$)': 'R$ {:,.2f}'
+            }), 
+            use_container_width=True
+        )
 
     elif st.session_state.page == "Editar Lançamentos ✏️":
         st.header("Gerenciar Lançamentos")
@@ -881,6 +910,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
