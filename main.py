@@ -785,22 +785,42 @@ else:
 
     elif st.session_state.page == "Remover Lançamentos 🗑️":
         st.header("Gerenciar Lançamentos")
-        lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
-        if st.session_state['role'] == 'user' and not lancamentos_df.empty:
-            lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
-        if lancamentos_df.empty:
+        
+        df_para_editar = pd.DataFrame(st.session_state.lancamentos).copy()
+        
+        # --- INÍCIO DA CORREÇÃO 1: FILTRO POR OBRA PARA ADMIN ---
+        # Filtra por obra logada para usuário ou permite seleção para admin
+        if st.session_state['role'] == 'user':
+            if not df_para_editar.empty:
+                df_para_editar = df_para_editar[df_para_editar['Obra'] == st.session_state['obra_logada']]
+        else: # Se for admin, mostra o filtro de obras
+            obras_disponiveis = sorted(df_para_editar['Obra'].unique())
+            obras_filtradas = st.multiselect("Filtrar por Obra(s):", options=obras_disponiveis)
+            if obras_filtradas:
+                df_para_editar = df_para_editar[df_para_editar['Obra'].isin(obras_filtradas)]
+        # --- FIM DA CORREÇÃO 1 ---
+
+        if df_para_editar.empty:
             st.info("Nenhum lançamento para editar.")
         else:
-            funcionarios_para_filtrar = sorted(lancamentos_df['Funcionário'].unique())
+            funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
             funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar)
-            df_filtrado = lancamentos_df.copy()
+            
+            df_filtrado = df_para_editar.copy()
             if funcionario_filtrado:
                 df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
+
             if df_filtrado.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
                 df_filtrado['Remover'] = False
-                colunas_visiveis = ['Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 'Data do Serviço', 'id_lancamento']
+                
+                # --- INÍCIO DA CORREÇÃO 2: ADICIONAR COLUNA DISCIPLINA ---
+                colunas_visiveis = [
+                    'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
+                    'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 
+                    'Data do Serviço', 'id_lancamento'
+                ]
                 colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
                 
                 st.write("Marque as caixas dos lançamentos que deseja apagar e clique no botão de remoção.")
@@ -811,6 +831,7 @@ else:
                     column_config={
                         "Remover": st.column_config.CheckboxColumn(required=True),
                         "id_lancamento": None,
+                        "Disciplina": st.column_config.TextColumn("Disciplina"),
                         "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
                         "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
                     },
@@ -1111,14 +1132,33 @@ else:
                             st.info("Nenhum lançamento de produção para este funcionário.")
                         else:
                             colunas_para_editar = {"id_lancamento": None, "Observação": st.column_config.TextColumn("Observação (Editável)", width="large")}
-                            colunas_visiveis = ['Data', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação', 'id_lancamento']
+                            colunas_visiveis = [
+                                'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
+                                'Valor Unitário', 'Valor Parcial', 'Observação', 'id_lancamento'
+                            ]
+
+                            colunas_config = {
+                                "id_lancamento": None,
+                                "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
+                                "Disciplina": st.column_config.TextColumn("Disciplina"),
+                                "Serviço": st.column_config.TextColumn("Serviço", width="large"),
+                                "Valor Unitário": st.column_config.NumberColumn("V. Unit.", format="R$ %.2f"),
+                                "Valor Parcial": st.column_config.NumberColumn("V. Parcial", format="R$ %.2f"),
+                                "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
+                            }
+
+                            colunas_desabilitadas = [
+                                'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
+                                'Valor Unitário', 'Valor Parcial'
+                            ]
+
                             edited_df = st.data_editor(
                                 lancamentos_do_funcionario[colunas_visiveis],
                                 key=f"editor_{obra_selecionada}_{funcionario}",
                                 hide_index=True,
-                                column_config=colunas_para_editar,
-                                disabled=['Data', 'Serviço', 'Quantidade', 'Valor Parcial']
-                            )
+                                column_config=colunas_config,
+                                disabled=colunas_desabilitadas
+                                
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary"):
                                     try:
@@ -1137,6 +1177,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
