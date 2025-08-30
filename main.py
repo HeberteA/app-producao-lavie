@@ -992,10 +992,7 @@ else:
                 if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_selecionada].empty:
                     aviso_atual = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'Aviso'].iloc[0]
                 
-                novo_aviso = st.text_area(
-                    value=aviso_atual, 
-                    key=f"aviso_{obra_selecionada}"
-                )
+                
                 if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
                     obras_df = save_aviso_data(obras_df, obra_selecionada, novo_aviso)
                     st.rerun()
@@ -1100,6 +1097,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
