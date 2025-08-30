@@ -995,7 +995,7 @@ else:
                 novo_aviso = st.text_area(
                     "Edite o aviso",
                     value=aviso_atual, 
-                    key=f"aviso_{obra_selecionada},
+                    key=f"aviso_{obra_selecionada}",
                     label_visibility="collapsed"
                 )
                 if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
@@ -1102,6 +1102,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
