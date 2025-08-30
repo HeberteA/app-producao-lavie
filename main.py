@@ -751,6 +751,7 @@ else:
             st.markdown("---")
             col_status, col_total_obra = st.columns([1, 2])
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
+            
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
@@ -849,6 +850,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
