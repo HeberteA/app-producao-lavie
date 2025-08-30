@@ -34,16 +34,40 @@ def load_status_data(spreadsheet):
         ws_status = spreadsheet.worksheet("StatusAuditoria")
         status_data = ws_status.get_all_records()
         if not status_data:
-            return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
+            # Garante que todas as colunas existam mesmo se a planilha estiver vazia
+            return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status', 'Comentario'])
         df = pd.DataFrame(status_data)
-        for col in ['Obra', 'Funcionario', 'Status']:
+        # Verifica se as colunas essenciais existem, se não, as cria em branco
+        for col in ['Obra', 'Funcionario', 'Status', 'Comentario']:
             if col not in df.columns:
-                df[col] = np.nan
+                df[col] = ''
         return df
     except gspread.exceptions.WorksheetNotFound:
-        st.warning("Aba 'StatusAuditoria' não encontrada. Para salvar o status das auditorias, crie uma aba com esse nome e as colunas: Obra, Funcionario, Status.")
-        return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status'])
+        st.warning("Aba 'StatusAuditoria' não encontrada. Crie uma aba com esse nome e as colunas: Obra, Funcionario, Status, Comentario.")
+        return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status', 'Comentario'])
 
+def save_comment_data(status_df, obra, funcionario, comment):
+    try:
+        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
+        # Se já existe uma linha para o funcionário, atualiza o comentário
+        if condition.any():
+            status_df.loc[condition, 'Comentario'] = comment
+        # Se não existe, cria uma nova linha com o status padrão e o comentário
+        else:
+            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': 'A Revisar', 'Comentario': comment}])
+            status_df = pd.concat([status_df, new_row], ignore_index=True)
+        
+        gc = get_gsheets_connection()
+        spreadsheet = gc.open_by_url(SHEET_URL)
+        ws_status = spreadsheet.worksheet("StatusAuditoria")
+        set_with_dataframe(ws_status, status_df, include_index=False, resize=True)
+        st.toast(f"Comentário para '{funcionario}' salvo com sucesso!", icon="💬")
+        st.cache_data.clear()
+        return status_df
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao salvar o comentário: {e}")
+    return status_df
+    
 def save_status_data(status_df, obra, funcionario, status):
     try:
         condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
@@ -516,20 +540,28 @@ else:
                                 st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
         
         with col_view:
-            # --- INÍCIO DA CORREÇÃO ---
             if 'funcionario_selecionado' in locals() and funcionario_selecionado:
-                st.subheader("Status da Auditoria")
+                st.subheader("Status e Comentários da Auditoria")
                 obra_logada = st.session_state['obra_logada']
                 
-                # Busca o status atual do funcionário selecionado
                 status_da_obra = status_df[status_df['Obra'] == obra_logada]
                 func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
-                status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 
-                # Exibe o status com a formatação de cor
+                # --- INÍCIO DA CORREÇÃO ---
+                # 1. Exibe o Status
+                status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 display_status_box(f"Status de {funcionario_selecionado}", status_atual)
+                
+                # 2. Exibe o Comentário logo abaixo, se existir
+                comment = ""
+                if not func_status_row.empty and 'Comentario' in func_status_row.columns:
+                    comment = func_status_row['Comentario'].iloc[0]
+
+                if comment and str(comment).strip():
+                    st.warning(f"💬 Comentário: {comment}")
+                
                 st.markdown("---")
-            # --- FIM DA CORREÇÃO ---
+                # --- FIM DA CORREÇÃO ---
 
             st.subheader("Histórico Recente na Obra")
             lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -905,6 +937,27 @@ else:
                             if selected_status_func != status_atual_func:
                                 status_df = save_status_data(status_df, obra_selecionada, funcionario, selected_status_func)
                                 st.rerun()
+                        
+                        # --- INÍCIO DO NOVO BLOCO ---
+                        st.markdown("---")
+                        st.markdown("##### Adicionar/Editar Comentário de Auditoria")
+                        
+                        # Busca o comentário atual
+                        comment_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
+                        current_comment = ""
+                        if not comment_row.empty and 'Comentario' in comment_row.columns:
+                            current_comment = str(comment_row['Comentario'].iloc[0])
+
+                        new_comment = st.text_area(
+                            "Comentário para o funcionário (visível na tela de lançamento):", 
+                            value=current_comment, 
+                            key=f"comment_{obra_selecionada}_{funcionario}"
+                        )
+                        
+                        if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}"):
+                            status_df = save_comment_data(status_df, obra_selecionada, funcionario, new_comment)
+                            st.rerun()
+                     
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
                         lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
@@ -938,6 +991,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
