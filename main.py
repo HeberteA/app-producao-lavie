@@ -929,35 +929,42 @@ else:
                         display_status_box("Status", status_atual_func)
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações", expanded=False):
-                        st.markdown("##### Status do Funcionário")
-                        status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
-                        idx_func = status_options_func.index(status_atual_func)
-                        selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario}")
-                        if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}"):
-                            if selected_status_func != status_atual_func:
-                                status_df = save_status_data(status_df, obra_selecionada, funcionario, selected_status_func)
-                                st.rerun()
-                        
-                        # --- INÍCIO DO NOVO BLOCO ---
-                        st.markdown("---")
-                        st.markdown("##### Adicionar/Editar Comentário de Auditoria")
-                        
-                        # Busca o comentário atual
-                        comment_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
-                        current_comment = ""
-                        if not comment_row.empty and 'Comentario' in comment_row.columns:
-                            current_comment = str(comment_row['Comentario'].iloc[0])
+                        col_status, col_comment = st.columns(2)
 
-                        new_comment = st.text_area(
-                            "Comentário para o funcionário (visível na tela de lançamento):", 
-                            value=current_comment, 
-                            key=f"comment_{obra_selecionada}_{funcionario}"
-                        )
-                        
-                        if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}"):
-                            status_df = save_comment_data(status_df, obra_selecionada, funcionario, new_comment)
-                            st.rerun()
-                     
+                        with col_status:
+                            st.markdown("##### Status do Funcionário")
+                            status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
+                            idx_func = status_options_func.index(status_atual_func)
+                            selected_status_func = st.radio(
+                                "Definir Status:", 
+                                options=status_options_func, 
+                                index=idx_func, 
+                                horizontal=True, 
+                                key=f"status_{obra_selecionada}_{funcionario}"
+                            )
+                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}"):
+                                if selected_status_func != status_atual_func:
+                                    status_df = save_status_data(status_df, obra_selecionada, funcionario, selected_status_func)
+                                    st.rerun()
+
+                        with col_comment:
+                            st.markdown("##### Comentário de Auditoria")
+                            comment_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
+                            current_comment = ""
+                            if not comment_row.empty and 'Comentario' in comment_row.columns:
+                                current_comment = str(comment_row['Comentario'].iloc[0])
+
+                            new_comment = st.text_area(
+                                "Adicionar/Editar Comentário:", 
+                                value=current_comment, 
+                                key=f"comment_{obra_selecionada}_{funcionario}",
+                                help="Este comentário será visível na tela de lançamento."
+                            )
+                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}"):
+                                status_df = save_comment_data(status_df, obra_selecionada, funcionario, new_comment)
+                                st.rerun()
+                        # --- FIM DA CORREÇÃO ---
+
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
                         lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
@@ -991,6 +998,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
