@@ -828,9 +828,12 @@ else:
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         base_para_dash = lancamentos_df.copy()
-        if st.session_state['role'] == 'user' and not base_para_dash.empty:
+
+        if st.session_state['role'] == 'user':
             st.header(f"Obra: {st.session_state['obra_logada']}")
-            base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
+            if not base_para_dash.empty:
+                base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
+
         if base_para_dash.empty:
             st.info("Ainda não há lançamentos para analisar.")
         else:
@@ -838,30 +841,62 @@ else:
             col1, col2 = st.columns(2)
             data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date())
             data_fim = col2.date_input("Data de Fim", value=datetime.now().date())
+            
             data_inicio_ts = pd.to_datetime(data_inicio)
             data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
+            
             df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
+            
+            # --- INÍCIO DA CORREÇÃO 1: FILTRO POR OBRA PARA ADMIN ---
+            if st.session_state['role'] == 'admin':
+                obras_disponiveis = sorted(df_filtrado_dash['Obra'].unique())
+                obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
+                if obras_filtradas_dash:
+                    df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
+            # --- FIM DA CORREÇÃO 1 ---
+
             funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
             funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
             if funcionarios_filtrados_dash:
                 df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+            
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
                 st.markdown("---")
-                kpi1, kpi2, kpi3 = st.columns(3)
+                
+                # --- INÍCIO DA CORREÇÃO 2: CARD DE OBRA DESTAQUE ---
+                kpi_cols = st.columns(4)
                 total_produzido = df_filtrado_dash['Valor Parcial'].sum()
-                kpi1.metric("Produção Total", format_currency(total_produzido))
+                kpi_cols[0].metric("Produção Total", format_currency(total_produzido))
+                
+                top_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().idxmax()
+                kpi_cols[1].metric("Obra Destaque", top_obra)
+                
                 top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
-                kpi2.metric("Funcionário Destaque", top_funcionario)
+                kpi_cols[2].metric("Funcionário Destaque", top_funcionario)
+                
                 top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
-                kpi3.metric("Serviço de Maior Custo", top_servico)
+                kpi_cols[3].metric("Serviço de Maior Custo", top_servico)
+                # --- FIM DA CORREÇÃO 2 ---
+
                 st.markdown("---")
+
+                # --- INÍCIO DA CORREÇÃO 3: GRÁFICO DE PRODUÇÃO POR OBRA ---
+                if st.session_state['role'] == 'admin':
+                    st.subheader("Produção por Obra")
+                    prod_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
+                    fig_bar_obra = px.bar(prod_obra, x='Obra', y='Valor Parcial', text_auto=True, title="Produção Total por Obra")
+                    fig_bar_obra.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#4682B4')
+                    st.plotly_chart(fig_bar_obra, use_container_width=True)
+                # --- FIM DA CORREÇÃO 3 ---
+                
                 st.subheader("Produção por Funcionário")
                 prod_func = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
                 fig_bar_func = px.bar(prod_func, x='Funcionário', y='Valor Parcial', text_auto=True, title="Produção Total por Funcionário")
                 fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37026')
                 st.plotly_chart(fig_bar_func, use_container_width=True)
+                
                 col_diag, col_mes = st.columns(2)
                 with col_diag:
                     st.subheader("Produção Diária")
@@ -1038,6 +1073,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
