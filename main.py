@@ -67,6 +67,21 @@ def save_comment_data(status_df, obra, funcionario, comment):
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar o comentário: {e}")
     return status_df
+
+def save_aviso_data(obras_df, obra, aviso):
+    try:
+        obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'Aviso'] = aviso
+        
+        gc = get_gsheets_connection()
+        spreadsheet = gc.open_by_url(SHEET_URL)
+        ws_obras = spreadsheet.worksheet("Obras")
+        set_with_dataframe(ws_obras, obras_df, include_index=False, resize=True)
+        st.toast(f"Aviso para a obra '{obra}' salvo com sucesso!", icon="📢")
+        st.cache_data.clear()
+        return obras_df
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao salvar o aviso: {e}")
+    return obras_df
     
 def save_status_data(status_df, obra, funcionario, status):
     try:
@@ -995,6 +1010,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
