@@ -863,95 +863,82 @@ else:
             else:
                 st.markdown("---")
                 
+                # --- INÍCIO DA CORREÇÃO 1: VOLTA PARA O st.metric E AJUSTA TEXTO LONGO ---
                 total_produzido = df_filtrado_dash['Valor Parcial'].sum()
                 top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
                 top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
-                
-                # --- INÍCIO DA CORREÇÃO 1 e 2: CARDS CONDICIONAIS E AJUSTE DE FONTE ---
-                # Função interna para exibir os cards e evitar texto cortado
-                def display_metric_card(title, value):
-                    st.markdown(f"""
-                    <div style="background-color: #F0F2F6; border-radius: 10px; padding: 15px; text-align: center;">
-                        <h3 style="font-size: 1.1em; font-weight: bold; color: #4F8BF9;">{title}</h3>
-                        <p style="font-size: 1.3em; font-weight: bold; color: #262730; margin: 0;">{value}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+
+                # Encurta os nomes longos para exibição nos cards
+                top_funcionario_display = (top_funcionario[:22] + '...') if len(top_funcionario) > 22 else top_funcionario
+                top_servico_display = (top_servico[:22] + '...') if len(top_servico) > 22 else top_servico
 
                 if st.session_state['role'] == 'admin':
                     kpi_cols = st.columns(4)
-                    with kpi_cols[0]:
-                        display_metric_card("Produção Total", format_currency(total_produzido))
-                    with kpi_cols[1]:
-                        top_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().idxmax()
-                        display_metric_card("Obra Destaque", top_obra)
-                    with kpi_cols[2]:
-                        display_metric_card("Funcionário Destaque", top_funcionario)
-                    with kpi_cols[3]:
-                        display_metric_card("Serviço de Maior Custo", top_servico)
+                    kpi_cols[0].metric("Produção Total", format_currency(total_produzido))
+                    
+                    top_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().idxmax()
+                    kpi_cols[1].metric("Obra Destaque", top_obra)
+                    
+                    kpi_cols[2].metric("Funcionário Destaque", top_funcionario_display, help=top_funcionario)
+                    kpi_cols[3].metric("Serviço de Maior Custo", top_servico_display, help=top_servico)
                 else: # Visão do usuário normal
                     kpi_cols = st.columns(3)
-                    with kpi_cols[0]:
-                        display_metric_card("Produção Total", format_currency(total_produzido))
-                    with kpi_cols[1]:
-                        display_metric_card("Funcionário Destaque", top_funcionario)
-                    with kpi_cols[2]:
-                        display_metric_card("Serviço de Maior Custo", top_servico)
-                # --- FIM DA CORREÇÃO 1 e 2 ---
+                    kpi_cols[0].metric("Produção Total", format_currency(total_produzido))
+                    kpi_cols[1].metric("Funcionário Destaque", top_funcionario_display, help=top_funcionario)
+                    kpi_cols[2].metric("Serviço de Maior Custo", top_servico_display, help=top_servico)
+                # --- FIM DA CORREÇÃO 1 ---
 
                 st.markdown("---")
+
+                # --- INÍCIO DA CORREÇÃO 2: PADRONIZAÇÃO DAS CORES DOS GRÁFICOS ---
+                cor_padrao = '#E37026'
 
                 if st.session_state['role'] == 'admin':
                     st.subheader("Produção por Obra")
                     prod_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
                     fig_bar_obra = px.bar(prod_obra, x='Obra', y='Valor Parcial', text_auto=True, title="Produção Total por Obra")
-                    fig_bar_obra.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='##E37026')
+                    fig_bar_obra.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
                     st.plotly_chart(fig_bar_obra, use_container_width=True)
                 
                 st.subheader("Produção por Funcionário")
                 prod_func = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
                 fig_bar_func = px.bar(prod_func, x='Funcionário', y='Valor Parcial', text_auto=True, title="Produção Total por Funcionário")
-                fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37026')
+                fig_bar_func.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
                 st.plotly_chart(fig_bar_func, use_container_width=True)
                 
-                # --- INÍCIO DA CORREÇÃO 3: NOVOS GRÁFICOS DE SERVIÇOS ---
                 if st.session_state['role'] == 'admin':
                     st.markdown("---")
                     st.subheader("Análise de Serviços")
                     col_freq, col_custo = st.columns(2)
 
                     with col_freq:
-                        # Gráfico de Serviços Mais Realizados (por contagem)
                         serv_freq = df_filtrado_dash['Serviço'].value_counts().nlargest(10).sort_values(ascending=True).reset_index()
                         serv_freq.columns = ['Serviço', 'Contagem']
                         fig_freq = px.bar(serv_freq, y='Serviço', x='Contagem', orientation='h', title="Top 10 Serviços Mais Realizados (Frequência)")
-                        fig_freq.update_traces(marker_color='#E37026', texttemplate='%{x}', textposition='outside')
+                        fig_freq.update_traces(marker_color=cor_padrao, texttemplate='%{x}', textposition='outside')
                         st.plotly_chart(fig_freq, use_container_width=True)
 
                     with col_custo:
-                        # Gráfico de Serviços de Maior Custo
                         serv_custo = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().nlargest(10).sort_values(ascending=True).reset_index()
                         fig_custo = px.bar(serv_custo, y='Serviço', x='Valor Parcial', orientation='h', title="Top 10 Serviços de Maior Custo Total", text_auto=True)
-                        fig_custo.update_traces(marker_color='#E37026', texttemplate='R$ %{x:,.2f}', textposition='outside')
+                        fig_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
                         st.plotly_chart(fig_custo, use_container_width=True)
-                # --- FIM DA CORREÇÃO 3 ---
                 
                 st.markdown("---")
                 st.subheader("Produção ao Longo do Tempo")
                 col_diag, col_mes = st.columns(2)
                 with col_diag:
-                    st.subheader("Produção Diária")
                     prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
                     fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
-                    fig_line.update_traces(line_color='#E37026', marker=dict(color='#E37026'))
+                    fig_line.update_traces(line_color=cor_padrao, marker=dict(color=cor_padrao))
                     st.plotly_chart(fig_line, use_container_width=True)
                 with col_mes:
-                    st.subheader("Produção Mensal")
                     prod_mes = df_filtrado_dash.set_index('Data').resample('ME')['Valor Parcial'].sum().reset_index()
                     prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%Y-%m')
                     fig_bar_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Total Mensal")
-                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color='#E37026')
+                    fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
                     st.plotly_chart(fig_bar_mes, use_container_width=True)
-
+                # --- FIM DA CORREÇÃO 2 ---
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
         st.header("Auditoria de Lançamentos")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -1113,6 +1100,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
