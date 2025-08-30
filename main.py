@@ -823,7 +823,6 @@ else:
                     st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
                     st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento'], errors='ignore'))
                     
-                    # --- INÍCIO DA CORREÇÃO ---
                     razao_remocao = ""
                     # O campo de justificativa só aparece para o administrador
                     if st.session_state['role'] == 'admin':
@@ -846,7 +845,20 @@ else:
 
                         # Lógica de remoção continua normalmente
                         ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
-                        df_original = pd.DataFrame(st.session_state.lan
+                        df_original = pd.DataFrame(st.session_state.lancamentos)
+                        df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
+                        
+                        try:
+                            gc = get_gsheets_connection()
+                            ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
+                            set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento'], errors='ignore'), include_index=False, resize=True)
+                            st.session_state.lancamentos = df_atualizado.to_dict('records')
+                            st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+                            st.cache_data.clear()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
+                            
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -1125,6 +1137,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
