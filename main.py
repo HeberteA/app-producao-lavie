@@ -1158,7 +1158,7 @@ else:
                                 hide_index=True,
                                 column_config=colunas_config,
                                 disabled=colunas_desabilitadas
-                                
+                            )
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary"):
                                     try:
@@ -1177,6 +1177,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
