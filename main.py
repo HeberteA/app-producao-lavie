@@ -541,24 +541,20 @@ else:
         
         with col_view:
             if 'funcionario_selecionado' in locals() and funcionario_selecionado:
-                st.subheader("Status e Comentários da Auditoria")
+                st.subheader("Status e Comentários")
                 obra_logada = st.session_state['obra_logada']
                 
                 status_da_obra = status_df[status_df['Obra'] == obra_logada]
                 func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
-                
-                # --- INÍCIO DA CORREÇÃO ---
-                # 1. Exibe o Status
                 status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
                 display_status_box(f"Status de {funcionario_selecionado}", status_atual)
-                
-                # 2. Exibe o Comentário logo abaixo, se existir
+
                 comment = ""
                 if not func_status_row.empty and 'Comentario' in func_status_row.columns:
                     comment = func_status_row['Comentario'].iloc[0]
 
                 if comment and str(comment).strip():
-                    st.warning(f"💬 Comentário: {comment}")
+                    st.warning(f"Comentário: {comment}")
                 
                 st.markdown("---")
                 # --- FIM DA CORREÇÃO ---
@@ -955,10 +951,9 @@ else:
                                 current_comment = str(comment_row['Comentario'].iloc[0])
 
                             new_comment = st.text_area(
-                                "Adicionar/Editar Comentário:", 
+                                "Adicionar Comentário:", 
                                 value=current_comment, 
                                 key=f"comment_{obra_selecionada}_{funcionario}",
-                                help="Este comentário será visível na tela de lançamento."
                             )
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}"):
                                 status_df = save_comment_data(status_df, obra_selecionada, funcionario, new_comment)
@@ -998,6 +993,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
