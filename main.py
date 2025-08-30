@@ -242,7 +242,7 @@ else:
         st.stop()
         
     funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_historico_df, status_df, funcoes_df = data_tuple
-    if 'lancamentos' not in st.session_state:
+    if 'lancamentos' not in st.session_state or not st.session_state.lancamentos:
         st.session_state.lancamentos = lancamentos_historico_df.to_dict('records')
 
     with st.sidebar:
@@ -850,6 +850,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
