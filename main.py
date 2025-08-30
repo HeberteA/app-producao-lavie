@@ -893,8 +893,8 @@ else:
                     # Busca e exibe o status atual com cor na última coluna do cabeçalho
                     status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                    header_cols[4].display_status_box(f"Status de {funcionario_selecionado}", status_atual)
-                    # --- FIM DA CORREÇÃO ---
+                    with header_cols[4]:
+                        display_status_box("Status", status_atual_func)
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações", expanded=False):
                         st.markdown("##### Status do Funcionário")
@@ -938,6 +938,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
