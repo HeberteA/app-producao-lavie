@@ -725,18 +725,26 @@ else:
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
         base_para_resumo = funcionarios_df.copy()
-        if st.session_state['role'] == 'user' and not base_para_resumo.empty:
-            st.header(f"Obra: {st.session_state['obra_logada']}")
+        if st.session_state['role'] == 'user':
             base_para_resumo = base_para_resumo[base_para_resumo['OBRA'] == st.session_state['obra_logada']]
-        else: 
-            obras_disponiveis = obras_df['NOME DA OBRA'].unique()
-            obras_filtradas = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
-            if obras_filtradas:
-                base_para_resumo = base_para_resumo[base_para_resumo['OBRA'].isin(obras_filtradas)]
-        funcionarios_disponiveis = base_para_resumo['NOME'].unique()
-        funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s) específico(s):", options=funcionarios_disponiveis)
-        if funcionarios_filtrados:
-            base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
+            funcionarios_disponiveis = base_para_resumo['NOME'].unique()
+            funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s) específico(s):", options=funcionarios_disponiveis, key="resumo_func_user")
+            if funcionarios_filtrados:
+                base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
+        else: # Visão do Administrador
+            filtro_col1, filtro_col2 = st.columns(2)
+            with filtro_col1:
+                obras_disponiveis = obras_df['NOME DA OBRA'].unique()
+                obras_filtradas = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis, key="resumo_obras_admin")
+                if obras_filtradas:
+                    base_para_resumo = base_para_resumo[base_para_resumo['OBRA'].isin(obras_filtradas)]
+            
+            with filtro_col2:
+                funcionarios_disponiveis = base_para_resumo['NOME'].unique()
+                funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s):", options=funcionarios_disponiveis, key="resumo_func_admin")
+                if funcionarios_filtrados:
+                    base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
+                    
         if base_para_resumo.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
@@ -787,18 +795,30 @@ else:
         st.header("Gerenciar Lançamentos")
         
         df_para_editar = pd.DataFrame(st.session_state.lancamentos).copy()
-        
-        # --- INÍCIO DA CORREÇÃO 1: FILTRO POR OBRA PARA ADMIN ---
-        # Filtra por obra logada para usuário ou permite seleção para admin
-        if st.session_state['role'] == 'user':
+       if st.session_state['role'] == 'user':
             if not df_para_editar.empty:
                 df_para_editar = df_para_editar[df_para_editar['Obra'] == st.session_state['obra_logada']]
-        else: # Se for admin, mostra o filtro de obras
-            obras_disponiveis = sorted(df_para_editar['Obra'].unique())
-            obras_filtradas = st.multiselect("Filtrar por Obra(s):", options=obras_disponiveis)
-            if obras_filtradas:
-                df_para_editar = df_para_editar[df_para_editar['Obra'].isin(obras_filtradas)]
-        # --- FIM DA CORREÇÃO 1 ---
+            
+            funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
+            funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_user")
+            if funcionario_filtrado:
+                df_para_editar = df_para_editar[df_para_editar['Funcionário'].isin(funcionario_filtrado)]
+
+        else: # Visão do Administrador
+            filtro_col1, filtro_col2 = st.columns(2)
+            with filtro_col1:
+                obras_disponiveis = sorted(df_para_editar['Obra'].unique())
+                obras_filtradas = st.multiselect("Filtrar por Obra(s):", options=obras_disponiveis, key="editar_obras_admin")
+                if obras_filtradas:
+                    df_para_editar = df_para_editar[df_para_editar['Obra'].isin(obras_filtradas)]
+            
+            with filtro_col2:
+                funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
+                funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
+                if funcionario_filtrado:
+                    df_para_editar = df_para_editar[df_para_editar['Funcionário'].isin(funcionario_filtrado)]
+        
+        df_filtrado = df_para_editar.copy()
 
         if df_para_editar.empty:
             st.info("Nenhum lançamento para editar.")
@@ -898,21 +918,46 @@ else:
             data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date())
             data_fim = col2.date_input("Data de Fim", value=datetime.now().date())
             
-            data_inicio_ts = pd.to_datetime(data_inicio)
-            data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
+            data_inicio_ts = pd.to_datetime((datetime.now() - timedelta(days=30)).date())
+            data_fim_ts = pd.to_datetime(datetime.now().date()) + timedelta(days=1)
             
-            df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
-            
-            if st.session_state['role'] == 'admin':
-                obras_disponiveis = sorted(df_filtrado_dash['Obra'].unique())
-                obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
-                if obras_filtradas_dash:
-                    df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
+            df_filtrado_dash = base_para_dash.copy()
 
-            funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-            funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
-            if funcionarios_filtrados_dash:
-                df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+            if st.session_state['role'] == 'admin':
+                filtro_col1, filtro_col2 = st.columns(2)
+                with filtro_col1:
+                    data_inicio = st.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_admin")
+                    data_inicio_ts = pd.to_datetime(data_inicio)
+                with filtro_col2:
+                    data_fim = st.date_input("Data de Fim", value=datetime.now().date(), key="dash_data_fim_admin")
+                    data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
+
+                df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
+
+                filtro_col3, filtro_col4 = st.columns(2)
+                with filtro_col3:
+                    obras_disponiveis = sorted(df_filtrado_dash['Obra'].unique())
+                    obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
+                    if obras_filtradas_dash:
+                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
+                with filtro_col4:
+                    funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+                    funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+                    if funcionarios_filtrados_dash:
+                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+            
+            else: # Visão do usuário normal
+                col1, col2 = st.columns(2)
+                data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date())
+                data_fim = col2.date_input("Data de Fim", value=datetime.now().date())
+                data_inicio_ts = pd.to_datetime(data_inicio)
+                data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
+                df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
+
+                funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+                funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+                if funcionarios_filtrados_dash:
+                    df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
             
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
@@ -995,6 +1040,22 @@ else:
                         fig_custo = px.bar(serv_custo, y='Serviço', x='Valor Parcial', orientation='h', title="Top 10 Serviços de Maior Custo Total", text_auto=True)
                         fig_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
                         st.plotly_chart(fig_custo, use_container_width=True)
+                        
+                    st.markdown("---")
+                    st.subheader("Análise de Disciplinas")
+                    col_disc_freq, col_disc_custo = st.columns(2)
+                    with col_disc_freq:
+                        disc_freq = df_filtrado_dash['Disciplina'].value_counts().nlargest(10).sort_values(ascending=True).reset_index()
+                        disc_freq.columns = ['Disciplina', 'Contagem']
+                        fig_disc_freq = px.bar(disc_freq, y='Disciplina', x='Contagem', orientation='h', title="Top 10 Disciplinas Mais Realizadas")
+                        fig_disc_freq.update_traces(marker_color=cor_padrao, texttemplate='%{x}', textposition='outside')
+                        st.plotly_chart(fig_disc_freq, use_container_width=True)
+                    with col_disc_custo:
+                        disc_custo = df_filtrado_dash.groupby('Disciplina')['Valor Parcial'].sum().nlargest(10).sort_values(ascending=True).reset_index()
+                        fig_disc_custo = px.bar(disc_custo, y='Disciplina', x='Valor Parcial', orientation='h', title="Top 10 Disciplinas de Maior Custo")
+                        fig_disc_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
+                        st.plotly_chart(fig_disc_custo, use_container_width=True)
+
                 
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
         st.header("Auditoria de Lançamentos")
@@ -1133,12 +1194,14 @@ else:
                         else:
                             colunas_para_editar = {"id_lancamento": None, "Observação": st.column_config.TextColumn("Observação (Editável)", width="large")}
                             colunas_visiveis = [
-                                'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
+                                'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
                                 'Valor Unitário', 'Valor Parcial', 'Observação', 'id_lancamento'
                             ]
-
+                            
+                            # 2. Configura a formatação e os títulos de ambas as datas
                             colunas_config = {
                                 "id_lancamento": None,
+                                "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
                                 "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
                                 "Disciplina": st.column_config.TextColumn("Disciplina"),
                                 "Serviço": st.column_config.TextColumn("Serviço", width="large"),
@@ -1147,8 +1210,9 @@ else:
                                 "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
                             }
 
+                            # 3. Define as colunas que não podem ser editadas
                             colunas_desabilitadas = [
-                                'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
+                                'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
                                 'Valor Unitário', 'Valor Parcial'
                             ]
 
@@ -1177,6 +1241,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
