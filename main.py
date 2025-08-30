@@ -699,7 +699,7 @@ else:
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         base_para_dash = lancamentos_df.copy()
-        if st.session_state['role'] == 'user':
+        if st.session_state['role'] == 'user' and not base_para_dash.empty:
             st.header(f"Obra: {st.session_state['obra_logada']}")
             base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
         if base_para_dash.empty:
@@ -861,6 +861,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
