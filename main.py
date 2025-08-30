@@ -795,7 +795,7 @@ else:
         st.header("Gerenciar Lançamentos")
         
         df_para_editar = pd.DataFrame(st.session_state.lancamentos).copy()
-       if st.session_state['role'] == 'user':
+        if st.session_state['role'] == 'user':
             if not df_para_editar.empty:
                 df_para_editar = df_para_editar[df_para_editar['Obra'] == st.session_state['obra_logada']]
             
@@ -1241,6 +1241,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
