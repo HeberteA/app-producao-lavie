@@ -765,7 +765,7 @@ else:
             use_container_width=True
         )
 
-    elif st.session_state.page == "Editar Lançamentos ✏️":
+    elif st.session_state.page == "Remover Lançamentos 🗑️":
         st.header("Gerenciar Lançamentos")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos).copy()
         if st.session_state['role'] == 'user' and not lancamentos_df.empty:
@@ -884,7 +884,7 @@ else:
         funcionarios_filtrados = []
         if obra_selecionada:
             funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
-            funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
+            funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário", options=funcionarios_da_obra)
         if obra_selecionada:
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
@@ -921,14 +921,14 @@ else:
                             st.rerun()
 
             with col_aviso_geral:
-                st.markdown("##### Aviso Geral da Obra")
+                st.markdown("##### Aviso")
                 # Busca o aviso atual no DataFrame de obras
                 aviso_atual = ""
                 if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_selecionada].empty:
                     aviso_atual = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'Aviso'].iloc[0]
                 
                 novo_aviso = st.text_area(
-                    "Edite o aviso (visível no menu do usuário):", 
+                    "Edite o aviso:", 
                     value=aviso_atual, 
                     key=f"aviso_{obra_selecionada}"
                 )
@@ -987,7 +987,7 @@ else:
                                     st.rerun()
 
                         with col_comment:
-                            st.markdown("##### Comentário de Auditoria")
+                            st.markdown("##### Comentário")
                             comment_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
                             current_comment = ""
                             if not comment_row.empty and 'Comentario' in comment_row.columns:
@@ -1036,6 +1036,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
