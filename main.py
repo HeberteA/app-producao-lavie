@@ -404,17 +404,14 @@ else:
                 else:
                     erros = []
                     # --- Início da Validação ---
-                    # Valida serviço principal
                     if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
                         if not obs_principal.strip():
                             erros.append(f"Para o Serviço Principal '{servico_selecionado}', o campo 'Observação' é obrigatório.")
 
-                    # Valida item diverso (considerando observação obrigatória também)
                     if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
                         if not obs_diverso.strip():
                             erros.append(f"Para o Item Diverso '{descricao_diverso}', o campo 'Observação' é obrigatório.")
 
-                    # Valida itens extras
                     if 'extras_selecionados' in locals() and extras_selecionados:
                         for extra in extras_selecionados:
                             if quantidades_extras.get(extra, 0) > 0:
@@ -433,13 +430,12 @@ else:
                         
                         if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
                             valor_unitario = safe_float(servico_info.get('VALOR', 0))
-                            valor_parcial = quantidade_principal * valor_unitario
                             novos_lancamentos_dicts.append({
                                 'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
                                 'Disciplina': servico_info['DISCIPLINA'], 'Serviço': servico_selecionado,
                                 'Quantidade': quantidade_principal, 'Unidade': servico_info['UNIDADE'],
-                                'Valor Unitário': valor_unitario, 'Valor Parcial': valor_parcial,
-                                'Data do Serviço': pd.to_datetime(data_servico_principal) if data_servico_principal else None, 'Observação': obs_principal
+                                'Valor Unitário': valor_unitario, 'Valor Parcial': quantidade_principal * valor_unitario,
+                                'Data do Serviço': data_servico_principal, 'Observação': obs_principal
                             })
 
                         if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
@@ -448,7 +444,7 @@ else:
                                 'Disciplina': "Diverso", 'Serviço': descricao_diverso,
                                 'Quantidade': quantidade_diverso, 'Unidade': 'UN',
                                 'Valor Unitário': valor_diverso, 'Valor Parcial': quantidade_diverso * valor_diverso,
-                                'Data do Serviço': pd.to_datetime(data_servico_diverso) if data_servico_diverso else None, 'Observação': obs_diverso
+                                'Data do Serviço': data_servico_diverso, 'Observação': obs_diverso
                             })
 
                         if 'extras_selecionados' in locals() and extras_selecionados:
@@ -462,7 +458,7 @@ else:
                                         'Disciplina': "Extras", 'Serviço': extra,
                                         'Quantidade': qty, 'Unidade': extra_info['UNIDADE'],
                                         'Valor Unitário': valor_unitario, 'Valor Parcial': qty * valor_unitario,
-                                        'Data do Serviço': pd.to_datetime(datas_servico_extras[extra]), 'Observação': observacoes_extras[extra]
+                                        'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
                                     })
                         
                         if not novos_lancamentos_dicts:
@@ -476,7 +472,12 @@ else:
                                 df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
 
                                 df_novos_ordenado['Data'] = pd.to_datetime(df_novos_ordenado['Data']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                                df_novos_ordenado['Data do Serviço'] = pd.to_datetime(df_novos_ordenado['Data do Serviço']).dt.strftime('%Y-%m-%d')
+                                
+                                # --- INÍCIO DA CORREÇÃO ---
+                                # Converte datas para string, tratando valores nulos (vazios) para evitar o erro de 'nan'
+                                datas_formatadas = pd.to_datetime(df_novos_ordenado['Data do Serviço'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                df_novos_ordenado['Data do Serviço'] = datas_formatadas.fillna('')
+                                # --- FIM DA CORREÇÃO ---
                                 
                                 for col in ['Valor Unitário', 'Valor Parcial', 'Quantidade']:
                                     if col in df_novos_ordenado.columns:
@@ -880,6 +881,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
