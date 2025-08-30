@@ -935,7 +935,15 @@ else:
                 if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
                     obras_df = save_aviso_data(obras_df, obra_selecionada, novo_aviso)
                     st.rerun()
-            # --- FIM DA CORREÇÃO ---
+            producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
+            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+            if 'Funcionário' in resumo_df.columns:
+                resumo_df = resumo_df.drop(columns=['Funcionário'])
+            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
+            resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
+            resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
+            
             st.markdown("---")
             st.subheader("Análise por Funcionário")
             if funcionarios_filtrados:
@@ -1028,6 +1036,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
