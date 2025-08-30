@@ -46,15 +46,31 @@ def load_status_data(spreadsheet):
         st.warning("Aba 'StatusAuditoria' não encontrada. Crie uma aba com esse nome e as colunas: Obra, Funcionario, Status, Comentario.")
         return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status', 'Comentario'])
 
-def save_comment_data(status_df, obra, funcionario, comment):
+def save_comment_data(status_df, obra, funcionario, comment, append=False):
     try:
         condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
-        # Se já existe uma linha para o funcionário, atualiza o comentário
+        
+        # Busca o comentário atual, se existir
+        current_comment = ""
+        if condition.any() and 'Comentario' in status_df.columns:
+            # Garante que não estamos lendo um valor 'nan'
+            comment_val = status_df.loc[condition, 'Comentario'].iloc[0]
+            if pd.notna(comment_val):
+                current_comment = str(comment_val)
+
+        # Anexa o novo comentário ao antigo, se a flag 'append' for verdadeira
+        final_comment = comment
+        if append and current_comment.strip():
+            timestamp = datetime.now().strftime("%d/%m/%Y")
+            final_comment = f"{current_comment}\n---\n[REMOÇÃO - {timestamp}]: {comment}"
+        elif append: # Caso de anexo, mas não há comentário anterior
+            timestamp = datetime.now().strftime("%d/%m/%Y")
+            final_comment = f"[REMOÇÃO - {timestamp}]: {comment}"
+
         if condition.any():
-            status_df.loc[condition, 'Comentario'] = comment
-        # Se não existe, cria uma nova linha com o status padrão e o comentário
+            status_df.loc[condition, 'Comentario'] = final_comment
         else:
-            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': 'A Revisar', 'Comentario': comment}])
+            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': 'A Revisar', 'Comentario': final_comment}])
             status_df = pd.concat([status_df, new_row], ignore_index=True)
         
         gc = get_gsheets_connection()
@@ -806,24 +822,31 @@ else:
                 if not linhas_para_remover.empty:
                     st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
                     st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento'], errors='ignore'))
+                    
+                    # --- INÍCIO DA CORREÇÃO ---
+                    razao_remocao = ""
+                    # O campo de justificativa só aparece para o administrador
+                    if st.session_state['role'] == 'admin':
+                        razao_remocao = st.text_area("Justificativa para a remoção (obrigatório):", key="razao_remocao_admin")
+
                     confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
                     
-                    if st.button("Remover Itens Selecionados", disabled=(not confirmacao_remocao), type="primary"):
-                        ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
-                        df_original = pd.DataFrame(st.session_state.lancamentos)
-                        df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
-                        
-                        try:
-                            gc = get_gsheets_connection()
-                            ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                            set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento'], errors='ignore'), include_index=False, resize=True)
-                            st.session_state.lancamentos = df_atualizado.to_dict('records')
-                            st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
-                            st.cache_data.clear()
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
+                    # Condição para desabilitar o botão de remoção
+                    is_disabled = not confirmacao_remocao
+                    if st.session_state['role'] == 'admin':
+                        is_disabled = not confirmacao_remocao or not razao_remocao.strip()
 
+                    if st.button("Remover Itens Selecionados", disabled=is_disabled, type="primary"):
+                        # Salva a justificativa como um comentário para cada funcionário afetado
+                        if st.session_state['role'] == 'admin' and razao_remocao:
+                            funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
+                            
+                            for obra, funcionario in funcionarios_afetados:
+                                status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
+
+                        # Lógica de remoção continua normalmente
+                        ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
+                        df_original = pd.DataFrame(st.session_state.lan
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -1102,6 +1125,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
