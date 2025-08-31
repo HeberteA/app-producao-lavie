@@ -1000,12 +1000,6 @@ else:
             st.info("Ainda não há lançamentos para analisar.")
         else:
             st.markdown("#### Filtros do Dashboard")
-            col1, col2 = st.columns(2)
-            data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date())
-            data_fim = col2.date_input("Data de Fim", value=datetime.now().date())
-            
-            data_inicio_ts = pd.to_datetime((datetime.now() - timedelta(days=30)).date())
-            data_fim_ts = pd.to_datetime(datetime.now().date()) + timedelta(days=1)
             
             df_filtrado_dash = base_para_dash.copy()
 
@@ -1013,11 +1007,11 @@ else:
                 filtro_col1, filtro_col2 = st.columns(2)
                 with filtro_col1:
                     data_inicio = st.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_admin")
-                    data_inicio_ts = pd.to_datetime(data_inicio)
                 with filtro_col2:
                     data_fim = st.date_input("Data de Fim", value=datetime.now().date(), key="dash_data_fim_admin")
-                    data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
 
+                data_inicio_ts = pd.to_datetime(data_inicio)
+                data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
                 df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
 
                 filtro_col3, filtro_col4 = st.columns(2)
@@ -1034,8 +1028,12 @@ else:
             
             else: # Visão do usuário normal
                 col1, col2 = st.columns(2)
-                data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date())
-                data_fim = col2.date_input("Data de Fim", value=datetime.now().date())
+                # --- INÍCIO DA CORREÇÃO ---
+                # Adiciona 'key' única para os seletores de data do usuário
+                data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
+                data_fim = col2.date_input("Data de Fim", value=datetime.now().date(), key="dash_data_fim_user")
+                # --- FIM DA CORREÇÃO ---
+                
                 data_inicio_ts = pd.to_datetime(data_inicio)
                 data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
                 df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
@@ -1044,40 +1042,32 @@ else:
                 funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
                 if funcionarios_filtrados_dash:
                     df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-            
+
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
                 st.markdown("---")
                 
-                # --- INÍCIO DA CORREÇÃO 1: VOLTA PARA O st.metric E AJUSTA TEXTO LONGO ---
                 total_produzido = df_filtrado_dash['Valor Parcial'].sum()
                 top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
                 top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
-
-                # Encurta os nomes longos para exibição nos cards
                 top_funcionario_display = (top_funcionario[:22] + '...') if len(top_funcionario) > 22 else top_funcionario
                 top_servico_display = (top_servico[:22] + '...') if len(top_servico) > 22 else top_servico
 
                 if st.session_state['role'] == 'admin':
                     kpi_cols = st.columns(4)
                     kpi_cols[0].metric("Produção Total", format_currency(total_produzido))
-                    
                     top_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().idxmax()
                     kpi_cols[1].metric("Obra Destaque", top_obra)
-                    
                     kpi_cols[2].metric("Funcionário Destaque", top_funcionario_display, help=top_funcionario)
                     kpi_cols[3].metric("Serviço de Maior Custo", top_servico_display, help=top_servico)
-                else: # Visão do usuário normal
+                else:
                     kpi_cols = st.columns(3)
                     kpi_cols[0].metric("Produção Total", format_currency(total_produzido))
                     kpi_cols[1].metric("Funcionário Destaque", top_funcionario_display, help=top_funcionario)
                     kpi_cols[2].metric("Serviço de Maior Custo", top_servico_display, help=top_servico)
-                # --- FIM DA CORREÇÃO 1 ---
 
                 st.markdown("---")
-
-                # --- INÍCIO DA CORREÇÃO 2: PADRONIZAÇÃO DAS CORES DOS GRÁFICOS ---
                 cor_padrao = '#E37026'
 
                 if st.session_state['role'] == 'admin':
@@ -1324,6 +1314,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
