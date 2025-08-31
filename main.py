@@ -120,7 +120,49 @@ def save_status_data(status_df, obra, funcionario, status):
     except Exception as e:
         st.error(f"Erro ao salvar o status: {e}")
     return status_df
+def launch_monthly_sheet(obra, mes):
+    try:
+        gc = get_gsheets_connection()
+        spreadsheet = gc.open_by_url(SHEET_URL)
+        
+        # 1. Ler todos os lançamentos ativos
+        ws_lancamentos = spreadsheet.worksheet("Lançamentos")
+        lancamentos_ativos = ws_lancamentos.get_all_records()
+        df_lancamentos = pd.DataFrame(lancamentos_ativos)
+        
+        # Converte a coluna 'Data' para datetime para poder filtrar
+        df_lancamentos['Data'] = pd.to_datetime(df_lancamentos['Data'])
+        
+        # 2. Identificar os lançamentos do mês e obra a serem arquivados
+        mes_dt = pd.to_datetime(mes)
+        filtro = (df_lancamentos['Obra'] == obra) & (df_lancamentos['Data'].dt.month == mes_dt.month) & (df_lancamentos['Data'].dt.year == mes_dt.year)
+        
+        df_para_arquivar = df_lancamentos[filtro]
+        df_para_manter = df_lancamentos[~filtro]
 
+        if not df_para_arquivar.empty:
+            # 3. Adicionar os lançamentos ao histórico
+            ws_historico = spreadsheet.worksheet("Histórico_Lançamentos")
+            # Garante que as colunas estão na ordem correta antes de adicionar
+            df_para_arquivar_ordenado = df_para_arquivar.reindex(columns=COLUNAS_LANCAMENTOS, fill_value='')
+            ws_historico.append_rows(df_para_arquivar_ordenado.values.tolist(), value_input_option='USER_ENTERED')
+            
+            # 4. Reescrever a aba de Lançamentos apenas com os que devem ser mantidos
+            df_para_manter_ordenado = df_para_manter.reindex(columns=COLUNAS_LANCAMENTOS, fill_value='')
+            set_with_dataframe(ws_lancamentos, df_para_manter_ordenado, include_index=False, resize=True)
+
+        # 5. Marcar a folha como "Lançada"
+        ws_folhas = spreadsheet.worksheet("Folhas_Mensais")
+        ws_folhas.append_row([obra, mes, "Lançada"], value_input_option='USER_ENTERED')
+        
+        st.toast(f"Folha de {mes} para a obra '{obra}' lançada e arquivada!", icon="🚀")
+        st.cache_data.clear()
+        st.rerun()
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao lançar a folha: {e}")
+        return False
+        
 @st.cache_data(ttl=30)
 def load_data_from_gsheets(url):
     try:
@@ -133,6 +175,7 @@ def load_data_from_gsheets(url):
             if ',' in s: s = s.replace('.', '').replace(',', '.')
             return pd.to_numeric(s, errors='coerce')
 
+        # Carrega Funcionários
         ws_func = spreadsheet.worksheet("Funcionários")
         func_data = ws_func.get_all_values()
         funcionarios_df = pd.DataFrame([row[1:6] for row in func_data[3:] if len(row) > 5 and row[1]], columns=['NOME', 'FUNÇÃO', 'TIPO', 'SALARIO_BASE', 'OBRA'])
@@ -140,6 +183,7 @@ def load_data_from_gsheets(url):
         funcionarios_df['SALARIO_BASE'] = funcionarios_df['SALARIO_BASE'].apply(clean_value)
         funcionarios_df.dropna(subset=['NOME', 'FUNÇÃO'], inplace=True)
 
+        # Carrega Preços
         ws_precos = spreadsheet.worksheet("Tabela de Preços")
         precos_data = ws_precos.get_all_values()
         servicos_list = []
@@ -155,57 +199,59 @@ def load_data_from_gsheets(url):
         precos_df['VALOR'] = precos_df['VALOR'].apply(clean_value)
         precos_df.dropna(subset=['DESCRIÇÃO DO SERVIÇO', 'VALOR'], inplace=True)
         
+        # Carrega Extras
         ws_extras = spreadsheet.worksheet("Valores Extras")
         extras_data = ws_extras.get_all_values()
-        if len(extras_data) > 1:
-            data_rows = [row[:3] for row in extras_data[1:]]
-            valores_extras_df = pd.DataFrame(data_rows, columns=['VALORES EXTRAS', 'UNIDADE', 'VALOR'])
-        else:
-            valores_extras_df = pd.DataFrame(columns=['VALORES EXTRAS', 'UNIDADE', 'VALOR'])
+        valores_extras_df = pd.DataFrame(extras_data[1:], columns=extras_data[0]) if len(extras_data) > 1 else pd.DataFrame(columns=['VALORES EXTRAS', 'UNIDADE', 'VALOR'])
         if 'VALOR' in valores_extras_df.columns:
             valores_extras_df['VALOR'] = valores_extras_df['VALOR'].apply(clean_value)
         if 'VALORES EXTRAS' in valores_extras_df.columns and 'VALOR' in valores_extras_df.columns:
             valores_extras_df.dropna(subset=['VALORES EXTRAS', 'VALOR'], inplace=True)
 
+        # Carrega Obras
         ws_obras = spreadsheet.worksheet("Obras")
         obras_data = ws_obras.get_all_values()
         obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0])
         obras_df.dropna(how='all', inplace=True)
-
         if 'Aviso' not in obras_df.columns:
             obras_df['Aviso'] = ''
         
+        # Carrega Lançamentos
         ws_lancamentos = spreadsheet.worksheet("Lançamentos")
-        lancamentos_data = ws_lancamentos.get_all_values()
-        if len(lancamentos_data) > 1:
-            data_rows = [row[:len(COLUNAS_LANCAMENTOS)] for row in lancamentos_data[1:]]
-            lancamentos_df = pd.DataFrame(data_rows, columns=COLUNAS_LANCAMENTOS)
-        else:
-            lancamentos_df = pd.DataFrame(columns=COLUNAS_LANCAMENTOS)
-
-        # CORREÇÃO: Aplica a função clean_value que trata vírgulas e R$
+        lancamentos_data = ws_lancamentos.get_all_records()
+        lancamentos_df = pd.DataFrame(lancamentos_data) if lancamentos_data else pd.DataFrame(columns=COLUNAS_LANCAMENTOS)
         for col in ['Quantidade', 'Valor Unitário', 'Valor Parcial']:
             if col in lancamentos_df.columns:
                 lancamentos_df[col] = lancamentos_df[col].apply(clean_value).fillna(0)
-        
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
         lancamentos_df.dropna(subset=['Data'], inplace=True)
         lancamentos_df.reset_index(inplace=True)
         lancamentos_df.rename(columns={'index': 'id_lancamento'}, inplace=True)
         
+        # Carrega Status
         status_df = load_status_data(spreadsheet)
         
+        # Carrega Funções
         try:
             ws_funcoes = spreadsheet.worksheet("Funções")
             funcoes_data = ws_funcoes.get_all_records()
             funcoes_df = pd.DataFrame(funcoes_data)
             funcoes_df['SALARIO_BASE'] = funcoes_df['SALARIO_BASE'].apply(clean_value)
         except gspread.exceptions.WorksheetNotFound:
-            st.error("Aba 'Funções' não encontrada! Crie esta aba na planilha para poder adicionar funcionários.")
-            funcoes_df = pd.DataFrame(columns=['FUNÇÃO', 'TIPO', 'SALARIO_BASE'])
+            st.error("Aba 'Funções' não encontrada!")
+            funcoes_df = pd.DataFrame()
 
-        return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df
+        # Carrega Folhas Mensais
+        try:
+            ws_folhas = spreadsheet.worksheet("Folhas_Mensais")
+            folhas_data = ws_folhas.get_all_records()
+            folhas_df = pd.DataFrame(folhas_data)
+        except gspread.exceptions.WorksheetNotFound:
+            st.error("Aba 'Folhas_Mensais' não encontrada!")
+            folhas_df = pd.DataFrame()
+
+        return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df
     except gspread.exceptions.WorksheetNotFound as e:
         st.error(f"Aba da planilha não encontrada: '{e}'. Verifique o nome.")
         st.stop()
@@ -316,7 +362,8 @@ else:
         st.error("Falha ao carregar os dados completos após o login.")
         st.stop()
         
-    funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_historico_df, status_df, funcoes_df = data_tuple
+    funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_historico_df, status_df, funcoes_df, folhas_df = data_tuple
+    
     if 'lancamentos' not in st.session_state or not st.session_state.lancamentos:
         st.session_state.lancamentos = lancamentos_historico_df.to_dict('records')
 
@@ -327,21 +374,49 @@ else:
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada = st.session_state['obra_logada']
-
-            status_geral_obra_row = status_df[(status_df['Obra'] == obra_logada) & (status_df['Funcionario'] == 'GERAL')]
-            status_atual = 'A Revisar'
-            if not status_geral_obra_row.empty:
-                status_atual = status_geral_obra_row['Status'].iloc[0]
-            display_status_box("Status da Obra", status_atual)
-
-            aviso_obra = ""
-            if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada].empty:
-                aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'Aviso'].iloc[0]
             
-            if aviso_obra and str(aviso_obra).strip():
-                st.error(f"📢 Aviso: {aviso_obra}")
+            # (O restante do código da sidebar para exibir status e aviso continua aqui)
+        
+        st.markdown("---")
+        
+        # --- NOVO SELETOR DE MÊS ---
+        st.subheader("Mês de Referência")
+        lancamentos_df_sidebar = pd.DataFrame(st.session_state.lancamentos)
+        
+        available_months = []
+        if not lancamentos_df_sidebar.empty and 'Data' in lancamentos_df_sidebar.columns:
+            lancamentos_df_sidebar['Mes'] = pd.to_datetime(lancamentos_df_sidebar['Data']).dt.to_period('M')
+            available_months = sorted(lancamentos_df_sidebar['Mes'].unique().astype(str))
+
+        current_month_str = datetime.now().strftime('%Y-%m')
+        if current_month_str not in available_months:
+            available_months.append(current_month_str)
+
+        if 'selected_month' not in st.session_state:
+            st.session_state.selected_month = current_month_str
+
+        selected_month = st.selectbox(
+            "Selecione o Mês", 
+            options=available_months, 
+            index=available_months.index(st.session_state.selected_month),
+            label_visibility="collapsed"
+        )
+        st.session_state.selected_month = selected_month
+        # --- FIM DO SELETOR ---
+        
         st.markdown("---")
         st.subheader("Menu")
+        # (O restante do código do menu continua aqui)
+
+    # --- FILTRAGEM DE DADOS PELO MÊS SELECIONADO ---
+    lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+    if not lancamentos_df.empty:
+        mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
+        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
+        lancamentos_df = lancamentos_df[
+            (lancamentos_df['Data'].dt.month == mes_selecionado_dt.month) &
+            (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
+        ]
         if 'page' not in st.session_state:
             st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
         
@@ -388,11 +463,22 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-    # --- ESTRUTURA DE NAVEGAÇÃO COMPLETA E CORRIGIDA ---
-    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+   elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
-        col_form, col_view = st.columns(2)
+        
+        # --- INÍCIO DA CORREÇÃO: AVISO DE MÊS FECHADO ---
+        obra_logada = st.session_state['obra_logada']
+        mes_selecionado = st.session_state.selected_month
 
+        folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_logada) & (folhas_df['Mes'] == mes_selecionado)]
+        is_launched = not folha_lancada_row.empty
+
+        if is_launched:
+            st.error(f" Mês Fechado: A folha de {mes_selecionado} para a obra {obra_logada} já foi lançada. Não é possível adicionar ou alterar lançamentos.")
+        else:
+            # O formulário só aparece se o mês não foi lançado
+            col_form, col_view = st.columns(2)
+            
         with col_form:
             # Dicionários para armazenar os dados dos itens extras
             quantidades_extras = {}
@@ -745,17 +831,18 @@ else:
                 if funcionarios_filtrados:
                     base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
                     
-        if base_para_resumo.empty:
+       if base_para_resumo.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
-            lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-        if not lancamentos_df.empty:
-            producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-        else:
-            resumo_df = base_para_resumo.copy()
-            resumo_df['PRODUÇÃO (R$)'] = 0
+            # O 'lancamentos_df' JÁ VEM FILTRADO PELO MÊS SELECIONADO
+            if not lancamentos_df.empty:
+                producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+                producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
+                resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+            else:
+                resumo_df = base_para_resumo.copy()
+                resumo_df['PRODUÇÃO (R$)'] = 0
+
             
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
@@ -1058,20 +1145,51 @@ else:
 
                 
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
-        st.header("Auditoria de Lançamentos")
-        lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+        st.header(f"Auditoria de Lançamentos - {st.session_state.selected_month}")
         col_filtro1, col_filtro2 = st.columns(2)
+        # O 'lancamentos_df' já vem filtrado pelo mês, então usamos ele para obter as obras disponíveis
         obras_disponiveis = sorted(lancamentos_df['Obra'].unique())
         obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=obras_disponiveis, index=None, placeholder="Selecione uma obra...")
+        
         funcionarios_filtrados = []
         if obra_selecionada:
             funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
-            funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário", options=funcionarios_da_obra)
+            funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
+        
         if obra_selecionada:
+            mes_selecionado = st.session_state.selected_month
+
+            # Define os DataFrames filtrados para a obra selecionada
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
+
+            # Lógica de bloqueio
+            status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'GERAL') & (status_df['Mes'] == mes_selecionado)]
+            status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
+            
+            folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_selecionada) & (folhas_df['Mes'] == mes_selecionado)]
+            is_launched = not folha_lancada_row.empty
+
+            is_locked = (status_atual_obra == "Aprovado") or is_launched
+            if is_launched:
+                st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi lançada e arquivada. Nenhuma edição é permitida.")
+            elif is_locked:
+                st.warning(f"🔒 A obra {obra_selecionada} está com status 'Aprovado' para o mês {mes_selecionado}. As edições estão bloqueadas.")
+
             st.markdown("---")
             col_status_geral, col_aviso_geral = st.columns(2)
+
+            with col_status_geral:
+                st.markdown("##### Status e Finalização do Mês")
+                status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'GERAL') & (status_df['Mes'] == mes_selecionado)]
+                status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
+                display_status_box("Status Geral", status_atual_obra)
+                
+                with st.popover("Alterar Status", disabled=is_locked):
+
+                if st.button("🚀 Lançar Folha Mensal", disabled=(status_atual_obra != "Aprovado" or is_launched), help="Arquiva os lançamentos deste mês e os remove da lista de ativos. Esta ação não pode ser desfeita."):
+                    launch_monthly_sheet(obra_selecionada, mes_selecionado)
+
 
             with col_status_geral:
                 st.markdown("##### Status Geral da Obra")
@@ -1241,6 +1359,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
