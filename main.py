@@ -375,11 +375,21 @@ else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada = st.session_state['obra_logada']
             
-            # (O restante do código da sidebar para exibir status e aviso continua aqui)
+            status_geral_obra_row = status_df[(status_df['Obra'] == obra_logada) & (status_df['Funcionario'] == 'GERAL')]
+            status_atual = 'A Revisar'
+            if not status_geral_obra_row.empty:
+                status_atual = status_geral_obra_row['Status'].iloc[0]
+            display_status_box("Status da Obra", status_atual)
+
+            aviso_obra = ""
+            if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada].empty:
+                aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'Aviso'].iloc[0]
+            
+            if aviso_obra and str(aviso_obra).strip():
+                st.error(f"📢 Aviso: {aviso_obra}")
         
         st.markdown("---")
         
-        # --- NOVO SELETOR DE MÊS ---
         st.subheader("Mês de Referência")
         lancamentos_df_sidebar = pd.DataFrame(st.session_state.lancamentos)
         
@@ -398,25 +408,13 @@ else:
         selected_month = st.selectbox(
             "Selecione o Mês", 
             options=available_months, 
-            index=available_months.index(st.session_state.selected_month),
+            index=available_months.index(st.session_state.selected_month if st.session_state.selected_month in available_months else current_month_str),
             label_visibility="collapsed"
         )
         st.session_state.selected_month = selected_month
-        # --- FIM DO SELETOR ---
         
         st.markdown("---")
         st.subheader("Menu")
-        # (O restante do código do menu continua aqui)
-
-    # --- FILTRAGEM DE DADOS PELO MÊS SELECIONADO ---
-    lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-    if not lancamentos_df.empty:
-        mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
-        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
-        lancamentos_df = lancamentos_df[
-            (lancamentos_df['Data'].dt.month == mes_selecionado_dt.month) &
-            (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
-        ]
         if 'page' not in st.session_state:
             st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
         
@@ -433,8 +431,8 @@ else:
 
         if st.button("Resumo da Folha 📊", use_container_width=True):
             st.session_state.page = "Resumo da Folha 📊"
-        if st.button("Remover Lançamentos 🗑️", use_container_width=True):
-            st.session_state.page = "Remover Lançamentos 🗑️"
+        if st.button("Editar Lançamentos ✏️", use_container_width=True):
+            st.session_state.page = "Editar Lançamentos ✏️"
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
         
@@ -444,7 +442,6 @@ else:
         if st.button("📥 Baixar Backup em Excel", use_container_width=True):
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                # Usar o st.session_state.lancamentos para o backup
                 pd.DataFrame(st.session_state.lancamentos).drop(columns=['id_lancamento'], errors='ignore').to_excel(writer, sheet_name='Lançamentos', index=False)
                 funcionarios_df.to_excel(writer, sheet_name='Funcionários', index=False)
                 precos_df.to_excel(writer, sheet_name='Tabela de Preços', index=False)
@@ -463,10 +460,20 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-    elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+    # --- FILTRAGEM DE DADOS PELO MÊS SELECIONADO ---
+    lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+    if not lancamentos_df.empty:
+        mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
+        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
+        lancamentos_df = lancamentos_df[
+            (lancamentos_df['Data'].dt.month == mes_selecionado_dt.month) &
+            (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
+        ]
+
+    # --- ESTRUTURA DE NAVEGAÇÃO (FORA DA SIDEBAR) ---
+    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         
-        # --- INÍCIO DA CORREÇÃO: AVISO DE MÊS FECHADO ---
         obra_logada = st.session_state['obra_logada']
         mes_selecionado = st.session_state.selected_month
 
@@ -476,233 +483,215 @@ else:
         if is_launched:
             st.error(f" Mês Fechado: A folha de {mes_selecionado} para a obra {obra_logada} já foi lançada. Não é possível adicionar ou alterar lançamentos.")
         else:
-            # O formulário só aparece se o mês não foi lançado
             col_form, col_view = st.columns(2)
-
-            
-        with col_form:
-            # Dicionários para armazenar os dados dos itens extras
-            quantidades_extras = {}
-            observacoes_extras = {}
-            datas_servico_extras = {}
-            
-            st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
-            with st.container(border=True):
-                obra_selecionada = st.session_state['obra_logada']
-                opcoes_funcionario = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique()
-                funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=opcoes_funcionario, index=None, placeholder="Selecione um funcionário...")
-                if funcionario_selecionado:
-                    funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
-                    st.metric(label="Função do Colaborador", value=funcao_selecionada)
-
-            st.markdown("##### 🛠️ Selecione o Serviço Principal")
-            with st.container(border=True):
-                disciplinas = precos_df['DISCIPLINA'].unique()
-                disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...")
-                opcoes_servico = []
-                if disciplina_selecionada:
-                    opcoes_servico = precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()
-                servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina...", disabled=(not disciplina_selecionada))
+            with col_form:
+                quantidades_extras = {}
+                observacoes_extras = {}
+                datas_servico_extras = {}
                 
-                quantidade_principal = 0 
-                if servico_selecionado:
-                    servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
-                    kpi1, kpi2 = st.columns(2)
-                    kpi1.metric(label="Unidade", value=servico_info['UNIDADE'])
-                    kpi2.metric(label="Valor Unitário", value=format_currency(servico_info['VALOR']))
+                st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
+                with st.container(border=True):
+                    obra_selecionada = st.session_state['obra_logada']
+                    opcoes_funcionario = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique()
+                    funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=opcoes_funcionario, index=None, placeholder="Selecione um funcionário...")
+                    if funcionario_selecionado:
+                        funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
+                        st.metric(label="Função do Colaborador", value=funcao_selecionada)
+
+                st.markdown("##### 🛠️ Selecione o Serviço Principal")
+                with st.container(border=True):
+                    disciplinas = precos_df['DISCIPLINA'].unique()
+                    disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...")
+                    opcoes_servico = []
+                    if disciplina_selecionada:
+                        opcoes_servico = precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()
+                    servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina...", disabled=(not disciplina_selecionada))
                     
-                    col_qtd, col_parcial = st.columns(2)
-                    with col_qtd:
-                        quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="qty_principal")
-                    with col_parcial:
-                        valor_unitario = safe_float(servico_info.get('VALOR'))
-                        valor_parcial_servico = quantidade_principal * valor_unitario
-                        st.metric(label="Subtotal do Serviço", value=format_currency(valor_parcial_servico))
-                    
-                    col_data_princ, col_obs_princ = st.columns(2)
-                    with col_data_princ:
-                        data_servico_principal = st.date_input("Data do Serviço", value=None, key="data_principal", format="DD/MM/YYYY")
-                    with col_obs_princ:
-                        obs_principal = st.text_area("Observação", key="obs_principal")
-            
-            st.markdown("##### Adicione Itens Extras")
-            with st.expander("📝 Lançar Item Diverso"):
-                descricao_diverso = st.text_input("Descrição do Item Diverso")
-                valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
-                quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
-                
-                col_data_div, col_obs_div = st.columns(2)
-                with col_data_div:
-                    data_servico_diverso = st.date_input("Data do Serviço", value=None, key="data_diverso", format="DD/MM/YYYY")
-                with col_obs_div:
-                    obs_diverso = st.text_area("Observação", key="obs_diverso")
-
-            with st.expander("➕ Lançar Valores Extras"):
-                if valores_extras_df.empty:
-                    st.info("Nenhum item na tabela de 'Valores Extras' da planilha.")
-                else:
-                    extras_options = valores_extras_df['VALORES EXTRAS'].unique()
-                    extras_selecionados = st.multiselect("Selecione", options=extras_options, key="valores_extras_multiselect", label_visibility="collapsed")
-                    if extras_selecionados:
-                        for extra in extras_selecionados:
-                            extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                            st.markdown(f"--- \n **{extra}**")
-                            kpi1, kpi2 = st.columns(2)
-                            kpi1.metric(label="Unidade", value=extra_info['UNIDADE'])
-                            kpi2.metric(label="Valor Unitário", value=format_currency(extra_info['VALOR']))
-                            key_slug = re.sub(r'[^a-zA-Z0-9]', '', extra)
-                            
-                            col_qtd_extra, col_parcial_extra = st.columns(2)
-                            with col_qtd_extra:
-                                quantidades_extras[extra] = st.number_input("Quantidade", min_value=0, step=1, key=f"qty_{key_slug}")
-                            with col_parcial_extra:
-                                valor_unitario_extra = safe_float(extra_info.get('VALOR'))
-                                valor_parcial_extra_calc = quantidades_extras.get(extra, 0) * valor_unitario_extra
-                                st.metric(label="Subtotal do Extra", value=format_currency(valor_parcial_extra_calc))
-
-                            col_data_extra, col_obs_extra = st.columns(2)
-                            with col_data_extra:
-                                datas_servico_extras[extra] = st.date_input("Data do Serviço", value=None, key=f"data_{key_slug}", format="DD/MM/YYYY")
-                            with col_obs_extra:
-                                observacoes_extras[extra] = st.text_area("Observação", key=f"obs_{key_slug}", placeholder="Obrigatório se houver quantidade")
-
-            if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
-                if not funcionario_selecionado:
-                    st.warning("Por favor, selecione um funcionário.")
-                else:
-                    erros = []
-                    # --- Início da Validação ---
-                    if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
-                        if not obs_principal.strip():
-                            erros.append(f"Para o Serviço Principal '{servico_selecionado}', o campo 'Observação' é obrigatório.")
-
-                    if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
-                        if not obs_diverso.strip():
-                            erros.append(f"Para o Item Diverso '{descricao_diverso}', o campo 'Observação' é obrigatório.")
-
-                    if 'extras_selecionados' in locals() and extras_selecionados:
-                        for extra in extras_selecionados:
-                            if quantidades_extras.get(extra, 0) > 0:
-                                if not datas_servico_extras.get(extra):
-                                    erros.append(f"Para o Item Extra '{extra}', a 'Data do Serviço' é obrigatória.")
-                                if not observacoes_extras.get(extra, "").strip():
-                                    erros.append(f"Para o Item Extra '{extra}', a 'Observação' é obrigatória.")
-                    
-                    if erros:
-                        for erro in erros:
-                            st.warning(erro)
-                    # --- Fim da Validação ---
-                    else:
-                        novos_lancamentos_dicts = []
-                        agora = datetime.now()
+                    quantidade_principal = 0 
+                    if servico_selecionado:
+                        servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
+                        kpi1, kpi2 = st.columns(2)
+                        kpi1.metric(label="Unidade", value=servico_info['UNIDADE'])
+                        kpi2.metric(label="Valor Unitário", value=format_currency(servico_info['VALOR']))
                         
+                        col_qtd, col_parcial = st.columns(2)
+                        with col_qtd:
+                            quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="qty_principal")
+                        with col_parcial:
+                            valor_unitario = safe_float(servico_info.get('VALOR'))
+                            valor_parcial_servico = quantidade_principal * valor_unitario
+                            st.metric(label="Subtotal do Serviço", value=format_currency(valor_parcial_servico))
+                        
+                        col_data_princ, col_obs_princ = st.columns(2)
+                        with col_data_princ:
+                            data_servico_principal = st.date_input("Data do Serviço", value=None, key="data_principal", format="DD/MM/YYYY")
+                        with col_obs_princ:
+                            obs_principal = st.text_area("Observação (Obrigatório)", key="obs_principal")
+                
+                st.markdown("##### Adicione Itens Extras")
+                with st.expander("📝 Lançar Item Diverso"):
+                    descricao_diverso = st.text_input("Descrição do Item Diverso")
+                    valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
+                    quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
+                    
+                    col_data_div, col_obs_div = st.columns(2)
+                    with col_data_div:
+                        data_servico_diverso = st.date_input("Data do Serviço", value=None, key="data_diverso", format="DD/MM/YYYY")
+                    with col_obs_div:
+                        obs_diverso = st.text_area("Observação (Obrigatório)", key="obs_diverso")
+
+                with st.expander("➕ Lançar Valores Extras"):
+                    if valores_extras_df.empty:
+                        st.info("Nenhum item na tabela de 'Valores Extras' da planilha.")
+                    else:
+                        extras_options = valores_extras_df['VALORES EXTRAS'].unique()
+                        extras_selecionados = st.multiselect("Selecione", options=extras_options, key="valores_extras_multiselect", label_visibility="collapsed")
+                        if extras_selecionados:
+                            for extra in extras_selecionados:
+                                extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
+                                st.markdown(f"--- \n **{extra}**")
+                                kpi1, kpi2 = st.columns(2)
+                                kpi1.metric(label="Unidade", value=extra_info['UNIDADE'])
+                                kpi2.metric(label="Valor Unitário", value=format_currency(extra_info['VALOR']))
+                                key_slug = re.sub(r'[^a-zA-Z0-9]', '', extra)
+                                
+                                col_qtd_extra, col_parcial_extra = st.columns(2)
+                                with col_qtd_extra:
+                                    quantidades_extras[extra] = st.number_input("Quantidade", min_value=0, step=1, key=f"qty_{key_slug}")
+                                with col_parcial_extra:
+                                    valor_unitario_extra = safe_float(extra_info.get('VALOR'))
+                                    valor_parcial_extra_calc = quantidades_extras.get(extra, 0) * valor_unitario_extra
+                                    st.metric(label="Subtotal do Extra", value=format_currency(valor_parcial_extra_calc))
+
+                                col_data_extra, col_obs_extra = st.columns(2)
+                                with col_data_extra:
+                                    datas_servico_extras[extra] = st.date_input("Data do Serviço (Obrigatório)", value=None, key=f"data_{key_slug}", format="DD/MM/YYYY")
+                                with col_obs_extra:
+                                    observacoes_extras[extra] = st.text_area("Observação (Obrigatório)", key=f"obs_{key_slug}")
+
+                if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
+                    if not funcionario_selecionado:
+                        st.warning("Por favor, selecione um funcionário.")
+                    else:
+                        erros = []
                         if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
-                            valor_unitario = safe_float(servico_info.get('VALOR', 0))
-                            novos_lancamentos_dicts.append({
-                                'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                'Disciplina': servico_info['DISCIPLINA'], 'Serviço': servico_selecionado,
-                                'Quantidade': quantidade_principal, 'Unidade': servico_info['UNIDADE'],
-                                'Valor Unitário': valor_unitario, 'Valor Parcial': quantidade_principal * valor_unitario,
-                                'Data do Serviço': data_servico_principal, 'Observação': obs_principal
-                            })
-
+                            if not obs_principal.strip():
+                                erros.append(f"Para o Serviço Principal '{servico_selecionado}', o campo 'Observação' é obrigatório.")
                         if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
-                            novos_lancamentos_dicts.append({
-                                'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                'Disciplina': "Diverso", 'Serviço': descricao_diverso,
-                                'Quantidade': quantidade_diverso, 'Unidade': 'UN',
-                                'Valor Unitário': valor_diverso, 'Valor Parcial': quantidade_diverso * valor_diverso,
-                                'Data do Serviço': data_servico_diverso, 'Observação': obs_diverso
-                            })
-
+                            if not obs_diverso.strip():
+                                erros.append(f"Para o Item Diverso '{descricao_diverso}', o campo 'Observação' é obrigatório.")
                         if 'extras_selecionados' in locals() and extras_selecionados:
                             for extra in extras_selecionados:
-                                qty = quantidades_extras.get(extra, 0)
-                                if qty > 0:
-                                    extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                                    valor_unitario = safe_float(extra_info.get('VALOR', 0))
-                                    novos_lancamentos_dicts.append({
-                                        'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                        'Disciplina': "Extras", 'Serviço': extra,
-                                        'Quantidade': qty, 'Unidade': extra_info['UNIDADE'],
-                                        'Valor Unitário': valor_unitario, 'Valor Parcial': qty * valor_unitario,
-                                        'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
-                                    })
+                                if quantidades_extras.get(extra, 0) > 0:
+                                    if not datas_servico_extras.get(extra):
+                                        erros.append(f"Para o Item Extra '{extra}', a 'Data do Serviço' é obrigatória.")
+                                    if not observacoes_extras.get(extra, "").strip():
+                                        erros.append(f"Para o Item Extra '{extra}', a 'Observação' é obrigatória.")
                         
-                        if not novos_lancamentos_dicts:
-                            st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
+                        if erros:
+                            for erro in erros:
+                                st.warning(erro)
                         else:
-                            try:
-                                gc = get_gsheets_connection()
-                                ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                                
-                                df_novos = pd.DataFrame(novos_lancamentos_dicts)
-                                df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
+                            novos_lancamentos_dicts = []
+                            agora = datetime.now()
+                            
+                            if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
+                                valor_unitario = safe_float(servico_info.get('VALOR', 0))
+                                novos_lancamentos_dicts.append({
+                                    'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
+                                    'Disciplina': servico_info['DISCIPLINA'], 'Serviço': servico_selecionado,
+                                    'Quantidade': quantidade_principal, 'Unidade': servico_info['UNIDADE'],
+                                    'Valor Unitário': valor_unitario, 'Valor Parcial': quantidade_principal * valor_unitario,
+                                    'Data do Serviço': data_servico_principal, 'Observação': obs_principal
+                                })
+                            if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
+                                novos_lancamentos_dicts.append({
+                                    'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
+                                    'Disciplina': "Diverso", 'Serviço': descricao_diverso,
+                                    'Quantidade': quantidade_diverso, 'Unidade': 'UN',
+                                    'Valor Unitário': valor_diverso, 'Valor Parcial': quantidade_diverso * valor_diverso,
+                                    'Data do Serviço': data_servico_diverso, 'Observação': obs_diverso
+                                })
+                            if 'extras_selecionados' in locals() and extras_selecionados:
+                                for extra in extras_selecionados:
+                                    qty = quantidades_extras.get(extra, 0)
+                                    if qty > 0:
+                                        extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
+                                        valor_unitario = safe_float(extra_info.get('VALOR', 0))
+                                        novos_lancamentos_dicts.append({
+                                            'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
+                                            'Disciplina': "Extras", 'Serviço': extra,
+                                            'Quantidade': qty, 'Unidade': extra_info['UNIDADE'],
+                                            'Valor Unitário': valor_unitario, 'Valor Parcial': qty * valor_unitario,
+                                            'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
+                                        })
+                            
+                            if not novos_lancamentos_dicts:
+                                st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
+                            else:
+                                try:
+                                    gc = get_gsheets_connection()
+                                    ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
+                                    
+                                    df_novos = pd.DataFrame(novos_lancamentos_dicts)
+                                    df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
 
-                                df_novos_ordenado['Data'] = pd.to_datetime(df_novos_ordenado['Data']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                                
-                                # --- INÍCIO DA CORREÇÃO ---
-                                # Converte datas para string, tratando valores nulos (vazios) para evitar o erro de 'nan'
-                                datas_formatadas = pd.to_datetime(df_novos_ordenado['Data do Serviço'], errors='coerce').dt.strftime('%Y-%m-%d')
-                                df_novos_ordenado['Data do Serviço'] = datas_formatadas.fillna('')
-                                # --- FIM DA CORREÇÃO ---
-                                
-                                for col in ['Valor Unitário', 'Valor Parcial', 'Quantidade']:
-                                    if col in df_novos_ordenado.columns:
-                                        df_novos_ordenado[col] = pd.to_numeric(df_novos_ordenado[col], errors='coerce').fillna(0)
-                                        if col in ['Valor Unitário', 'Valor Parcial']:
-                                            df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{x:.2f}'.replace('.', ','))
-                                        else:
-                                            df_novos_ordenado[col] = df_novos_ordenado[col].astype(str)
-                                
-                                ws_lancamentos.append_rows(df_novos_ordenado.values.tolist(), value_input_option='USER_ENTERED')
-                                
-                                st.success("Lançamento(s) adicionado(s) com sucesso!")
-                                
-                                df_atual_historico = pd.DataFrame(st.session_state.lancamentos)
-                                df_atualizado = pd.concat([df_atual_historico, df_novos], ignore_index=True)
-                                st.session_state.lancamentos = df_atualizado.to_dict('records')
-                                
-                                st.cache_data.clear()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
-        
-        with col_view:
-            if 'funcionario_selecionado' in locals() and funcionario_selecionado:
-                st.subheader("Status do Funcionário")
-                obra_logada = st.session_state['obra_logada']
-                
-                status_da_obra = status_df[status_df['Obra'] == obra_logada]
-                func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
-                status_atual = func_status_row['Status'].iloc[0] if not func_status_row.empty else 'A Revisar'
-                display_status_box(f"Status de {funcionario_selecionado}", status_atual)
-                
-                
-                comment = ""
-                if not func_status_row.empty and 'Comentario' in func_status_row.columns:
-                    comment = func_status_row['Comentario'].iloc[0]
-                                
-                st.markdown("---")
-                st.subheader("Comentários")
-                
-                if comment and str(comment).strip():
-                    st.warning(f"Comentário: {comment}")
-                
-                st.markdown("---")
-                # --- FIM DA CORREÇÃO ---
+                                    df_novos_ordenado['Data'] = pd.to_datetime(df_novos_ordenado['Data']).dt.strftime('%Y-%m-%d %H:%m:%S')
+                                    datas_formatadas = pd.to_datetime(df_novos_ordenado['Data do Serviço'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                    df_novos_ordenado['Data do Serviço'] = datas_formatadas.fillna('')
+                                    
+                                    for col in ['Valor Unitário', 'Valor Parcial', 'Quantidade']:
+                                        if col in df_novos_ordenado.columns:
+                                            df_novos_ordenado[col] = pd.to_numeric(df_novos_ordenado[col], errors='coerce').fillna(0)
+                                            if col in ['Valor Unitário', 'Valor Parcial']:
+                                                df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{x:.2f}'.replace('.', ','))
+                                            else:
+                                                df_novos_ordenado[col] = df_novos_ordenado[col].astype(str)
+                                    
+                                    ws_lancamentos.append_rows(df_novos_ordenado.values.tolist(), value_input_option='USER_ENTERED')
+                                    
+                                    st.success("Lançamento(s) adicionado(s) com sucesso!")
+                                    
+                                    df_atual_historico = pd.DataFrame(st.session_state.lancamentos)
+                                    df_atualizado = pd.concat([df_atual_historico, df_novos], ignore_index=True)
+                                    st.session_state.lancamentos = df_atualizado.to_dict('records')
+                                    
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
 
-            st.subheader("Histórico Recente na Obra")
-            lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-            if not lancamentos_df.empty:
-                lancamentos_da_obra = lancamentos_df[lancamentos_df['Obra'] == st.session_state['obra_logada']]
-                colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
-                colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
-                if 'Data' in lancamentos_da_obra.columns:
-                    lancamentos_da_obra['Data'] = pd.to_datetime(lancamentos_da_obra['Data'])
-                    st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
-            else:
-                st.info("Nenhum lançamento adicionado ainda.")
+            with col_view:
+                if 'funcionario_selecionado' in locals() and funcionario_selecionado:
+                    st.subheader("Status e Comentários da Auditoria")
+                    status_da_obra = status_df[status_df['Obra'] == obra_logada]
+                    func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
+                    
+                    status_atual = 'A Revisar'
+                    if not func_status_row.empty and 'Status' in func_status_row.columns:
+                        status_atual = func_status_row['Status'].iloc[0]
+                    display_status_box(f"Status de {funcionario_selecionado}", status_atual)
+                    
+                    comment = ""
+                    if not func_status_row.empty and 'Comentario' in func_status_row.columns:
+                        comment = func_status_row['Comentario'].iloc[0]
+                    if comment and str(comment).strip():
+                        st.warning(f"💬 Comentário: {comment}")
+                    
+                    st.markdown("---")
+
+                st.subheader("Histórico Recente na Obra")
+                lancamentos_recentes_df = pd.DataFrame(st.session_state.lancamentos)
+                if not lancamentos_recentes_df.empty:
+                    lancamentos_da_obra = lancamentos_recentes_df[lancamentos_recentes_df['Obra'] == st.session_state['obra_logada']]
+                    colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
+                    colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
+                    if 'Data' in lancamentos_da_obra.columns:
+                        lancamentos_da_obra['Data'] = pd.to_datetime(lancamentos_da_obra['Data'])
+                        st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
+                else:
+                    st.info("Nenhum lançamento adicionado ainda.")
+    
 
    
     elif st.session_state.page == "Gerenciar Funcionários" and st.session_state['role'] == 'admin':
@@ -1327,6 +1316,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
