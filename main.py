@@ -894,7 +894,7 @@ else:
             if funcionario_filtrado:
                 df_para_editar = df_para_editar[df_para_editar['Funcionário'].isin(funcionario_filtrado)]
 
-        else: # Visão do Administrador
+        else: # Visão do Administrador com filtros lado a lado
             filtro_col1, filtro_col2 = st.columns(2)
             with filtro_col1:
                 obras_disponiveis = sorted(df_para_editar['Obra'].unique())
@@ -903,6 +903,7 @@ else:
                     df_para_editar = df_para_editar[df_para_editar['Obra'].isin(obras_filtradas)]
             
             with filtro_col2:
+                # A lista de funcionários disponíveis é atualizada com base no filtro de obra
                 funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
                 funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
                 if funcionario_filtrado:
@@ -910,18 +911,8 @@ else:
         
         df_filtrado = df_para_editar.copy()
 
-        if df_para_editar.empty:
-            st.info("Nenhum lançamento para editar.")
-        else:
-            funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
-            funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar)
-            
-            df_filtrado = df_para_editar.copy()
-            if funcionario_filtrado:
-                df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
-
-            if df_filtrado.empty:
-                st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
+        if df_filtrado.empty:
+            st.info("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
                 df_filtrado['Remover'] = False
                 
@@ -1318,6 +1309,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
