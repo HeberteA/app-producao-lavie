@@ -1188,8 +1188,33 @@ else:
                 display_status_box("Status Geral", status_atual_obra)
                 
                 with st.popover("Alterar Status", disabled=is_locked):
-
-                if st.button("🚀 Lançar Folha Mensal", disabled=(status_atual_obra != "Aprovado" or is_launched), help="Arquiva os lançamentos deste mês e os remove da lista de ativos. Esta ação não pode ser desfeita."):
+                    todos_aprovados = True
+                    nomes_funcionarios_obra = funcionarios_obra_df['NOME'].unique()
+                    if len(nomes_funcionarios_obra) > 0:
+                        status_funcionarios_obra = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Mes'] == mes_selecionado)]
+                        for nome in nomes_funcionarios_obra:
+                            status_func_row = status_funcionarios_obra[status_funcionarios_obra['Funcionario'] == nome]
+                            status_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else 'A Revisar'
+                            if status_func != 'Aprovado':
+                                todos_aprovados = False
+                                break
+                    status_options = ['A Revisar', 'Analisar']
+                    if todos_aprovados:
+                        status_options.append('Aprovado')
+                    else:
+                        st.info("Para aprovar a obra, todos os funcionários devem ter o status 'Aprovado'.")
+                    idx = status_options.index(status_atual_obra) if status_atual_obra in status_options else 0
+                    selected_status_obra = st.radio(
+                        "Defina um novo status", 
+                        options=status_options, 
+                        index=idx, 
+                        horizontal=True, 
+                        key=f"radio_status_obra_{obra_selecionada}_{mes_selecionado}"
+                    )
+                    if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}_{mes_selecionado}"):
+                        if selected_status_obra != status_atual_obra:
+                            st.rerun()
+                    if st.button("🚀 Lançar Folha Mensal", disabled=(status_atual_obra != "Aprovado" or is_launched), help="Arquiva os lançamentos deste mês e os remove da lista de ativos. Esta ação não pode ser desfeita."):
                     launch_monthly_sheet(obra_selecionada, mes_selecionado)
 
 
@@ -1361,6 +1386,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
