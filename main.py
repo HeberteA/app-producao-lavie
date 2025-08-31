@@ -1185,11 +1185,11 @@ else:
                             status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra, mes=mes_selecionado)
                             st.rerun()
                 
-                if st.button("🚀 Lançar Folha Mensal", disabled=(status_atual_obra != "Aprovado" or is_launched), help="Arquiva os lançamentos deste mês e os remove da lista de ativos. Esta ação não pode ser desfeita."):
+                if st.button("Lançar Folha Mensal", disabled=(status_atual_obra != "Aprovado" or is_launched), help="Arquiva os lançamentos deste mês e os remove da lista de ativos. Esta ação não pode ser desfeita."):
                     launch_monthly_sheet(obra_selecionada, mes_selecionado)
 
             with col_aviso_geral:
-                st.markdown("#####📢 Aviso Geral da Obra")
+                st.markdown("##### Aviso Geral da Obra")
                 aviso_atual = ""
                 if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_selecionada].empty:
                     aviso_atual = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'Aviso'].iloc[0]
@@ -1306,6 +1306,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
