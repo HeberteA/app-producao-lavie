@@ -885,6 +885,8 @@ else:
         st.header("Gerenciar Lançamentos")
         
         df_para_editar = pd.DataFrame(st.session_state.lancamentos).copy()
+        
+        # Lógica de filtros que diferencia admin e usuário
         if st.session_state['role'] == 'user':
             if not df_para_editar.empty:
                 df_para_editar = df_para_editar[df_para_editar['Obra'] == st.session_state['obra_logada']]
@@ -913,73 +915,68 @@ else:
 
         if df_filtrado.empty:
             st.info("Nenhum lançamento encontrado para os filtros selecionados.")
-            else:
-                df_filtrado['Remover'] = False
+        else:
+            df_filtrado['Remover'] = False
+            
+            colunas_visiveis = [
+                'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
+                'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 
+                'Data do Serviço', 'id_lancamento'
+            ]
+            colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
+            
+            st.write("Marque as caixas dos lançamentos que deseja apagar e clique no botão de remoção.")
+            
+            df_modificado = st.data_editor(
+                df_filtrado[colunas_existentes],
+                hide_index=True,
+                column_config={
+                    "Remover": st.column_config.CheckboxColumn(required=True),
+                    "id_lancamento": None,
+                    "Disciplina": st.column_config.TextColumn("Disciplina"),
+                    "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
+                    "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
+                },
+                disabled=df_filtrado.columns.drop(['Remover', 'id_lancamento'], errors='ignore')
+            )
+            
+            linhas_para_remover = df_modificado[df_modificado['Remover']]
+            
+            if not linhas_para_remover.empty:
+                st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
+                st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento'], errors='ignore'))
                 
-                # --- INÍCIO DA CORREÇÃO 2: ADICIONAR COLUNA DISCIPLINA ---
-                colunas_visiveis = [
-                    'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
-                    'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 
-                    'Data do Serviço', 'id_lancamento'
-                ]
-                colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
-                
-                st.write("Marque as caixas dos lançamentos que deseja apagar e clique no botão de remoção.")
-                
-                df_modificado = st.data_editor(
-                    df_filtrado[colunas_existentes],
-                    hide_index=True,
-                    column_config={
-                        "Remover": st.column_config.CheckboxColumn(required=True),
-                        "id_lancamento": None,
-                        "Disciplina": st.column_config.TextColumn("Disciplina"),
-                        "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
-                        "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
-                    },
-                    disabled=df_filtrado.columns.drop(['Remover', 'id_lancamento'], errors='ignore')
-                )
-                
-                linhas_para_remover = df_modificado[df_modificado['Remover']]
-                
-                if not linhas_para_remover.empty:
-                    st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
-                    st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento'], errors='ignore'))
-                    
-                    razao_remocao = ""
-                    # O campo de justificativa só aparece para o administrador
-                    if st.session_state['role'] == 'admin':
-                        razao_remocao = st.text_area("Justificativa para a remoção (obrigatório):", key="razao_remocao_admin")
+                razao_remocao = ""
+                if st.session_state['role'] == 'admin':
+                    razao_remocao = st.text_area("Justificativa para a remoção (obrigatório):", key="razao_remocao_admin")
 
-                    confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
-                    
-                    # Condição para desabilitar o botão de remoção
-                    is_disabled = not confirmacao_remocao
-                    if st.session_state['role'] == 'admin':
-                        is_disabled = not confirmacao_remocao or not razao_remocao.strip()
+                confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
+                
+                is_disabled = not confirmacao_remocao
+                if st.session_state['role'] == 'admin':
+                    is_disabled = not confirmacao_remocao or not razao_remocao.strip()
 
-                    if st.button("Remover Itens Selecionados", disabled=is_disabled, type="primary"):
-                        # Salva a justificativa como um comentário para cada funcionário afetado
-                        if st.session_state['role'] == 'admin' and razao_remocao:
-                            funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
-                            
-                            for obra, funcionario in funcionarios_afetados:
-                                status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
-
-                        # Lógica de remoção continua normalmente
-                        ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
-                        df_original = pd.DataFrame(st.session_state.lancamentos)
-                        df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
+                if st.button("Remover Itens Selecionados", disabled=is_disabled, type="primary"):
+                    if st.session_state['role'] == 'admin' and razao_remocao:
+                        funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
                         
-                        try:
-                            gc = get_gsheets_connection()
-                            ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                            set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento'], errors='ignore'), include_index=False, resize=True)
-                            st.session_state.lancamentos = df_atualizado.to_dict('records')
-                            st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
-                            st.cache_data.clear()
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
+                        for obra, funcionario in funcionarios_afetados:
+                            status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
+
+                    ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
+                    df_original = pd.DataFrame(st.session_state.lancamentos)
+                    df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
+                    
+                    try:
+                        gc = get_gsheets_connection()
+                        ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
+                        set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento'], errors='ignore'), include_index=False, resize=True)
+                        st.session_state.lancamentos = df_atualizado.to_dict('records')
+                        st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+                        st.cache_data.clear()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
                             
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
@@ -1309,6 +1306,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
