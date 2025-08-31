@@ -437,8 +437,8 @@ else:
 
         if st.button("Resumo da Folha 📊", use_container_width=True):
             st.session_state.page = "Resumo da Folha 📊"
-        if st.button("Editar Lançamentos ✏️", use_container_width=True):
-            st.session_state.page = "Editar Lançamentos ✏️"
+        if st.button("Remover Lançamentos 🗑️", use_container_width=True):
+            st.session_state.page = "Remover Lançamentos 🗑️"
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
         
@@ -669,7 +669,7 @@ else:
 
             with col_view:
                 if 'funcionario_selecionado' in locals() and funcionario_selecionado:
-                    st.subheader("Status e Comentários da Auditoria")
+                    st.subheader("Status")
                     status_da_obra = status_df[status_df['Obra'] == obra_logada]
                     func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
                     
@@ -679,10 +679,12 @@ else:
                     display_status_box(f"Status de {funcionario_selecionado}", status_atual)
                     
                     comment = ""
+                    st.markdown("---")
+                    st.subheader("Comentário")
                     if not func_status_row.empty and 'Comentario' in func_status_row.columns:
                         comment = func_status_row['Comentario'].iloc[0]
                     if comment and str(comment).strip():
-                        st.warning(f"💬 Comentário: {comment}")
+                        st.warning(f"Comentário: {comment}")
                     
                     st.markdown("---")
 
@@ -1205,7 +1207,7 @@ else:
                     launch_monthly_sheet(obra_selecionada, mes_selecionado)
 
             with col_aviso_geral:
-                st.markdown("##### Aviso Geral da Obra")
+                st.markdown("#####📢 Aviso Geral da Obra")
                 aviso_atual = ""
                 if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_selecionada].empty:
                     aviso_atual = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'Aviso'].iloc[0]
@@ -1322,6 +1324,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
