@@ -463,7 +463,7 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-   elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         
         # --- INÍCIO DA CORREÇÃO: AVISO DE MÊS FECHADO ---
@@ -1359,6 +1359,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
