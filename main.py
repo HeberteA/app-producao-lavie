@@ -222,7 +222,11 @@ def load_data_from_gsheets(url):
         lancamentos_df = pd.DataFrame(lancamentos_data) if lancamentos_data else pd.DataFrame(columns=COLUNAS_LANCAMENTOS)
         for col in ['Quantidade', 'Valor Unitário', 'Valor Parcial']:
             if col in lancamentos_df.columns:
+            # Converte para número e preenche vazios com 0
                 lancamentos_df[col] = lancamentos_df[col].apply(clean_value).fillna(0)
+            # Arredonda as colunas de valor para 2 casas decimais
+                if col in ['Valor Unitário', 'Valor Parcial']:
+                    lancamentos_df[col] = lancamentos_df[col].round(2)
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
         lancamentos_df.dropna(subset=['Data'], inplace=True)
@@ -580,6 +584,7 @@ else:
                         st.warning("Por favor, selecione um funcionário.")
                     else:
                         erros = []
+                        # (A lógica de validação continua a mesma)
                         if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
                             if not obs_principal.strip():
                                 erros.append(f"Para o Serviço Principal '{servico_selecionado}', o campo 'Observação' é obrigatório.")
@@ -601,13 +606,15 @@ else:
                             novos_lancamentos_dicts = []
                             agora = datetime.now()
                             
+                            # --- INÍCIO DA CORREÇÃO ---
                             if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
                                 valor_unitario = safe_float(servico_info.get('VALOR', 0))
                                 novos_lancamentos_dicts.append({
                                     'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
                                     'Disciplina': servico_info['DISCIPLINA'], 'Serviço': servico_selecionado,
                                     'Quantidade': quantidade_principal, 'Unidade': servico_info['UNIDADE'],
-                                    'Valor Unitário': valor_unitario, 'Valor Parcial': quantidade_principal * valor_unitario,
+                                    'Valor Unitário': valor_unitario, 
+                                    'Valor Parcial': round(quantidade_principal * valor_unitario, 2), # Arredonda aqui
                                     'Data do Serviço': data_servico_principal, 'Observação': obs_principal
                                 })
                             if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
@@ -615,7 +622,8 @@ else:
                                     'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
                                     'Disciplina': "Diverso", 'Serviço': descricao_diverso,
                                     'Quantidade': quantidade_diverso, 'Unidade': 'UN',
-                                    'Valor Unitário': valor_diverso, 'Valor Parcial': quantidade_diverso * valor_diverso,
+                                    'Valor Unitário': valor_diverso, 
+                                    'Valor Parcial': round(quantidade_diverso * valor_diverso, 2), # Arredonda aqui
                                     'Data do Serviço': data_servico_diverso, 'Observação': obs_diverso
                                 })
                             if 'extras_selecionados' in locals() and extras_selecionados:
@@ -628,24 +636,24 @@ else:
                                             'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
                                             'Disciplina': "Extras", 'Serviço': extra,
                                             'Quantidade': qty, 'Unidade': extra_info['UNIDADE'],
-                                            'Valor Unitário': valor_unitario, 'Valor Parcial': qty * valor_unitario,
+                                            'Valor Unitário': valor_unitario, 
+                                            'Valor Parcial': round(qty * valor_unitario, 2), # Arredonda aqui
                                             'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
                                         })
+                            # --- FIM DA CORREÇÃO ---
                             
                             if not novos_lancamentos_dicts:
                                 st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
                             else:
                                 try:
+                                    # (O restante do código para salvar na planilha continua o mesmo)
                                     gc = get_gsheets_connection()
                                     ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                                    
                                     df_novos = pd.DataFrame(novos_lancamentos_dicts)
                                     df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
-
-                                    df_novos_ordenado['Data'] = pd.to_datetime(df_novos_ordenado['Data']).dt.strftime('%Y-%m-%d %H:%m:%S')
+                                    df_novos_ordenado['Data'] = pd.to_datetime(df_novos_ordenado['Data']).dt.strftime('%Y-%m-%d %H:%M:%S')
                                     datas_formatadas = pd.to_datetime(df_novos_ordenado['Data do Serviço'], errors='coerce').dt.strftime('%Y-%m-%d')
                                     df_novos_ordenado['Data do Serviço'] = datas_formatadas.fillna('')
-                                    
                                     for col in ['Valor Unitário', 'Valor Parcial', 'Quantidade']:
                                         if col in df_novos_ordenado.columns:
                                             df_novos_ordenado[col] = pd.to_numeric(df_novos_ordenado[col], errors='coerce').fillna(0)
@@ -653,20 +661,16 @@ else:
                                                 df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{x:.2f}'.replace('.', ','))
                                             else:
                                                 df_novos_ordenado[col] = df_novos_ordenado[col].astype(str)
-                                    
                                     ws_lancamentos.append_rows(df_novos_ordenado.values.tolist(), value_input_option='USER_ENTERED')
-                                    
                                     st.success("Lançamento(s) adicionado(s) com sucesso!")
-                                    
                                     df_atual_historico = pd.DataFrame(st.session_state.lancamentos)
                                     df_atualizado = pd.concat([df_atual_historico, df_novos], ignore_index=True)
                                     st.session_state.lancamentos = df_atualizado.to_dict('records')
-                                    
                                     st.cache_data.clear()
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
-
+                                    
             with col_view:
                 if 'funcionario_selecionado' in locals() and funcionario_selecionado:
                     st.subheader("Status")
@@ -1314,6 +1318,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
