@@ -832,7 +832,8 @@ else:
                 if funcionarios_filtrados:
                     base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
                     
-    if base_para_resumo.empty:
+       
+        if base_para_resumo.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
             # O 'lancamentos_df' JÁ VEM FILTRADO PELO MÊS SELECIONADO
@@ -843,7 +844,7 @@ else:
             else:
                 resumo_df = base_para_resumo.copy()
                 resumo_df['PRODUÇÃO (R$)'] = 0
-
+        
             
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
@@ -1360,6 +1361,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
