@@ -201,8 +201,8 @@ def load_data_from_gsheets(url):
         
         # Carrega Extras
         ws_extras = spreadsheet.worksheet("Valores Extras")
-        extras_data = ws_extras.get_all_values()
-        valores_extras_df = pd.DataFrame(extras_data[1:], columns=extras_data[0]) if len(extras_data) > 1 else pd.DataFrame(columns=['VALORES EXTRAS', 'UNIDADE', 'VALOR'])
+        extras_data = ws_extras.get_all_records()
+        valores_extras_df = pd.DataFrame(extras_data)
         if 'VALOR' in valores_extras_df.columns:
             valores_extras_df['VALOR'] = valores_extras_df['VALOR'].apply(clean_value)
         if 'VALORES EXTRAS' in valores_extras_df.columns and 'VALOR' in valores_extras_df.columns:
@@ -211,7 +211,7 @@ def load_data_from_gsheets(url):
         # Carrega Obras
         ws_obras = spreadsheet.worksheet("Obras")
         obras_data = ws_obras.get_all_values()
-        obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0])
+        obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0]) if len(obras_data) > 1 else pd.DataFrame(columns=['NOME DA OBRA', 'Status', 'Aviso'])
         obras_df.dropna(how='all', inplace=True)
         if 'Aviso' not in obras_df.columns:
             obras_df['Aviso'] = ''
@@ -242,14 +242,20 @@ def load_data_from_gsheets(url):
             st.error("Aba 'Funções' não encontrada!")
             funcoes_df = pd.DataFrame()
 
-        # Carrega Folhas Mensais
+        # --- INÍCIO DA CORREÇÃO ---
+        # Carrega Folhas Mensais de forma mais segura
         try:
             ws_folhas = spreadsheet.worksheet("Folhas_Mensais")
             folhas_data = ws_folhas.get_all_records()
             folhas_df = pd.DataFrame(folhas_data)
+            # Garante que as colunas essenciais existam, mesmo se a aba estiver vazia
+            for col in ['Obra', 'Mes', 'Status']:
+                if col not in folhas_df.columns:
+                    folhas_df[col] = pd.NA
         except gspread.exceptions.WorksheetNotFound:
-            st.error("Aba 'Folhas_Mensais' não encontrada!")
-            folhas_df = pd.DataFrame()
+            st.error("Aba 'Folhas_Mensais' não encontrada! Crie-a com as colunas: Obra, Mes, Status.")
+            folhas_df = pd.DataFrame(columns=['Obra', 'Mes', 'Status'])
+        # --- FIM DA CORREÇÃO ---
 
         return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df
     except gspread.exceptions.WorksheetNotFound as e:
@@ -1316,6 +1322,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
