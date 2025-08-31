@@ -463,7 +463,7 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+    elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         
         # --- INÍCIO DA CORREÇÃO: AVISO DE MÊS FECHADO ---
@@ -478,6 +478,7 @@ elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['rol
         else:
             # O formulário só aparece se o mês não foi lançado
             col_form, col_view = st.columns(2)
+
             
         with col_form:
             # Dicionários para armazenar os dados dos itens extras
@@ -1359,6 +1360,7 @@ elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['rol
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
