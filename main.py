@@ -44,10 +44,10 @@ def load_status_data(spreadsheet):
         st.warning("Aba 'StatusAuditoria' não encontrada. Crie uma aba com esse nome e as colunas: Obra, Funcionario, Status, Comentario.")
         return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status', 'Comentario'])
 
-def save_comment_data(status_df, obra, funcionario, comment, append=False):
+def save_comment_data(status_df, obra, funcionario, comment, mes, append=False):
     try:
-        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
-
+        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes)
+        
         current_comment = ""
         if condition.any() and 'Comentario' in status_df.columns:
             comment_val = status_df.loc[condition, 'Comentario'].iloc[0]
@@ -65,7 +65,7 @@ def save_comment_data(status_df, obra, funcionario, comment, append=False):
         if condition.any():
             status_df.loc[condition, 'Comentario'] = final_comment
         else:
-            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': 'A Revisar', 'Comentario': final_comment}])
+            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Mes': mes, 'Status': 'A Revisar', 'Comentario': final_comment}])
             status_df = pd.concat([status_df, new_row], ignore_index=True)
         
         gc = get_gsheets_connection()
@@ -94,13 +94,13 @@ def save_aviso_data(obras_df, obra, aviso):
         st.error(f"Ocorreu um erro ao salvar o aviso: {e}")
     return obras_df
     
-def save_status_data(status_df, obra, funcionario, status):
+def save_status_data(status_df, obra, funcionario, status, mes):
     try:
-        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario)
+        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes)
         if condition.any():
             status_df.loc[condition, 'Status'] = status
         else:
-            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Status': status}])
+            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Mes': mes, 'Status': status}])
             status_df = pd.concat([status_df, new_row], ignore_index=True)
         
         gc = get_gsheets_connection()
@@ -110,6 +110,7 @@ def save_status_data(status_df, obra, funcionario, status):
         st.toast(f"Status de '{funcionario}' atualizado para '{status}'", icon="💾")
         st.cache_data.clear()
         return status_df
+        
     except gspread.exceptions.WorksheetNotFound:
         pass 
     except Exception as e:
@@ -1264,6 +1265,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
