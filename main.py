@@ -441,8 +441,6 @@ else:
                                     observacoes_extras[extra] = st.text_area("Observação (Obrigatório)", key=f"obs_{key_slug}")
 
                 if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
-                if salvar_dados(df_final[colunas_db], 'lancamentos', engine):
-                    st.rerun()
                     if not funcionario_selecionado:
                         st.warning("Por favor, selecione um funcionário.")
                     else:
@@ -501,8 +499,6 @@ else:
                                             'Valor Parcial': round(qty * valor_unitario, 2), # Arredonda aqui
                                             'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
                                         })
-       
-                            # CÓDIGO CORRIGIDO (com a nova lógica do Supabase)
 
                             if not novos_lancamentos_dicts:
                                 st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
@@ -1178,6 +1174,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
