@@ -13,9 +13,6 @@ st.set_page_config(
     layout="wide"
 )
 
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP97sLKZ_dAwiiVwiI/edit?usp=sharing"
-COLUNAS_LANCAMENTOS = ['Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
-
 @st.cache_resource
 def get_db_connection():
     try:
@@ -32,9 +29,9 @@ def load_data(_engine):
     # Query para carregar funcionários já com os nomes das obras e funções
     query_funcionarios = """
     SELECT f.id, f.nome as "NOME", o.nome_obra as "OBRA", fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
-    FROM "Funcionarios" f
-    JOIN "Obras" o ON f.obra_id = o.id
-    JOIN "Funcoes" fn ON f.funcao_id = fn.id;
+    FROM funcionarios f
+    JOIN obras o ON f.obra_id = o.id
+    JOIN funcoes fn ON f.funcao_id = fn.id;
     """
     funcionarios_df = pd.read_sql(query_funcionarios, _engine)
 
@@ -49,9 +46,9 @@ def load_data(_engine):
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
     
     # Converter colunas de data que podem vir como texto
-    lancamentos_df['data_lancamento'] = pd.to_datetime(lancamentos_df['data_lancamento'])
+     lancamentos_df['data_lancamento'] = pd.to_datetime(lancamentos_df['data_lancamento'])
     lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
-    
+
     return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
 
 def salvar_novo_lancamento(df_novos):
@@ -190,15 +187,16 @@ def login_page(obras_df, acessos_df):
                     st.error("Obra ou código de acesso incorreto.")
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
+                
+engine = get_db_connection()
 
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
-    # Carrega apenas os dados necessários para o login
     try:
-        obras_df_login = pd.read_sql('SELECT id, nome_obra as "NOME DA OBRA" FROM "Obras"', engine)
-        acessos_df_login = pd.read_sql('SELECT obra_id, codigo_acesso FROM "Acessos_Obras"', engine)
+        obras_df_login = pd.read_sql('SELECT id, "NOME DA OBRA" FROM obras', engine)
+        acessos_df_login = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', engine)
         login_page(obras_df_login, acessos_df_login)
     except Exception as e:
-        st.error(f"Não foi possível conectar à base de dados para o login. Erro: {e}")
+        st.error(f"Não foi possível conectar à base de dados para o login. Verifique os segredos e a conexão. Erro: {e}")
 else:
     # Carrega todos os dados após o login
     data_tuple = load_data(engine)
@@ -473,30 +471,33 @@ else:
                                             'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
                                         })
        
-                            if not novos_lancamentos_dicts:
-                                st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
-                            else:
-                                try:
-                                    gc = get_gsheets_connection()
-                                    ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                                    df_novos = pd.DataFrame(novos_lancamentos_dicts)
-                                    df_novos_ordenado = df_novos[COLUNAS_LANCAMENTOS].copy()
-                                    df_novos_ordenado['Data'] = pd.to_datetime(df_novos_ordenado['Data']).dt.strftime('%Y-%m-%d %H:%M:%S')
-                                    datas_formatadas = pd.to_datetime(df_novos_ordenado['Data do Serviço'], errors='coerce').dt.strftime('%Y-%m-%d')
-                                    df_novos_ordenado['Data do Serviço'] = datas_formatadas.fillna('')
-                                    for col in ['Valor Unitário', 'Valor Parcial', 'Quantidade']:
-                                        if col in df_novos_ordenado.columns:
-                                            df_novos_ordenado[col] = pd.to_numeric(df_novos_ordenado[col], errors='coerce').fillna(0)
-                                            if col in ['Valor Unitário', 'Valor Parcial']:
-                                                df_novos_ordenado[col] = df_novos_ordenado[col].apply(lambda x: f'{x:.2f}'.replace('.', ','))
-                                            else:
-                                                df_novos_ordenado[col] = df_novos_ordenado[col].astype(str)
-                                    ws_lancamentos.append_rows(df_novos_ordenado.values.tolist(), value_input_option='USER_ENTERED')
-                                    st.success("Lançamento(s) adicionado(s) com sucesso!")
-                                    df_atual_historico = pd.DataFrame(st.session_state.lancamentos)
-                                    df_atualizado = pd.concat([df_atual_historico, df_novos], ignore_index=True)
-                                    st.session_state.lancamentos = df_atualizado.to_dict('records')
-                                    st.cache_data.clear()
+                            if novos_lancamentos_dicts: # Sua lista de dicionários com os novos lançamentos
+                                df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
+
+                                obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
+                                func_id_map = funcionarios_df.set_index('NOME')['id']
+                                servico_id_map = precos_df.set_index('DESCRIÇÃO DO SERVIÇO')['id']
+                                vextra_id_map = valores_extras_df.set_index('VALORES EXTRAS')['id']
+ 
+                                df_para_salvar['obra_id'] = df_para_salvar['Obra'].map(obra_id_map)
+                                df_para_salvar['funcionario_id'] = df_para_salvar['Funcionário'].map(func_id_map)
+                                df_para_salvar['servico_id'] = df_para_salvar['Serviço'].map(servico_id_map)
+                                df_para_salvar['valor_extra_id'] = df_para_salvar['Serviço'].map(vextra_id_map)
+
+                                df_final = df_para_salvar.rename(columns={
+                                    'Data do Serviço': 'data_servico',
+                                    'Quantidade': 'quantidade',
+                                    'Valor Unitário': 'valor_unitário',
+                                    'Observação': 'observacao'
+                                })
+
+                                df_final['servico_diverso_descricao'] = df_final.apply(
+                                    lambda row: row['Serviço'] if pd.isna(row['servico_id']) and pd.isna(row['valor_extra_id']) else None, axis=1
+                                )
+                
+                                colunas_db = ['data_servico', 'obra_id', 'funcionario_id', 'servico_id', 'valor_extra_id', 'servico_diverso_descricao', 'quantidade', 'valor_unitario', 'observacao']
+                
+                                if salvar_novos_lancamentos(df_final[colunas_db], engine):
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
@@ -781,6 +782,9 @@ else:
                     is_disabled = not confirmacao_remocao or not razao_remocao.strip()
 
                 if st.button("Remover Itens Selecionados", ...):
+                    ids_a_remover = linhas_para_remover['id'].tolist()
+                    if remover_lancamentos_por_id(ids_a_remover, engine):
+                        st.rerun()
                     if st.session_state['role'] == 'admin' and razao_remocao:
                         funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
 
@@ -1006,8 +1010,11 @@ else:
                             status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra, mes=mes_selecionado)
                             st.rerun()
                 
-                if st.button("Lançar Folha Mensal", disabled=(status_atual_obra != "Aprovado" or is_launched), help="Arquiva os lançamentos deste mês e os remove da lista de ativos. Esta ação não pode ser desfeita."):
-                    launch_monthly_sheet(obra_selecionada, mes_selecionado)
+                if st.button("Lançar Folha Mensal", ...):
+                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada_nome, 'id'].iloc[0]
+                    mes_datetime = pd.to_datetime(st.session_state.selected_month)
+                    if launch_monthly_sheet(obra_id_selecionada, mes_datetime, engine):
+                        st.rerun()
 
             with col_aviso_geral:
                 st.markdown("##### Aviso Geral da Obra")
@@ -1127,6 +1134,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
