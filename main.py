@@ -177,13 +177,16 @@ def login_page(obras_df, acessos_df):
 
         if st.button("Entrar", use_container_width=True, type="primary"):
             if obra_login and codigo_login:
-                codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
-                if codigo_correto == codigo_login:
-                    st.session_state['logged_in'] = True
-                    st.session_state['role'] = 'user'
-                    st.session_state['obra_logada'] = obra_login
-                    st.rerun()
-                else:
+                try: # Adicione o 'try' aqui
+                    codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
+                    if codigo_correto == codigo_login:
+                        st.session_state['logged_in'] = True
+                        st.session_state['role'] = 'user'
+                        st.session_state['obra_logada'] = obra_login
+                        st.rerun()
+                    else:
+                        st.error("Obra ou código de acesso incorreto.")
+                except IndexError: # O 'except' agora tem um 'try' correspondente
                     st.error("Obra ou código de acesso incorreto.")
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
@@ -1134,6 +1137,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
