@@ -62,6 +62,27 @@ def salvar_novo_lancamento(df_novos):
         except Exception as e:
             st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
             return False
+
+def salvar_dados(df_para_salvar, nome_tabela, _engine):
+    try:
+        df_para_salvar.to_sql(nome_tabela, _engine, if_exists='append', index=False)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar em '{nome_tabela}': {e}")
+        return False
+        
+def executar_update(query, params, _engine):
+    try:
+        with _engine.connect() as connection:
+            with connection.begin() as transaction:
+                connection.execute(text(query), params)
+                transaction.commit()
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao atualizar dados: {e}")
+        return False
             
 def remover_lancamentos_por_id(ids_para_remover):
         if not ids_para_remover:
@@ -221,7 +242,11 @@ else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada_nome = st.session_state['obra_logada']
             obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
-            status_geral_obra_row = status_df[status_df['obra_id'] == obra_logada_id] 
+            obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada'], 'id'].iloc[0]
+            status_geral_obra_row = status_df[
+                (status_df['obra_id'] == obra_logada_id) & 
+                (status_df['funcionario_id'].isnull())
+            ]
             status_atual = 'A Revisar'
             if not status_geral_obra_row.empty:
                 status_atual = status_geral_obra_row['Status'].iloc[0]
@@ -317,16 +342,17 @@ else:
 
     if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
-        
-        obra_logada = st.session_state['obra_logada']
+    
+        obra_logada_nome = st.session_state['obra_logada']
         mes_selecionado = st.session_state.selected_month
-        obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'id'].iloc[0]
+
+        obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
         mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
         folha_lancada_row = folhas_df[(folhas_df['obra_id'] == obra_logada_id) & (folhas_df['mes_referencia'] == mes_selecionado_dt)]
         is_launched = not folha_lancada_row.empty
 
         if is_launched:
-            st.error(f" Mês Fechado: A folha de {mes_selecionado} para a obra {obra_logada} já foi lançada. Não é possível adicionar ou alterar lançamentos.")
+            st.error(f" Mês Fechado: A folha de {mes_selecionado} para a obra {obra_logada_nome} já foi lançada.")
         else:
             col_form, col_view = st.columns(2)
             with col_form:
@@ -476,23 +502,21 @@ else:
                                             'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
                                         })
        
-                            if novos_lancamentos_dicts: # Sua lista de dicionários com os novos lançamentos
+                            if novos_lancamentos_dicts:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
-
-                                obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
                                 func_id_map = funcionarios_df.set_index('NOME')['id']
                                 servico_id_map = precos_df.set_index('DESCRIÇÃO DO SERVIÇO')['id']
                                 vextra_id_map = valores_extras_df.set_index('VALORES EXTRAS')['id']
  
-                                df_para_salvar['obra_id'] = df_para_salvar['Obra'].map(obra_id_map)
+                                df_para_salvar['obra_id'] = obra_logada_id
                                 df_para_salvar['funcionario_id'] = df_para_salvar['Funcionário'].map(func_id_map)
-                                df_para_salvar['servico_id'] = df_para_salvar['Serviço'].map(servico_id_map)
-                                df_para_salvar['valor_extra_id'] = df_para_salvar['Serviço'].map(vextra_id_map)
+                                df_para_salvar['servico_id'] = df_para_salvar['Serviço'].map(servico_id_map).astype('Int64')
+                                df_para_salvar['valor_extra_id'] = df_para_salvar['Serviço'].map(vextra_id_map).astype('Int64')
 
                                 df_final = df_para_salvar.rename(columns={
                                     'Data do Serviço': 'data_servico',
                                     'Quantidade': 'quantidade',
-                                    'Valor Unitário': 'valor_unitário',
+                                    'Valor Unitário': 'valor_unitario',
                                     'Observação': 'observacao'
                                 })
 
@@ -501,8 +525,8 @@ else:
                                 )
                 
                                 colunas_db = ['data_servico', 'obra_id', 'funcionario_id', 'servico_id', 'valor_extra_id', 'servico_diverso_descricao', 'quantidade', 'valor_unitario', 'observacao']
-                
-                                if salvar_novos_lancamentos(df_final[colunas_db], engine):
+
+                                if salvar_dados(df_final[colunas_db], 'lancamentos', engine):
                                     st.rerun()
                                
                                     
@@ -672,36 +696,28 @@ else:
         if base_para_resumo.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
-            if not lancamentos_df.empty:
-                producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-                producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-                resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-            else:
-                resumo_df = base_para_resumo.copy()
-                resumo_df['PRODUÇÃO (R$)'] = 0
+            lancamentos_com_nomes = pd.merge(lancamentos_df, funcionarios_df[['id', 'NOME']], left_on='funcionario_id', right_on='id')
+            producao_por_funcionario = lancamentos_com_nomes.groupby('NOME')['valor_parcial'].sum().reset_index()
+            producao_por_funcionario.rename(columns={'valor_parcial': 'PRODUÇÃO (R$)'}, inplace=True)
         
-            
-        if 'Funcionário' in resumo_df.columns:
-            resumo_df = resumo_df.drop(columns=['Funcionário'])
-
-        mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
-        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'OBRA', 'id']], left_on=['NOME', 'OBRA'], right_on=['NOME', 'OBRA'], how='left')
-        resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
-        obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
-        resumo_df_com_ids['obra_id'] = resumo_df_com_ids['OBRA'].map(obra_id_map)
-        status_mes_df = status_df[status_df['mes_referencia'] == mes_selecionado_dt]
-        resumo_com_status_df = pd.merge(
-            resumo_df_com_ids, 
-            status_mes_df, 
-            on=['funcionario_id', 'obra_id'],
-            how='left'
-        )
+            resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, on='NOME', how='left')
+            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
         
-        resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
+            mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
+            status_mes_df = status_df[status_df['mes_referencia'] == mes_selecionado_dt]
+        
+            resumo_com_status_df = pd.merge(
+                resumo_df, 
+                status_mes_df, 
+                left_on=['id', 'obra_id'], 
+                right_on=['funcionario_id', 'obra_id'], 
+                how='left'
+            )
+        
+            resumo_com_status_df['Status'] = resumo_com_status_df['status'].fillna('A Revisar')
+            resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
+            resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
 
-        resumo_com_status_df['PRODUÇÃO (R$)'] = resumo_com_status_df['PRODUÇÃO (R$)'].fillna(0)
-        resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
-        resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
 
         colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status']
 
@@ -720,7 +736,7 @@ else:
     elif st.session_state.page == "Remover Lançamentos 🗑️":
         st.header("Gerenciar Lançamentos")
         
-        df_para_editar = lancamentos_df.copy()
+        df_para_editar = pd.merge(lancamentos_df, funcionarios_df[['id', 'NOME', 'OBRA']], left_on='funcionario_id', right_on='id', how='left')
 
         if st.session_state['role'] == 'user':
             if not df_para_editar.empty:
@@ -778,6 +794,10 @@ else:
             )
             
             linhas_para_remover = df_modificado[df_modificado['Remover']]
+            if st.button("Remover Itens Selecionados", ...):
+                ids_a_remover = linhas_para_remover['id'].tolist()
+                if remover_lancamentos_por_id(ids_a_remover, engine):
+                st.rerun()
             
             if not linhas_para_remover.empty:
                 st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
@@ -1147,6 +1167,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
