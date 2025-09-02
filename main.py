@@ -797,7 +797,7 @@ else:
             if st.button("Remover Itens Selecionados", ...):
                 ids_a_remover = linhas_para_remover['id'].tolist()
                 if remover_lancamentos_por_id(ids_a_remover, engine):
-            st.rerun()
+                    st.rerun()
             
             if not linhas_para_remover.empty:
                 st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
@@ -1167,6 +1167,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
