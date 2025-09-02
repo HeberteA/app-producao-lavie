@@ -46,7 +46,7 @@ def load_data(_engine):
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
     
     # Converter colunas de data que podem vir como texto
-     lancamentos_df['data_lancamento'] = pd.to_datetime(lancamentos_df['data_lancamento'])
+    lancamentos_df['data_lancamento'] = pd.to_datetime(lancamentos_df['data_lancamento'])
     lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
 
     return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
@@ -1134,6 +1134,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
