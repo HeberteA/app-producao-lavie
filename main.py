@@ -320,8 +320,9 @@ else:
         
         obra_logada = st.session_state['obra_logada']
         mes_selecionado = st.session_state.selected_month
-
-        folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_logada) & (folhas_df['Mes'] == mes_selecionado)]
+        obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'id'].iloc[0]
+        mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
+        folha_lancada_row = folhas_df[(folhas_df['obra_id'] == obra_logada_id) & (folhas_df['mes_referencia'] == mes_selecionado_dt)]
         is_launched = not folha_lancada_row.empty
 
         if is_launched:
@@ -1137,6 +1138,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
