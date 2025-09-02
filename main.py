@@ -502,13 +502,19 @@ else:
                                             'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
                                         })
        
-                            if novos_lancamentos_dicts:
+                            # CÓDIGO CORRIGIDO (com a nova lógica do Supabase)
+
+                            if not novos_lancamentos_dicts:
+                                st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
+                            else:
+
                                 df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
+
                                 func_id_map = funcionarios_df.set_index('NOME')['id']
                                 servico_id_map = precos_df.set_index('DESCRIÇÃO DO SERVIÇO')['id']
                                 vextra_id_map = valores_extras_df.set_index('VALORES EXTRAS')['id']
- 
-                                df_para_salvar['obra_id'] = obra_logada_id
+
+                                df_para_salvar['obra_id'] = obra_logada_id 
                                 df_para_salvar['funcionario_id'] = df_para_salvar['Funcionário'].map(func_id_map)
                                 df_para_salvar['servico_id'] = df_para_salvar['Serviço'].map(servico_id_map).astype('Int64')
                                 df_para_salvar['valor_extra_id'] = df_para_salvar['Serviço'].map(vextra_id_map).astype('Int64')
@@ -519,11 +525,10 @@ else:
                                     'Valor Unitário': 'valor_unitario',
                                     'Observação': 'observacao'
                                 })
-
                                 df_final['servico_diverso_descricao'] = df_final.apply(
                                     lambda row: row['Serviço'] if pd.isna(row['servico_id']) and pd.isna(row['valor_extra_id']) else None, axis=1
                                 )
-                
+
                                 colunas_db = ['data_servico', 'obra_id', 'funcionario_id', 'servico_id', 'valor_extra_id', 'servico_diverso_descricao', 'quantidade', 'valor_unitario', 'observacao']
 
                                 if salvar_dados(df_final[colunas_db], 'lancamentos', engine):
@@ -1173,6 +1178,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
