@@ -502,8 +502,7 @@ else:
                 
                                 if salvar_novos_lancamentos(df_final[colunas_db], engine):
                                     st.rerun()
-                                except Exception as e:
-                                    st.error(f"Ocorreu um erro ao salvar na planilha: {e}")
+                               
                                     
             with col_view:
                 if 'funcionario_selecionado' in locals() and funcionario_selecionado:
@@ -1137,6 +1136,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
