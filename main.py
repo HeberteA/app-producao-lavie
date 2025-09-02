@@ -683,14 +683,17 @@ else:
             
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
-        
-        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'id']], left_on='NOME', right_on='NOME', how='left')
-        resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
 
+        mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
+        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'OBRA', 'id']], left_on=['NOME', 'OBRA'], right_on=['NOME', 'OBRA'], how='left')
+        resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
+        obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
+        resumo_df_com_ids['obra_id'] = resumo_df_com_ids['OBRA'].map(obra_id_map)
+        status_mes_df = status_df[status_df['mes_referencia'] == mes_selecionado_dt]
         resumo_com_status_df = pd.merge(
             resumo_df_com_ids, 
-            status_df, 
-            on=['funcionario_id'], # Assumindo que o status é por funcionário, independentemente da obra
+            status_mes_df, 
+            on=['funcionario_id', 'obra_id'],
             how='left'
         )
         
@@ -1144,6 +1147,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
