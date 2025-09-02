@@ -340,8 +340,8 @@ else:
             (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
         ]
 
-        elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
-            st.header("Adicionar Novo Lançamento de Produção")
+    elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+        st.header("Adicionar Novo Lançamento de Produção")
     
         obra_logada_nome = st.session_state['obra_logada']
         mes_selecionado = st.session_state.selected_month
@@ -1146,6 +1146,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
