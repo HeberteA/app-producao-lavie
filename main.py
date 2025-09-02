@@ -442,7 +442,7 @@ else:
 
                 if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
                     if salvar_dados(df_final[colunas_db], 'lancamentos', engine):
-                        st.rerun())
+                        st.rerun()
                     if not funcionario_selecionado:
                         st.warning("Por favor, selecione um funcionário.")
                     else:
@@ -1173,6 +1173,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
