@@ -738,7 +738,7 @@ else:
                 if obras_filtradas_nomes:
                     ids_obras_filtradas = obras_df[obras_df['NOME DA OBRA'].isin(obras_filtradas_nomes)]['id'].tolist()
                     df_para_editar = df_para_editar[df_para_editar['obra_id'].isin(ids_obras_filtradas)]
-            
+                    
             with filtro_col2:
                 funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
                 funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
@@ -1144,6 +1144,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
