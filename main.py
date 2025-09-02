@@ -781,12 +781,12 @@ else:
                     is_disabled = not confirmacao_remocao or not razao_remocao.strip()
 
                 if st.button("Remover Itens Selecionados", ...):
-                    ids_selecionados = df_modificado[df_modificado['Remover']]['id'].tolist()
-                    remover_lancamentos_por_id(ids_selecionados)
-                    st.rerun()
-                    
+                    if st.session_state['role'] == 'admin' and razao_remocao:
+                        funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
+
                         for obra, funcionario in funcionarios_afetados:
                             status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
+
 
                     ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
                     df_original = pd.DataFrame(st.session_state.lancamentos)
@@ -1127,6 +1127,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
