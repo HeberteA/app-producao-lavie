@@ -534,8 +534,8 @@ else:
                 if 'funcionario_selecionado' in locals() and funcionario_selecionado:
                     st.subheader("Status")
 
-                    obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'id'].iloc[0]
-
+                    obra_logada_nome = st.session_state['obra_logada']
+                    obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
                     funcionario_id = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id'].iloc[0]
                     func_status_row = status_df[
                         (status_df['obra_id'] == obra_logada_id) & 
@@ -1173,6 +1173,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
