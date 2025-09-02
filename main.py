@@ -684,7 +684,7 @@ else:
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
         
-        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'id']], left_on='Funcionário', right_on='NOME', how='left')
+        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'id']], left_on='NOME', right_on='NOME', how='left')
         resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
 
         resumo_com_status_df = pd.merge(
@@ -1144,6 +1144,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
