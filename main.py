@@ -684,13 +684,15 @@ else:
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
         
+        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'id']], left_on='Funcionário', right_on='NOME', how='left')
+        resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
+
         resumo_com_status_df = pd.merge(
-            resumo_df, 
+            resumo_df_com_ids, 
             status_df, 
-            left_on=['NOME', 'OBRA'], 
-            right_on=['Funcionario', 'Obra'], 
+            on=['funcionario_id'], # Assumindo que o status é por funcionário, independentemente da obra
             how='left'
-        ).drop(columns=['Funcionario', 'Obra'])
+        )
         
         resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
 
@@ -729,10 +731,13 @@ else:
         else: 
             filtro_col1, filtro_col2 = st.columns(2)
             with filtro_col1:
-                obras_disponiveis = sorted(df_para_editar['Obra'].unique())
-                obras_filtradas = st.multiselect("Filtrar por Obra(s):", options=obras_disponiveis, key="editar_obras_admin")
-                if obras_filtradas:
-                    df_para_editar = df_para_editar[df_para_editar['Obra'].isin(obras_filtradas)]
+                ids_obras_disponiveis = df_para_editar['obra_id'].unique()
+                nomes_obras_disponiveis = sorted(obras_df[obras_df['id'].isin(ids_obras_disponiveis)]['NOME DA OBRA'].unique())
+                obras_filtradas_nomes = st.multiselect("Filtrar por Obra(s):", options=nomes_obras_disponiveis, key="editar_obras_admin")
+
+                if obras_filtradas_nomes:
+                    ids_obras_filtradas = obras_df[obras_df['NOME DA OBRA'].isin(obras_filtradas_nomes)]['id'].tolist()
+                    df_para_editar = df_para_editar[df_para_editar['obra_id'].isin(ids_obras_filtradas)]
             
             with filtro_col2:
                 funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
@@ -958,8 +963,9 @@ else:
     elif st.session_state.page == "Auditoria ✏️" and st.session_state['role'] == 'admin':
         st.header(f"Auditoria de Lançamentos - {st.session_state.selected_month}")
         col_filtro1, col_filtro2 = st.columns(2)
-        obras_disponiveis = sorted(lancamentos_df['Obra'].unique())
-        obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=obras_disponiveis, index=None, placeholder="Selecione uma obra...")
+        ids_obras_disponiveis = lancamentos_df['obra_id'].unique()
+        nomes_obras_disponiveis = sorted(obras_df[obras_df['id'].isin(ids_obras_disponiveis)]['NOME DA OBRA'].unique())
+        obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=nomes_obras_disponiveis, index=None, placeholder="Selecione uma obra...")
         
         funcionarios_filtrados = []
         if obra_selecionada:
@@ -1138,6 +1144,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
