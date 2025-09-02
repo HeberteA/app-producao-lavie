@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
+from sqlalchemy import create_engine, text
 import numpy as np
 import re
-from gspread_dataframe import set_with_dataframe
 import plotly.express as px
 import io
 
@@ -19,232 +17,102 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/1l5ChC0yrgiscqKBQB3rIEqA62nP
 COLUNAS_LANCAMENTOS = ['Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
 
 @st.cache_resource
-def get_gsheets_connection():
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=[
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive",
-        ],
-    )
-    return gspread.authorize(creds)
-
-def load_status_data(spreadsheet):
+def get_db_connection():
     try:
-        ws_status = spreadsheet.worksheet("StatusAuditoria")
-        status_data = ws_status.get_all_records()
-        if not status_data:
-            return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status', 'Comentario'])
-        df = pd.DataFrame(status_data)
-        for col in ['Obra', 'Funcionario', 'Status', 'Comentario']:
-            if col not in df.columns:
-                df[col] = ''
-        return df
-    except gspread.exceptions.WorksheetNotFound:
-        st.warning("Aba 'StatusAuditoria' não encontrada. Crie uma aba com esse nome e as colunas: Obra, Funcionario, Status, Comentario.")
-        return pd.DataFrame(columns=['Obra', 'Funcionario', 'Status', 'Comentario'])
-
-def save_comment_data(status_df, obra, funcionario, comment, mes, append=False):
-    try:
-        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes)
-        
-        current_comment = ""
-        if condition.any() and 'Comentario' in status_df.columns:
-            comment_val = status_df.loc[condition, 'Comentario'].iloc[0]
-            if pd.notna(comment_val):
-                current_comment = str(comment_val)
-
-        final_comment = comment
-        if append and current_comment.strip():
-            timestamp = datetime.now().strftime("%d/%m/%Y")
-            final_comment = f"{current_comment}\n---\n[REMOÇÃO - {timestamp}]: {comment}"
-        elif append:
-            timestamp = datetime.now().strftime("%d/%m/%Y")
-            final_comment = f"[REMOÇÃO - {timestamp}]: {comment}"
-
-        if condition.any():
-            status_df.loc[condition, 'Comentario'] = final_comment
-        else:
-            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Mes': mes, 'Status': 'A Revisar', 'Comentario': final_comment}])
-            status_df = pd.concat([status_df, new_row], ignore_index=True)
-        
-        gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(SHEET_URL)
-        ws_status = spreadsheet.worksheet("StatusAuditoria")
-        set_with_dataframe(ws_status, status_df, include_index=False, resize=True)
-        st.toast(f"Comentário para '{funcionario}' salvo com sucesso!", icon="💬")
-        st.cache_data.clear()
-        return status_df
+        engine = create_engine(st.secrets["database"]["url"])
+        return engine
     except Exception as e:
-        st.error(f"Ocorreu um erro ao salvar o comentário: {e}")
-    return status_df
-
-def save_aviso_data(obras_df, obra, aviso):
-    try:
-        obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'Aviso'] = aviso
-        
-        gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(SHEET_URL)
-        ws_obras = spreadsheet.worksheet("Obras")
-        set_with_dataframe(ws_obras, obras_df, include_index=False, resize=True)
-        st.toast(f"Aviso para a obra '{obra}' salvo com sucesso!", icon="📢")
-        st.cache_data.clear()
-        return obras_df
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao salvar o aviso: {e}")
-    return obras_df
-    
-def save_status_data(status_df, obra, funcionario, status, mes):
-    try:
-        condition = (status_df['Obra'] == obra) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes)
-        if condition.any():
-            status_df.loc[condition, 'Status'] = status
-        else:
-            new_row = pd.DataFrame([{'Obra': obra, 'Funcionario': funcionario, 'Mes': mes, 'Status': status}])
-            status_df = pd.concat([status_df, new_row], ignore_index=True)
-        
-        gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(SHEET_URL)
-        ws_status = spreadsheet.worksheet("StatusAuditoria")
-        set_with_dataframe(ws_status, status_df, include_index=False, resize=True)
-        st.toast(f"Status de '{funcionario}' atualizado para '{status}'", icon="💾")
-        st.cache_data.clear()
-        return status_df
-        
-    except gspread.exceptions.WorksheetNotFound:
-        pass 
-    except Exception as e:
-        st.error(f"Erro ao salvar o status: {e}")
-    return status_df
-def launch_monthly_sheet(obra, mes):
-    try:
-        gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(SHEET_URL)
-        ws_lancamentos = spreadsheet.worksheet("Lançamentos")
-        lancamentos_ativos = ws_lancamentos.get_all_records()
-        df_lancamentos = pd.DataFrame(lancamentos_ativos)
-
-        df_lancamentos['Data'] = pd.to_datetime(df_lancamentos['Data'])
-
-        mes_dt = pd.to_datetime(mes)
-        filtro = (df_lancamentos['Obra'] == obra) & (df_lancamentos['Data'].dt.month == mes_dt.month) & (df_lancamentos['Data'].dt.year == mes_dt.year)
-        
-        df_para_arquivar = df_lancamentos[filtro]
-        df_para_manter = df_lancamentos[~filtro]
-
-        if not df_para_arquivar.empty:
-            ws_historico = spreadsheet.worksheet("Histórico_Lançamentos")
-            df_para_arquivar_ordenado = df_para_arquivar.reindex(columns=COLUNAS_LANCAMENTOS, fill_value='')
-            ws_historico.append_rows(df_para_arquivar_ordenado.values.tolist(), value_input_option='USER_ENTERED')
-
-            df_para_manter_ordenado = df_para_manter.reindex(columns=COLUNAS_LANCAMENTOS, fill_value='')
-            set_with_dataframe(ws_lancamentos, df_para_manter_ordenado, include_index=False, resize=True)
-
-        # 5. Marcar a folha como "Lançada"
-        ws_folhas = spreadsheet.worksheet("Folhas_Mensais")
-        ws_folhas.append_row([obra, mes, "Lançada"], value_input_option='USER_ENTERED')
-        
-        st.toast(f"Folha de {mes} para a obra '{obra}' lançada e arquivada!", icon="🚀")
-        st.cache_data.clear()
-        st.rerun()
-        return True
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao lançar a folha: {e}")
-        return False
-        
+        st.error(f"Erro ao conectar com o banco de dados: {e}")
+        return None
 @st.cache_data(ttl=30)
-def load_data_from_gsheets(url):
-    try:
-        gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(url)
-
-        def clean_value(value_str):
-            if isinstance(value_str, (int, float)): return value_str
-            s = str(value_str).replace('R$', '').strip()
-            if ',' in s: s = s.replace('.', '').replace(',', '.')
-            return pd.to_numeric(s, errors='coerce')
-
-        ws_func = spreadsheet.worksheet("Funcionários")
-        func_data = ws_func.get_all_values()
-        funcionarios_df = pd.DataFrame([row[1:6] for row in func_data[3:] if len(row) > 5 and row[1]], columns=['NOME', 'FUNÇÃO', 'TIPO', 'SALARIO_BASE', 'OBRA'])
-        funcionarios_df.dropna(how='all', inplace=True)
-        funcionarios_df['SALARIO_BASE'] = funcionarios_df['SALARIO_BASE'].apply(clean_value)
-        funcionarios_df.dropna(subset=['NOME', 'FUNÇÃO'], inplace=True)
-
-        ws_precos = spreadsheet.worksheet("Tabela de Preços")
-        precos_data = ws_precos.get_all_values()
-        servicos_list = []
-        last_discipline = ""
-        def get_cell(r, idx):
-            return r[idx].strip() if len(r) > idx else ""
-        for row in precos_data[3:]:
-            if not any(cell.strip() for cell in row): continue
-            discipline, service, unit, value = get_cell(row, 1), get_cell(row, 2), get_cell(row, 3), get_cell(row, 4)
-            if discipline: last_discipline = discipline
-            if service and value: servicos_list.append([last_discipline, service, unit, value])
-        precos_df = pd.DataFrame(servicos_list, columns=['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR'])
-        precos_df['VALOR'] = precos_df['VALOR'].apply(clean_value)
-        precos_df.dropna(subset=['DESCRIÇÃO DO SERVIÇO', 'VALOR'], inplace=True)
-        
-        ws_extras = spreadsheet.worksheet("Valores Extras")
-        extras_data = ws_extras.get_all_records()
-        valores_extras_df = pd.DataFrame(extras_data)
-        if 'VALOR' in valores_extras_df.columns:
-            valores_extras_df['VALOR'] = valores_extras_df['VALOR'].apply(clean_value)
-        if 'VALORES EXTRAS' in valores_extras_df.columns and 'VALOR' in valores_extras_df.columns:
-            valores_extras_df.dropna(subset=['VALORES EXTRAS', 'VALOR'], inplace=True)
-
-        ws_obras = spreadsheet.worksheet("Obras")
-        obras_data = ws_obras.get_all_values()
-        obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0]) if len(obras_data) > 1 else pd.DataFrame(columns=['NOME DA OBRA', 'Status', 'Aviso'])
-        obras_df.dropna(how='all', inplace=True)
-        if 'Aviso' not in obras_df.columns:
-            obras_df['Aviso'] = ''
-        
-        ws_lancamentos = spreadsheet.worksheet("Lançamentos")
-        lancamentos_data = ws_lancamentos.get_all_records()
-        lancamentos_df = pd.DataFrame(lancamentos_data) if lancamentos_data else pd.DataFrame(columns=COLUNAS_LANCAMENTOS)
-        for col in ['Quantidade', 'Valor Unitário', 'Valor Parcial']:
-            if col in lancamentos_df.columns:
-                lancamentos_df[col] = lancamentos_df[col].apply(clean_value).fillna(0)
-                if col in ['Valor Unitário', 'Valor Parcial']:
-                    lancamentos_df[col] = lancamentos_df[col].round(2)
-        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'], errors='coerce')
-        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'], errors='coerce')
-        lancamentos_df.dropna(subset=['Data'], inplace=True)
-        lancamentos_df.reset_index(inplace=True)
-        lancamentos_df.rename(columns={'index': 'id_lancamento'}, inplace=True)
-        
-        status_df = load_status_data(spreadsheet)
-
-        try:
-            ws_funcoes = spreadsheet.worksheet("Funções")
-            funcoes_data = ws_funcoes.get_all_records()
-            funcoes_df = pd.DataFrame(funcoes_data)
-            funcoes_df['SALARIO_BASE'] = funcoes_df['SALARIO_BASE'].apply(clean_value)
-        except gspread.exceptions.WorksheetNotFound:
-            st.error("Aba 'Funções' não encontrada!")
-            funcoes_df = pd.DataFrame()
-
-        try:
-            ws_folhas = spreadsheet.worksheet("Folhas_Mensais")
-            folhas_data = ws_folhas.get_all_records()
-            folhas_df = pd.DataFrame(folhas_data)
-            for col in ['Obra', 'Mes', 'Status']:
-                if col not in folhas_df.columns:
-                    folhas_df[col] = pd.NA
-        except gspread.exceptions.WorksheetNotFound:
-            st.error("Aba 'Folhas_Mensais' não encontrada! Crie-a com as colunas: Obra, Mes, Status.")
-            folhas_df = pd.DataFrame(columns=['Obra', 'Mes', 'Status'])
-
-        return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df
-    except gspread.exceptions.WorksheetNotFound as e:
-        st.error(f"Aba da planilha não encontrada: '{e}'. Verifique o nome.")
-        st.stop()
-    except Exception as e:
-        st.error(f"Ocorreu um erro ao processar os dados da planilha: {e}")
+def load_data(_engine):
+    if _engine is None:
         st.stop()
 
+    # Query para carregar funcionários já com os nomes das obras e funções
+    query_funcionarios = """
+    SELECT f.id, f.nome as "NOME", o.nome_obra as "OBRA", fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
+    FROM "Funcionarios" f
+    JOIN "Obras" o ON f.obra_id = o.id
+    JOIN "Funcoes" fn ON f.funcao_id = fn.id;
+    """
+    funcionarios_df = pd.read_sql(query_funcionarios, _engine)
+
+    # Carregar as demais tabelas
+    precos_df = pd.read_sql('SELECT disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM "Servicos"', _engine)
+    obras_df = pd.read_sql('SELECT id, nome_obra as "NOME DA OBRA", status as "Status", aviso as "Aviso" FROM "Obras"', _engine)
+    valores_extras_df = pd.read_sql('SELECT descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM "Valores_Extras"', _engine)
+    lancamentos_df = pd.read_sql('SELECT * FROM "Lancamentos" WHERE arquivado = FALSE', _engine) # Carrega apenas os lançamentos ativos
+    status_df = pd.read_sql('SELECT obra_id, funcionario_id, mes_referencia, status, comentario FROM "Status_Auditoria"', _engine)
+    funcoes_df = pd.read_sql('SELECT funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM "Funcoes"', _engine)
+    folhas_df = pd.read_sql('SELECT obra_id, mes_referencia, status FROM "Folhas_Mensais"', _engine)
+    acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM "Acessos_Obras"', _engine)
+    
+    # Converter colunas de data que podem vir como texto
+    lancamentos_df['data_lancamento'] = pd.to_datetime(lancamentos_df['data_lancamento'])
+    lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
+    
+    return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
+
+def salvar_novo_lancamento(df_novos):
+        try:
+            # A função to_sql do Pandas é a forma mais fácil de inserir os dados
+            df_novos.to_sql('Lancamentos', engine, if_exists='append', index=False)
+            st.success("Lançamento(s) adicionado(s) com sucesso!")
+            st.cache_data.clear() # Limpa o cache para recarregar os dados
+            return True
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
+            return False
+            
+def remover_lancamentos_por_id(ids_para_remover):
+        if not ids_para_remover:
+            return False
+        try:
+            with engine.connect() as connection:
+                with connection.begin() as transaction:
+                    query = text("DELETE FROM \"Lancamentos\" WHERE id = ANY(:ids)")
+                    connection.execute(query, {'ids': ids_para_remover})
+                    transaction.commit()
+            st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+            st.cache_data.clear()
+            return True
+        except Exception as e:
+            st.error(f"Erro ao remover lançamentos: {e}")
+            return False
+
+def launch_monthly_sheet(obra_id, mes_dt):
+        mes_inicio = mes_dt.strftime('%Y-%m-01')
+        try:
+            with engine.connect() as connection:
+                with connection.begin() as transaction:
+                    # 1. Arquiva os lançamentos
+                    query_update = text("""
+                        UPDATE "Lancamentos"
+                        SET arquivado = TRUE
+                        WHERE obra_id = :obra_id 
+                        AND date_trunc('month', data_servico) = :mes_inicio;
+                    """)
+                    connection.execute(query_update, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+
+                    # 2. Registra a folha como lançada
+                    query_insert = text("""
+                        INSERT INTO "Folhas_Mensais" (obra_id, mes_referencia, status)
+                        VALUES (:obra_id, :mes_inicio, 'Lançada')
+                        ON CONFLICT (obra_id, mes_referencia) DO NOTHING;
+                    """)
+                    connection.execute(query_insert, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+                    
+                    transaction.commit()
+            
+            st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} lançada e arquivada!", icon="🚀")
+            st.cache_data.clear()
+            return True
+
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao lançar a folha: {e}")
+            return False
+            
 def calcular_salario_final(row):
     if str(row['TIPO']).upper() == 'PRODUCAO':
         return max(row['SALÁRIO BASE (R$)'], row['PRODUÇÃO (R$)'])
@@ -266,14 +134,6 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
-def get_status_color_html(status, font_size='1.1em'):
-    color = 'gray'
-    if status == 'Aprovado':
-        color = 'green'
-    elif status == 'Analisar':
-        color = 'red'
-    return f'<span style="color:{color}; font-weight:bold; font-size:{font_size};">● {status}</span>'
-
 def display_status_box(label, status):
     if status == 'Aprovado':
         st.success(f"{label}: {status}")
@@ -289,8 +149,10 @@ def style_status(status):
     elif status == 'Analisar':
         color = 'red'
     return f'color: {color}; font-weight: bold;'
+    
+engine = get_db_connection()
 
-def login_page(obras_df):
+def login_page(obras_df, acessos_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.image("Lavie.png", width=1000) 
@@ -310,17 +172,16 @@ def login_page(obras_df):
             else:
                 st.error("Senha de administrador incorreta.")
     else:
-        codigos_obras = st.secrets.get("códigos_obras", {})
-        if not codigos_obras:
-            st.error("Códigos de acesso não configurados nos Secrets do Streamlit.")
-            return
-
-        obra_login = st.selectbox("Selecione a Obra", options=obras_df['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
+        # NOVO: Busca as obras e códigos da base de dados
+        obras_com_acesso = pd.merge(obras_df, acessos_df, left_on='id', right_on='obra_id')
+        
+        obra_login = st.selectbox("Selecione a Obra", options=obras_com_acesso['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
         codigo_login = st.text_input("Código de Acesso", type="password")
 
         if st.button("Entrar", use_container_width=True, type="primary"):
             if obra_login and codigo_login:
-                if obra_login in codigos_obras and codigos_obras[obra_login] == codigo_login:
+                codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
+                if codigo_correto == codigo_login:
                     st.session_state['logged_in'] = True
                     st.session_state['role'] = 'user'
                     st.session_state['obra_logada'] = obra_login
@@ -331,23 +192,21 @@ def login_page(obras_df):
                 st.warning("Por favor, selecione a obra e insira o código.")
 
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+    # Carrega apenas os dados necessários para o login
     try:
-        gc = get_gsheets_connection()
-        spreadsheet = gc.open_by_url(SHEET_URL)
-        ws_obras = spreadsheet.worksheet("Obras")
-        obras_data = ws_obras.get_all_values()
-        obras_df = pd.DataFrame(obras_data[1:], columns=obras_data[0])
-        obras_df.dropna(how='all', inplace=True)
-        login_page(obras_df)
+        obras_df_login = pd.read_sql('SELECT id, nome_obra as "NOME DA OBRA" FROM "Obras"', engine)
+        acessos_df_login = pd.read_sql('SELECT obra_id, codigo_acesso FROM "Acessos_Obras"', engine)
+        login_page(obras_df_login, acessos_df_login)
     except Exception as e:
-        st.error(f"Não foi possível conectar à planilha para o login. Erro: {e}")
+        st.error(f"Não foi possível conectar à base de dados para o login. Erro: {e}")
 else:
-    data_tuple = load_data_from_gsheets(SHEET_URL)
-    if not all(df is not None for df in data_tuple):
+    # Carrega todos os dados após o login
+    data_tuple = load_data(engine)
+    if not all(isinstance(df, pd.DataFrame) for df in data_tuple):
         st.error("Falha ao carregar os dados completos após o login.")
         st.stop()
         
-    funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_historico_df, status_df, funcoes_df, folhas_df = data_tuple
+    funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = data_tuple
     
     if 'lancamentos' not in st.session_state or not st.session_state.lancamentos:
         st.session_state.lancamentos = lancamentos_historico_df.to_dict('records')
@@ -553,6 +412,8 @@ else:
                                     observacoes_extras[extra] = st.text_area("Observação (Obrigatório)", key=f"obs_{key_slug}")
 
                 if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
+                    salvar_novo_lancamento(df_para_salvar)
+                    st.rerun()
                     if not funcionario_selecionado:
                         st.warning("Por favor, selecione um funcionário.")
                     else:
@@ -919,10 +780,11 @@ else:
                 if st.session_state['role'] == 'admin':
                     is_disabled = not confirmacao_remocao or not razao_remocao.strip()
 
-                if st.button("Remover Itens Selecionados", disabled=is_disabled, type="primary"):
-                    if st.session_state['role'] == 'admin' and razao_remocao:
-                        funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
-                        
+                if st.button("Remover Itens Selecionados", ...):
+                    ids_selecionados = df_modificado[df_modificado['Remover']]['id'].tolist()
+                    remover_lancamentos_por_id(ids_selecionados)
+                    st.rerun()
+                    
                         for obra, funcionario in funcionarios_afetados:
                             status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
 
@@ -1265,6 +1127,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
