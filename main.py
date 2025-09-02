@@ -39,14 +39,14 @@ def load_data(_engine):
     funcionarios_df = pd.read_sql(query_funcionarios, _engine)
 
     # Carregar as demais tabelas
-    precos_df = pd.read_sql('SELECT disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM "Servicos"', _engine)
-    obras_df = pd.read_sql('SELECT id, nome_obra as "NOME DA OBRA", status as "Status", aviso as "Aviso" FROM "Obras"', _engine)
-    valores_extras_df = pd.read_sql('SELECT descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM "Valores_Extras"', _engine)
-    lancamentos_df = pd.read_sql('SELECT * FROM "Lancamentos" WHERE arquivado = FALSE', _engine) # Carrega apenas os lançamentos ativos
-    status_df = pd.read_sql('SELECT obra_id, funcionario_id, mes_referencia, status, comentario FROM "Status_Auditoria"', _engine)
-    funcoes_df = pd.read_sql('SELECT funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM "Funcoes"', _engine)
-    folhas_df = pd.read_sql('SELECT obra_id, mes_referencia, status FROM "Folhas_Mensais"', _engine)
-    acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM "Acessos_Obras"', _engine)
+    precos_df = pd.read_sql('SELECT disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', _engine)
+    obras_df = pd.read_sql('SELECT id, nome_obra as "NOME DA OBRA", status as "Status", aviso as "Aviso" FROM obras', _engine)
+    valores_extras_df = pd.read_sql('SELECT descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
+    lancamentos_df = pd.read_sql('SELECT * FROM lancamentos WHERE arquivado = FALSE', _engine) # Carrega apenas os lançamentos ativos
+    status_df = pd.read_sql('SELECT obra_id, funcionario_id, mes_referencia, status, comentario FROM status_auditoria', _engine)
+    funcoes_df = pd.read_sql('SELECT funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', _engine)
+    folhas_df = pd.read_sql('SELECT obra_id, mes_referencia, status FROM folhas_mensais', _engine)
+    acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
     
     # Converter colunas de data que podem vir como texto
     lancamentos_df['data_lancamento'] = pd.to_datetime(lancamentos_df['data_lancamento'])
@@ -1127,6 +1127,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
