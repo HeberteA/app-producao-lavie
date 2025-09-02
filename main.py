@@ -340,15 +340,19 @@ else:
             (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
         ]
 
-    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
-        st.header("Adicionar Novo Lançamento de Produção")
+        elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+            st.header("Adicionar Novo Lançamento de Produção")
     
         obra_logada_nome = st.session_state['obra_logada']
         mes_selecionado = st.session_state.selected_month
 
         obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
         mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
-        folha_lancada_row = folhas_df[(folhas_df['obra_id'] == obra_logada_id) & (folhas_df['mes_referencia'] == mes_selecionado_dt)]
+    
+        folha_lancada_row = folhas_df[
+            (folhas_df['obra_id'] == obra_logada_id) & 
+            (folhas_df['mes_referencia'] == mes_selecionado_dt)
+        ]
         is_launched = not folha_lancada_row.empty
 
         if is_launched:
@@ -359,10 +363,10 @@ else:
                 quantidades_extras = {}
                 observacoes_extras = {}
                 datas_servico_extras = {}
-                
-                st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
+            
+                st.markdown(f"##### 📍 Lançamento para a Obra: **{obra_logada_nome}**")
                 with st.container(border=True):
-                    obra_selecionada = st.session_state['obra_logada']
+                    obra_selecionada = obra_logada_nome
                     opcoes_funcionario = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique()
                     funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=opcoes_funcionario, index=None, placeholder="Selecione um funcionário...")
                     if funcionario_selecionado:
@@ -377,27 +381,28 @@ else:
                     if disciplina_selecionada:
                         opcoes_servico = precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()
                     servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina...", disabled=(not disciplina_selecionada))
-                    
+                
                     quantidade_principal = 0 
                     if servico_selecionado:
                         servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
                         kpi1, kpi2 = st.columns(2)
                         kpi1.metric(label="Unidade", value=servico_info['UNIDADE'])
                         kpi2.metric(label="Valor Unitário", value=format_currency(servico_info['VALOR']))
-                        
+                    
                         col_qtd, col_parcial = st.columns(2)
                         with col_qtd:
-                            quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="qty_principal")
+                            quantidade_principal = st.number_input("Quantidade", min_value=0.0, step=1.0, key="qty_principal")
                         with col_parcial:
-                            valor_unitario = safe_float(servico_info.get('VALOR'))
+                            valor_unitario = float(servico_info.get('VALOR', 0))
                             valor_parcial_servico = quantidade_principal * valor_unitario
                             st.metric(label="Subtotal do Serviço", value=format_currency(valor_parcial_servico))
-                        
+                    
                         col_data_princ, col_obs_princ = st.columns(2)
                         with col_data_princ:
                             data_servico_principal = st.date_input("Data do Serviço", value=None, key="data_principal", format="DD/MM/YYYY")
                         with col_obs_princ:
                             obs_principal = st.text_area("Observação (Obrigatório)", key="obs_principal")
+            
                 
                 st.markdown("##### Adicione Itens Extras")
                 with st.expander("📝 Lançar Item Diverso"):
@@ -463,70 +468,37 @@ else:
                             for erro in erros:
                                 st.warning(erro)
                         else:
+                        # ===== INÍCIO DA LÓGICA DE PREPARAÇÃO E SALVAMENTO =====
                             novos_lancamentos_dicts = []
-                            agora = datetime.now()
-                            
-                            if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
-                                valor_unitario = safe_float(servico_info.get('VALOR', 0))
-                                novos_lancamentos_dicts.append({
-                                    'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                    'Disciplina': servico_info['DISCIPLINA'], 'Serviço': servico_selecionado,
-                                    'Quantidade': quantidade_principal, 'Unidade': servico_info['UNIDADE'],
-                                    'Valor Unitário': valor_unitario, 
-                                    'Valor Parcial': round(quantidade_principal * valor_unitario, 2), 
-                                    'Data do Serviço': data_servico_principal, 'Observação': obs_principal
-                                })
-                            if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
-                                novos_lancamentos_dicts.append({
-                                    'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                    'Disciplina': "Diverso", 'Serviço': descricao_diverso,
-                                    'Quantidade': quantidade_diverso, 'Unidade': 'UN',
-                                    'Valor Unitário': valor_diverso, 
-                                    'Valor Parcial': round(quantidade_diverso * valor_diverso, 2), 
-                                    'Data do Serviço': data_servico_diverso, 'Observação': obs_diverso
-                                })
-                            if 'extras_selecionados' in locals() and extras_selecionados:
-                                for extra in extras_selecionados:
-                                    qty = quantidades_extras.get(extra, 0)
-                                    if qty > 0:
-                                        extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                                        valor_unitario = safe_float(extra_info.get('VALOR', 0))
-                                        novos_lancamentos_dicts.append({
-                                            'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                            'Disciplina': "Extras", 'Serviço': extra,
-                                            'Quantidade': qty, 'Unidade': extra_info['UNIDADE'],
-                                            'Valor Unitário': valor_unitario, 
-                                            'Valor Parcial': round(qty * valor_unitario, 2), # Arredonda aqui
-                                            'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
-                                        })
+                        # ... (código que preenche a lista 'novos_lancamentos_dicts')
 
                             if not novos_lancamentos_dicts:
                                 st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
                             else:
-
                                 df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
-
+                            
                                 func_id_map = funcionarios_df.set_index('NOME')['id']
                                 servico_id_map = precos_df.set_index('DESCRIÇÃO DO SERVIÇO')['id']
                                 vextra_id_map = valores_extras_df.set_index('VALORES EXTRAS')['id']
 
-                                df_para_salvar['obra_id'] = obra_logada_id 
+                                df_para_salvar['obra_id'] = obra_logada_id
                                 df_para_salvar['funcionario_id'] = df_para_salvar['Funcionário'].map(func_id_map)
                                 df_para_salvar['servico_id'] = df_para_salvar['Serviço'].map(servico_id_map).astype('Int64')
                                 df_para_salvar['valor_extra_id'] = df_para_salvar['Serviço'].map(vextra_id_map).astype('Int64')
-
+  
                                 df_final = df_para_salvar.rename(columns={
                                     'Data do Serviço': 'data_servico',
                                     'Quantidade': 'quantidade',
                                     'Valor Unitário': 'valor_unitario',
                                     'Observação': 'observacao'
                                 })
+
                                 df_final['servico_diverso_descricao'] = df_final.apply(
                                     lambda row: row['Serviço'] if pd.isna(row['servico_id']) and pd.isna(row['valor_extra_id']) else None, axis=1
                                 )
-
+                            
                                 colunas_db = ['data_servico', 'obra_id', 'funcionario_id', 'servico_id', 'valor_extra_id', 'servico_diverso_descricao', 'quantidade', 'valor_unitario', 'observacao']
-
+                            
                                 if salvar_dados(df_final[colunas_db], 'lancamentos', engine):
                                     st.rerun()
                                
@@ -1174,6 +1146,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
