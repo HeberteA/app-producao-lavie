@@ -48,7 +48,7 @@ def load_data(_engine):
         l.id,
         l.data_lancamento,
         l.data_servico,
-        l.obra_id AS "obra_id",
+        l.obra_id,
         o.nome_obra AS "Obra",
         f.nome AS "Funcionário",
         s.disciplina AS "Disciplina",
@@ -1287,6 +1287,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
