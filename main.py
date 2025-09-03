@@ -828,7 +828,7 @@ else:
         resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
         obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
         resumo_df_com_ids['obra_id'] = resumo_df_com_ids['OBRA'].map(obra_id_map)
-        status_mes_df = status_df[status_df['mes_referencia'] == mes_selecionado_dt]
+        status_mes_df = status_df[status_df['Mes'] == mes_selecionado_dt]
         resumo_com_status_df = pd.merge(
             resumo_df_com_ids, 
             status_mes_df, 
@@ -994,7 +994,7 @@ else:
                     funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
                     funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
                     if funcionarios_filtrados_dash:
-                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+                        df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
             
             else: 
                 col1, col2 = st.columns(2)
@@ -1003,7 +1003,7 @@ else:
                 
                 data_inicio_ts = pd.to_datetime(data_inicio)
                 data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
-                df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
+                df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
 
                 funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
                 funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
@@ -1286,6 +1286,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
