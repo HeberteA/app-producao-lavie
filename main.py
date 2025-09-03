@@ -832,26 +832,29 @@ else:
         if 'Funcionário' in resumo_df.columns:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
 
+        resumo_df.rename(columns={'id': 'funcionario_id'}, inplace=True)
+        resumo_df_com_ids = resumo_df # O DataFrame agora está pronto para o merge.
+
         mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
-        resumo_df_com_ids = pd.merge(resumo_df, funcionarios_df[['NOME', 'OBRA', 'id']], left_on=['NOME', 'OBRA'], right_on=['NOME', 'OBRA'], how='left')
-        resumo_df_com_ids.rename(columns={'id': 'funcionario_id'}, inplace=True)
-        obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
-        resumo_df_com_ids['obra_id'] = resumo_df_com_ids['OBRA'].map(obra_id_map)
         status_mes_df = status_df[status_df['Mes'] == mes_selecionado_dt]
+        
+        # 4. MERGE FINAL (agora funcionará)
         resumo_com_status_df = pd.merge(
-            resumo_df_com_ids, 
-            status_mes_df, 
-            on=['funcionario_id', 'obra_id'], # The key columns
+            resumo_df_com_ids,
+            status_mes_df,
+            on=['funcionario_id', 'obra_id'],
             how='left'
         )
         
+        # --- RESTO DO CÓDIGO (sem alterações) ---
         resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
-
         resumo_com_status_df['PRODUÇÃO (R$)'] = resumo_com_status_df['PRODUÇÃO (R$)'].fillna(0)
         resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
         resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(calcular_salario_final, axis=1)
 
         colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status']
+        if st.session_state['role'] == 'admin':
+            colunas_finais.insert(1, 'OBRA') # Adiciona a coluna OBRA para o admin
 
         colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
         resumo_final_df = resumo_final_df[colunas_existentes].reset_index(drop=True)
@@ -861,7 +864,7 @@ else:
                 'SALÁRIO BASE (R$)': 'R$ {:,.2f}',
                 'PRODUÇÃO (R$)': 'R$ {:,.2f}',
                 'SALÁRIO A RECEBER (R$)': 'R$ {:,.2f}'
-            }).applymap(style_status, subset=['Status']), 
+            }).applymap(style_status, subset=['Status']),
             use_container_width=True
         )
 
@@ -1294,6 +1297,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
