@@ -580,27 +580,32 @@ else:
                         else:
                             novos_lancamentos_dicts = []
                             agora = datetime.now()
+                            data_de_hoje = date.today()
                             obra_selecionada_nome = st.session_state['obra_logada']
                             if servico_selecionado and quantidade_principal > 0:
                                 servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
                                 valor_unitario = safe_float(servico_info.get('VALOR', 0))
                                 novos_lancamentos_dicts.append({
-                                    'data_servico': data_servico_principal, 'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
+                                    'data_servico': data_servico_principal if data_servico_principal else data_de_hoje,
+                                    'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
                                     'servico_id': servico_info['id'], 'valor_extra_id': None, 'servico_diverso_descricao': None,
                                     'quantidade': quantidade_principal, 'valor_unitario': valor_unitario, 'observacao': obs_principal, 'data_lancamento': agora, 'servico_nome': servico_selecionado
                                 })
                             if descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
                                 novos_lancamentos_dicts.append({
-                                    'data_servico': data_servico_diverso, 'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
+                                    'data_servico': data_servico_diverso if data_servico_diverso else data_de_hoje,
+                                    'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
                                     'servico_id': None, 'valor_extra_id': None, 'servico_diverso_descricao': descricao_diverso,
                                     'quantidade': quantidade_diverso, 'valor_unitario': valor_diverso, 'observacao': obs_diverso, 'data_lancamento': agora, 'servico_nome': descricao_diverso
                                 })
+
                             for extra in extras_selecionados:
                                 if quantidades_extras.get(extra, 0) > 0:
                                     extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
                                     valor_unitario_extra = safe_float(extra_info.get('VALOR', 0))
                                     novos_lancamentos_dicts.append({
-                                        'data_servico': datas_servico_extras[extra], 'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
+                                        'data_servico': datas_servico_extras[extra],
+                                        'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
                                         'servico_id': None, 'valor_extra_id': extra_info['id'], 'servico_diverso_descricao': None,
                                         'quantidade': quantidades_extras[extra], 'valor_unitario': valor_unitario_extra, 'observacao': observacoes_extras[extra], 'data_lancamento': agora, 'servico_nome': extra
                                     })
@@ -1263,6 +1268,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
