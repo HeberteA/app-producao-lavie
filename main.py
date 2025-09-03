@@ -136,7 +136,6 @@ def remover_funcionario(engine, funcionario_id):
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # CUIDADO: Adicionar lógica para lidar com lançamentos existentes se necessário
                 query = text("DELETE FROM funcionarios WHERE id = :id")
                 connection.execute(query, {'id': funcionario_id})
                 transaction.commit()
@@ -144,7 +143,7 @@ def remover_funcionario(engine, funcionario_id):
     except Exception as e:
         st.error(f"Erro ao remover funcionário do banco de dados: {e}")
         return False
-
+        
 def adicionar_obra(engine, nome_obra):
     """Insere uma nova obra no banco de dados."""
     try:
@@ -1295,6 +1294,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
