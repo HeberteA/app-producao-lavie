@@ -53,7 +53,7 @@ def load_data(_engine):
         s.disciplina AS "Disciplina",
         -- COALESCE é usado para pegar o primeiro nome de serviço que não for nulo
         COALESCE(s.descricao, ve.descricao, l.servico_diverso_descricao) AS "Serviço",
-        l.quantidade AS "Quantidade",
+        CAST(l.quantidade AS INTEGER) AS "Quantidade",
         -- Define 'UN' como unidade padrão para itens diversos
         COALESCE(s.unidade, ve.unidade, 'UN') AS "Unidade",
         l.valor_unitario AS "Valor Unitário",
@@ -1286,6 +1286,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
