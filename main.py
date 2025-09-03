@@ -350,9 +350,6 @@ else:
         else:
             col_form, col_view = st.columns(2)
             with col_form:
-                with st.container(border=True):
-                    opcoes_funcionario = funcionarios_df[funcionarios_df['OBRA'] == obra_logada_nome]['NOME'].unique()
-                    funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=sorted(opcoes_funcionario), index=None, placeholder="Selecione um funcionário...")
                 
                 st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
                 with st.container(border=True):
@@ -1169,6 +1166,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
