@@ -143,6 +143,9 @@ def remover_funcionario(engine, funcionario_id):
         return True
     except Exception as e:
         st.error(f"Erro ao remover funcionário do banco de dados: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
         
 def adicionar_obra(engine, nome_obra, codigo_acesso):
@@ -161,6 +164,9 @@ def adicionar_obra(engine, nome_obra, codigo_acesso):
         return True
     except Exception as e:
         st.error(f"Erro ao adicionar obra no banco de dados: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
 
 def remover_obra(engine, obra_id):
@@ -177,6 +183,9 @@ def remover_obra(engine, obra_id):
         return True
     except Exception as e:
         st.error(f"Erro ao remover obra do banco de dados: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
 
 def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
@@ -194,6 +203,9 @@ def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar observação: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
 
 # Coloque esta função junto com as outras funções de banco de dados
@@ -214,6 +226,9 @@ def atualizar_observacoes(engine, updates_list):
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
         
 def salvar_novos_lancamentos(df_para_salvar, engine):
@@ -242,6 +257,9 @@ def salvar_novos_lancamentos(df_para_salvar, engine):
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
             
 def remover_lancamentos_por_id(ids_para_remover, engine):
@@ -256,6 +274,8 @@ def remover_lancamentos_por_id(ids_para_remover, engine):
                 transaction.commit()
         st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
         st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return True
     except Exception as e:
         st.error(f"Erro ao remover lançamentos: {e}")
@@ -287,6 +307,8 @@ def launch_monthly_sheet(obra_id, mes_dt):
             
             st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} lançada e arquivada!", icon="🚀")
             st.cache_data.clear()
+            st.cache_resource.clear()
+            st.rerun()
             return True
 
         except Exception as e:
@@ -331,6 +353,9 @@ def save_geral_status_obra(engine, obra_id, status, mes_referencia):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o status geral da obra: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
         
 def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
@@ -373,6 +398,9 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o status: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
 
 def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referencia):
@@ -413,6 +441,9 @@ def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referenci
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o comentário: {e}")
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
         return False
         
 def calcular_salario_final(row):
@@ -794,6 +825,7 @@ else:
                                 if salvar_novos_lancamentos(df_final_para_db, engine):
                                     st.success("Lançamento(s) adicionado(s) com sucesso!")
                                     st.cache_data.clear()
+                                    st.cache_resource.clear()
                                     st.rerun()
                                 else:
                                     st.info("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
@@ -865,6 +897,7 @@ else:
                         if adicionar_funcionario(engine, nome, funcao_id, obra_id):
                             st.success(f"Funcionário '{nome}' adicionado com sucesso!")
                             st.cache_data.clear()
+                            st.cache_resource.clear()
                             st.rerun()
                     else:
                         st.warning("Por favor, preencha nome, função e obra.")
@@ -882,6 +915,7 @@ else:
                     if remover_funcionario(engine, funcionario_id):
                         st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
                         st.cache_data.clear()
+                        st.cache_resource.clear()
                         st.rerun()
 
 
@@ -927,6 +961,7 @@ else:
                     if remover_obra(engine, obra_id):
                         st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
                         st.cache_data.clear()
+                        st.cache_resource.clear()
                         st.rerun()
     
     elif st.session_state.page == "Resumo da Folha 📊":
@@ -1089,6 +1124,8 @@ else:
                         for obra, funcionario in funcionarios_afetados:
                             status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
                         pass
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
                     st.rerun()
 
     elif st.session_state.page == "Dashboard de Análise 📈":
@@ -1295,6 +1332,7 @@ else:
                             obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
                             if save_geral_status_obra(engine, obra_id_selecionada, selected_status_obra, mes_referencia=mes_selecionado):
                                 st.cache_data.clear()
+                                st.cache_resource.clear()
                                 st.rerun()
                 
                 is_launch_disabled = (status_atual_obra != 'Aprovado')
@@ -1324,6 +1362,8 @@ else:
                 )
                 if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=is_locked):
                     obras_df = save_aviso_data(obras_df, obra_selecionada, novo_aviso)
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
                     st.rerun()
 
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
@@ -1375,6 +1415,7 @@ else:
                                     funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
                                     if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
                                         st.cache_data.clear()
+                                        st.cache_resource.clear()
                                         st.rerun()
                                     
                         with col_comment:
@@ -1394,6 +1435,7 @@ else:
                                     funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
                                     if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
                                         st.cache_data.clear()
+                                        st.cache_resource.clear()
                                         st.rerun()
                                         
                         st.markdown("---")
@@ -1443,7 +1485,9 @@ else:
                                     if atualizar_observacoes(engine, updates_list):
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
+                                        st.cache_resource.clear()
                                         st.rerun()
+
 
 
 
