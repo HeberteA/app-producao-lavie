@@ -30,7 +30,14 @@ def load_data(_engine):
 
     # Query para carregar funcionários já com os nomes das obras e funções
     query_funcionarios = """
-    SELECT f.id, f.nome as "NOME", o.id as "obra_id", o.nome_obra as "OBRA", fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
+    SELECT
+        f.id,
+        f.obra_id, -- ADICIONE ESTA LINHA
+        f.nome as "NOME",
+        o.nome_obra as "OBRA",
+        fn.funcao as "FUNÇÃO",
+        fn.tipo as "TIPO",
+        fn.salario_base as "SALARIO_BASE"
     FROM funcionarios f
     JOIN obras o ON f.obra_id = o.id
     JOIN funcoes fn ON f.funcao_id = fn.id;
@@ -1287,6 +1294,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
