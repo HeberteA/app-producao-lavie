@@ -92,7 +92,7 @@ def load_data(_engine):
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
         lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
     if not folhas_df.empty:
-        folhas_df['mes_referencia'] = pd.to_datetime(folhas_df['mes_referencia'])
+        folhas_df['Mes'] = pd.to_datetime(folhas_df['Mes])
 
     return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
     
@@ -982,7 +982,7 @@ else:
 
                 data_inicio_ts = pd.to_datetime(data_inicio)
                 data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
-                df_filtrado_dash = base_para_dash[(base_para_dash['Data'] >= data_inicio_ts) & (base_para_dash['Data'] < data_fim_ts)]
+                df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
 
                 filtro_col3, filtro_col4 = st.columns(2)
                 with filtro_col3:
@@ -1286,6 +1286,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
