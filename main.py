@@ -690,6 +690,7 @@ else:
                         extras_selecionados = st.multiselect("Selecione", options=extras_options, key="valores_extras_multiselect", label_visibility="collapsed")
                         quantidades_extras = {} 
                         datas_servico_extras = {}
+                        observacoes_extras = {}
                         if extras_selecionados:
                             for extra in extras_selecionados:
                                 extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
@@ -1453,6 +1454,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
