@@ -51,7 +51,20 @@ def load_data(_engine):
     """
     lancamentos_df = pd.read_sql(query_lancamentos, _engine)
     
-    status_df = pd.read_sql('SELECT * FROM status_auditoria', _engine)
+    query_status = """
+    SELECT
+        sa.obra_id,
+        o.nome_obra AS "Obra",
+        sa.funcionario_id,
+        f.nome AS "Funcionario",
+        sa.mes_referencia AS "Mes",
+        sa.status AS "Status",
+        sa.comentario AS "Comentario"
+    FROM status_auditoria sa
+    LEFT JOIN obras o ON sa.obra_id = o.id
+    LEFT JOIN funcionarios f ON sa.funcionario_id = f.id;
+    """
+    status_df = pd.read_sql(query_status, _engine)
     funcoes_df = pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', _engine)
     folhas_df = pd.read_sql('SELECT * FROM folhas_mensais', _engine)
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
@@ -1250,6 +1263,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
