@@ -712,8 +712,8 @@ else:
                     st.rerun()
                 else:
                     st.error("Funcionário não encontrado na planilha.")
-                    except Exception as e:
-                        st.error(f"Ocorreu um erro ao remover o funcionário: {e}")
+                except Exception as e:
+                    st.error(f"Ocorreu um erro ao remover o funcionário: {e}")
 
     elif st.session_state.page == "Gerenciar Obras" and st.session_state['role'] == 'admin':
         st.header("Gerenciar Obras 🏗️")
@@ -1253,6 +1253,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
