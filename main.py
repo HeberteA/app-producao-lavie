@@ -144,15 +144,18 @@ def remover_funcionario(engine, funcionario_id):
         st.error(f"Erro ao remover funcionário do banco de dados: {e}")
         return False
         
-def adicionar_obra(engine, nome_obra):
-    """Insere uma nova obra no banco de dados."""
+def adicionar_obra(engine, nome_obra, codigo_acesso):
+    """Insere uma nova obra e seu código de acesso em uma única transação."""
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                query = text("""
-                    INSERT INTO obras (nome_obra, status) VALUES (:nome, 'Ativa')
-                """)
-                connection.execute(query, {'nome': nome_obra})
+                query_obra = text("INSERT INTO obras (nome_obra, status) VALUES (:nome, 'Ativa') RETURNING id")
+                result = connection.execute(query_obra, {'nome': nome_obra})
+                new_obra_id = result.scalar_one()
+
+                query_acesso = text("INSERT INTO acessos_obras (obra_id, codigo_acesso) VALUES (:obra_id, :codigo)")
+                connection.execute(query_acesso, {'obra_id': new_obra_id, 'codigo': codigo_acesso})
+
                 transaction.commit()
         return True
     except Exception as e:
@@ -164,10 +167,11 @@ def remover_obra(engine, obra_id):
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # CUIDADO: Remover uma obra pode quebrar chaves estrangeiras.
-                # Certifique-se de que não há funcionários ou lançamentos ligados a ela.
-                query = text("DELETE FROM obras WHERE id = :id")
-                connection.execute(query, {'id': obra_id})
+                query_acesso = text("DELETE FROM acessos_obras WHERE obra_id = :id")
+                connection.execute(query_acesso, {'id': obra_id})
+                
+                query_obra = text("DELETE FROM obras WHERE id = :id")
+                connection.execute(query_obra, {'id': obra_id})
                 transaction.commit()
         return True
     except Exception as e:
@@ -760,31 +764,35 @@ else:
             nome_obra = st.text_input("Nome da Nova Obra")
             submitted = st.form_submit_button("Adicionar Obra")
             if submitted:
-                if nome_obra:
-                    if adicionar_obra(engine, nome_obra):
+                if nome_obra and codigo_acesso: # Verifica se ambos os campos foram preenchidos
+                    if adicionar_obra(engine, nome_obra, codigo_acesso):
                         st.success(f"Obra '{nome_obra}' adicionada com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
                 else:
-                    st.warning("Por favor, insira o nome da obra.")
-                    
+                    st.warning("Por favor, insira o nome e o código de acesso da obra.")
+                        
         st.markdown("---")
         st.subheader("Remover Obra Existente")
         if obras_df.empty:
             st.info("Nenhuma obra cadastrada.")
         else:
-            st.dataframe(obras_df, use_container_width=True)
-            obra_para_remover = st.selectbox("Selecione a obra para remover", ...)
+            st.dataframe(obras_df[['NOME DA OBRA', 'status']], use_container_width=True) # Exibe o nome e o status
+            obra_para_remover = st.selectbox(
+                "Selecione a obra para remover", 
+                options=obras_df['NOME DA OBRA'].unique(), 
+                index=None, 
+                placeholder="Selecione..."
+            )
             if obra_para_remover:
+                st.warning(f"Atenção: Remover uma obra não remove ou realoca os funcionários associados a ela. Certifique-se de que nenhum funcionário esteja alocado em '{obra_para_remover}' antes de continuar.")
                 if st.button(f"Remover Obra '{obra_para_remover}'", type="primary"):
-                    obra_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover, 'id'].iloc[0]
-
+                    obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover, 'id'].iloc[0])
+                
                     if remover_obra(engine, obra_id):
                         st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
-                    else:
-                        st.error("Obra não encontrada na planilha.")
     
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
@@ -1290,6 +1298,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
