@@ -290,7 +290,49 @@ def launch_monthly_sheet(obra_id, mes_dt):
         except Exception as e:
             st.error(f"Ocorreu um erro ao lançar a folha: {e}")
             return False
-            
+
+def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
+    """Insere ou atualiza o status de um funcionário para um mês/obra específico."""
+    mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                # Tenta atualizar primeiro
+                query_update = text("""
+                    UPDATE status_auditoria 
+                    SET status = :status 
+                    WHERE obra_id = :obra_id 
+                    AND funcionario_id = :funcionario_id 
+                    AND mes_referencia = :mes_ref
+                """)
+                result = connection.execute(query_update, {
+                    'status': status,
+                    'obra_id': obra_id,
+                    'funcionario_id': funcionario_id,
+                    'mes_ref': mes_dt
+                })
+
+                # Se nenhuma linha foi atualizada (porque não existia), insere uma nova
+                if result.rowcount == 0:
+                    query_insert = text("""
+                        INSERT INTO status_auditoria 
+                        (obra_id, funcionario_id, mes_referencia, status, comentario) 
+                        VALUES (:obra_id, :funcionario_id, :mes_ref, :status, '')
+                    """)
+                    connection.execute(query_insert, {
+                        'obra_id': obra_id,
+                        'funcionario_id': funcionario_id,
+                        'mes_ref': mes_dt,
+                        'status': status
+                    })
+                
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar o status: {e}")
+        return False
+        
 def calcular_salario_final(row):
     if str(row['TIPO']).upper() == 'PRODUCAO':
         return max(row['SALÁRIO BASE (R$)'], row['PRODUÇÃO (R$)'])
@@ -1177,8 +1219,11 @@ else:
                     selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True, key=f"radio_status_obra_{obra_selecionada}")
                     if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
                         if selected_status_obra != status_atual_obra:
-                            status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra, mes=mes_selecionado)
-                            st.rerun()
+                            obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
+                            funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
+                            if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
+                                st.cache_data.clear()
+                                st.rerun()
                 
                 is_launch_disabled = (status_atual_obra != 'Aprovado')
 
@@ -1318,6 +1363,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
