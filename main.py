@@ -92,7 +92,16 @@ def load_data(_engine):
     """
     status_df = pd.read_sql(query_status, _engine)
     funcoes_df = pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', _engine)
-    folhas_df = pd.read_sql('SELECT * FROM folhas_mensais', _engine)
+    query_folhas = """
+    SELECT
+        f.obra_id,
+        o.nome_obra AS "Obra",
+        f.mes_referencia AS "Mes",
+        f.status
+    FROM folhas_mensais f
+    LEFT JOIN obras o ON f.obra_id = o.id;
+    """
+    folhas_df = pd.read_sql(query_folhas, _engine)
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
     
     if not lancamentos_df.empty:
@@ -1294,6 +1303,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
