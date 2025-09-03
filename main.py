@@ -821,7 +821,7 @@ else:
                 lancamentos_recentes_df = pd.DataFrame(st.session_state.lancamentos)
                 if not lancamentos_recentes_df.empty:
                     lancamentos_da_obra = lancamentos_recentes_df[lancamentos_recentes_df['Obra'] == st.session_state['obra_logada']]
-                    colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
+                    colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
                     colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
                     if 'Data' in lancamentos_da_obra.columns:
                         lancamentos_da_obra['Data'] = pd.to_datetime(lancamentos_da_obra['Data'])
@@ -1040,9 +1040,8 @@ else:
             df_filtrado['Remover'] = False
             
             colunas_visiveis = [
-                'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
-                'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 
-                'Data do Serviço', 'id_lancamento'
+                'id', 'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
+                'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 'Data do Serviço'
             ]
             colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
             
@@ -1052,8 +1051,8 @@ else:
                 df_filtrado[colunas_existentes],
                 hide_index=True,
                 column_config={
+                    "id": None, 
                     "Remover": st.column_config.CheckboxColumn(required=True),
-                    "id_lancamento": None,
                     "Disciplina": st.column_config.TextColumn("Disciplina"),
                     "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
                     "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
@@ -1454,6 +1453,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
