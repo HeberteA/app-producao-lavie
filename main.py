@@ -703,9 +703,7 @@ else:
             func_para_remover = st.selectbox("Selecione o funcionário para remover", options=funcionarios_df['NOME'].unique(), index=None, placeholder="Selecione...")
             if func_para_remover:
                 if st.button(f"Remover {func_para_remover}", type="primary"):
-        # Pega o ID do funcionário selecionado
-        # Certifique-se que a coluna 'id' está disponível no funcionarios_df
-                funcionario_id = funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0]
+                    funcionario_id = funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0]
 
         # Chama a nova função
                 if remover_funcionario(engine, funcionario_id):
@@ -1255,6 +1253,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
