@@ -43,15 +43,7 @@ def load_data(_engine):
     valores_extras_df = pd.read_sql('SELECT id, descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
     
     # Adiciona nomes de funcionários e obras aos lançamentos para facilitar a exibição
-    query_lancamentos = """
-    SELECT l.*, f.nome as "Funcionário", o.nome_obra as "Obra"
-    FROM lancamentos l
-    JOIN funcionarios f ON l.funcionario_id = f.id
-    JOIN obras o ON l.obra_id = o.id
-    WHERE l.arquivado = FALSE;
-    """
-    lancamentos_df = pd.read_sql(query_lancamentos, _engine)
-    lancamentos_df = lancamentos_df.rename(columns={'data_lancamento': 'Data'})
+    lancamentos_df = pd.read_sql('SELECT * FROM lancamentos WHERE arquivado = FALSE', _engine)
     
     query_status = """
     SELECT
@@ -72,7 +64,6 @@ def load_data(_engine):
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
     
     if not lancamentos_df.empty:
-    # Estas operações só rodam se houver dados na tabela
         lancamentos_df = lancamentos_df.rename(columns={'data_lancamento': 'Data'})
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
         lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
@@ -1272,6 +1263,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
