@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
+from supabase import create_client, Client
 import pandas as pd
 from datetime import datetime, timedelta
 from datetime import date
@@ -29,7 +30,34 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
-@st.cache_data(ttl=60)
+@st.cache_data
+def fetch_data():
+    """Busca os dados da tabela 'todos'."""
+    response = supabase.table("todos").select("*").order("created_at", desc=True).execute()
+    return response.data
+
+def realtime_callback(payload):
+    """Esta função é chamada por uma thread diferente.
+    Ela sinaliza que novos dados chegaram alterando o session_state."""
+    st.session_state.data_changed = True
+
+# Função que executa na thread para ouvir as mudanças
+def realtime_listener():
+    """Conecta ao canal do Supabase Realtime e escuta por eventos."""
+    try:
+        realtime_channel = supabase.realtime
+        channel = realtime_channel.channel("public:todos")
+        channel.on("*", realtime_callback) # Ouve todos os eventos (INSERT, UPDATE, DELETE)
+        channel.subscribe()
+        
+        # Mantém a thread viva
+        while True:
+            time.sleep(1)
+            
+    except Exception as e:
+        # Se a thread morrer, logamos o erro. Em produção, você pode querer um mecanismo de reinicialização.
+        print(f"Erro na thread do Realtime: {e}")
+        
 def load_data(_engine):
     if _engine is None:
         st.stop()
@@ -1471,6 +1499,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
