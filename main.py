@@ -1236,9 +1236,9 @@ else:
                             )
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=is_locked):
-                                original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
-                                edited_obs = edited_df.set_index('id')['Observação']
-                                alteracoes = edited_obs[original_obs != edited_obs]
+                                    original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
+                                    edited_obs = edited_df.set_index('id')['Observação']
+                                    alteracoes = edited_obs[original_obs != edited_obs]
 
                                 if not alteracoes.empty:
                                     updates_list = [
@@ -1250,6 +1250,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
