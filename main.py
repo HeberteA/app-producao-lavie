@@ -105,7 +105,10 @@ def load_data(_engine):
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
     
     if not lancamentos_df.empty:
-        lancamentos_df = lancamentos_df.rename(columns={'data_lancamento': 'Data'})
+        lancamentos_df = lancamentos_df.rename(columns={
+            'data_lancamento': 'Data',
+            'data_servico': 'Data do Serviço' 
+        })
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
         lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
     if not folhas_df.empty:
@@ -1303,6 +1306,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
