@@ -688,6 +688,7 @@ else:
                     else:
                         extras_options = valores_extras_df['VALORES EXTRAS'].unique()
                         extras_selecionados = st.multiselect("Selecione", options=extras_options, key="valores_extras_multiselect", label_visibility="collapsed")
+                        quantidades_extras = {} 
                         if extras_selecionados:
                             for extra in extras_selecionados:
                                 extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
@@ -1397,11 +1398,9 @@ else:
                             )
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=is_locked):
                                 if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=is_locked):
-
-                                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
-                                    funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
-
-                                    if save_comment_data(engine, obra_id_selecionada, funcionario_id_selecionado, new_comment, mes_referencia=mes_selecionado):
+                                    obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
+                                    funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
+                                    if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
                                         st.cache_data.clear()
                                         st.rerun()
                                         
@@ -1453,6 +1452,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
