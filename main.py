@@ -747,8 +747,6 @@ else:
                         st.rerun()
                     else:
                         st.error("Obra não encontrada na planilha.")
-                    except Exception as e:
-                        st.error(f"Ocorreu um erro ao remover a obra: {e}")
     
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
@@ -1252,6 +1250,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
