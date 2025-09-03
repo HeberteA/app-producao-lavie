@@ -43,7 +43,31 @@ def load_data(_engine):
     valores_extras_df = pd.read_sql('SELECT id, descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
     
     # Adiciona nomes de funcionários e obras aos lançamentos para facilitar a exibição
-    lancamentos_df = pd.read_sql('SELECT * FROM lancamentos WHERE arquivado = FALSE', _engine)
+    query_lancamentos = """
+    SELECT
+        l.id,
+        l.data_lancamento,
+        l.data_servico,
+        o.nome_obra AS "Obra",
+        f.nome AS "Funcionário",
+        s.disciplina AS "Disciplina",
+        -- COALESCE é usado para pegar o primeiro nome de serviço que não for nulo
+        COALESCE(s.descricao, ve.descricao, l.servico_diverso_descricao) AS "Serviço",
+        l.quantidade AS "Quantidade",
+        -- Define 'UN' como unidade padrão para itens diversos
+        COALESCE(s.unidade, ve.unidade, 'UN') AS "Unidade",
+        l.valor_unitario AS "Valor Unitário",
+        -- Calcula o valor parcial diretamente na query
+        (l.quantidade * l.valor_unitario) AS "Valor Parcial",
+        l.observacao AS "Observação"
+    FROM lancamentos l
+    LEFT JOIN obras o ON l.obra_id = o.id
+    LEFT JOIN funcionarios f ON l.funcionario_id = f.id
+    LEFT JOIN servicos s ON l.servico_id = s.id
+    LEFT JOIN valores_extras ve ON l.valor_extra_id = ve.id
+    WHERE l.arquivado = FALSE;
+    """
+    lancamentos_df = pd.read_sql(query_lancamentos, _engine)
     
     query_status = """
     SELECT
@@ -750,7 +774,6 @@ else:
             st.dataframe(obras_df, use_container_width=True)
             obra_para_remover = st.selectbox("Selecione a obra para remover", ...)
             if obra_para_remover:
-    # ... (st.warning sobre realocar funcionários) ...
                 if st.button(f"Remover Obra '{obra_para_remover}'", type="primary"):
                     obra_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover, 'id'].iloc[0]
 
@@ -1263,6 +1286,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
