@@ -762,6 +762,7 @@ else:
         st.subheader("Adicionar Nova Obra")
         with st.form("add_obra", clear_on_submit=True):
             nome_obra = st.text_input("Nome da Nova Obra")
+            codigo_acesso = st.text_input("Código de Acesso para a Obra")
             submitted = st.form_submit_button("Adicionar Obra")
             if submitted:
                 if nome_obra and codigo_acesso: # Verifica se ambos os campos foram preenchidos
@@ -1298,6 +1299,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
