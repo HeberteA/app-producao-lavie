@@ -243,7 +243,7 @@ def salvar_novos_lancamentos(df_para_salvar, engine):
         st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
         return False
             
-def remover_lancamentos_por_id(ids_para_remover):
+def remover_lancamentos_por_id(ids_para_remover, engine):
         if not ids_para_remover:
             return False
         try:
@@ -1453,6 +1453,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
