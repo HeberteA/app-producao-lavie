@@ -1,4 +1,5 @@
- import streamlit as st
+import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 from datetime import datetime, timedelta
 from datetime import date
@@ -1443,6 +1444,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
