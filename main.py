@@ -74,16 +74,130 @@ def salvar_dados(df_para_salvar, nome_tabela, _engine):
         st.error(f"Erro ao salvar em '{nome_tabela}': {e}")
         return False
 
-def salvar_novo_lancamento(df_novos):
-        try:
-            # A função to_sql do Pandas é a forma mais fácil de inserir os dados
-            df_novos.to_sql('Lancamentos', engine, if_exists='append', index=False)
-            st.success("Lançamento(s) adicionado(s) com sucesso!")
-            st.cache_data.clear() # Limpa o cache para recarregar os dados
-            return True
-        except Exception as e:
-            st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
-            return False
+def adicionar_funcionario(engine, nome, funcao_id, obra_id):
+    """Insere um novo funcionário no banco de dados."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO funcionarios (nome, funcao_id, obra_id)
+                    VALUES (:nome, :funcao_id, :obra_id)
+                """)
+                connection.execute(query, {'nome': nome, 'funcao_id': funcao_id, 'obra_id': obra_id})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao adicionar funcionário no banco de dados: {e}")
+        return False
+
+def remover_funcionario(engine, funcionario_id):
+    """Remove um funcionário do banco de dados pelo seu ID."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                # CUIDADO: Adicionar lógica para lidar com lançamentos existentes se necessário
+                query = text("DELETE FROM funcionarios WHERE id = :id")
+                connection.execute(query, {'id': funcionario_id})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao remover funcionário do banco de dados: {e}")
+        return False
+
+def adicionar_obra(engine, nome_obra):
+    """Insere uma nova obra no banco de dados."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO obras (nome_obra, status) VALUES (:nome, 'Ativa')
+                """)
+                connection.execute(query, {'nome': nome_obra})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao adicionar obra no banco de dados: {e}")
+        return False
+
+def remover_obra(engine, obra_id):
+    """Remove uma obra do banco de dados pelo seu ID."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                # CUIDADO: Remover uma obra pode quebrar chaves estrangeiras.
+                # Certifique-se de que não há funcionários ou lançamentos ligados a ela.
+                query = text("DELETE FROM obras WHERE id = :id")
+                connection.execute(query, {'id': obra_id})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao remover obra do banco de dados: {e}")
+        return False
+
+def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
+    """Atualiza a observação de um lançamento específico."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE lancamentos
+                    SET observacao = :obs
+                    WHERE id = :id
+                """)
+                connection.execute(query, {'obs': nova_observacao, 'id': lancamento_id})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar observação: {e}")
+        return False
+
+# Coloque esta função junto com as outras funções de banco de dados
+def atualizar_observacoes(engine, updates_list):
+    """
+    Atualiza a observação de múltiplos lançamentos em uma única transação.
+    'updates_list' deve ser uma lista de dicionários, ex: [{'id': 1, 'obs': 'texto'}, ...]
+    """
+    if not updates_list:
+        return True # Nenhuma alteração a ser feita
+
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE lancamentos SET observacao = :obs WHERE id = :id")
+                connection.execute(query, updates_list)
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+        return False
+        
+def salvar_novos_lancamentos(df_para_salvar, engine):
+    """
+    Salva um DataFrame de novos lançamentos no banco de dados
+    dentro de uma única transação.
+    """
+    lancamentos_dict = df_para_salvar.to_dict(orient='records')
+
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO lancamentos (
+                        data_servico, obra_id, funcionario_id, servico_id,
+                        valor_extra_id, servico_diverso_descricao, quantidade,
+                        valor_unitario, observacao, data_lancamento
+                    ) VALUES (
+                        :data_servico, :obra_id, :funcionario_id, :servico_id,
+                        :valor_extra_id, :servico_diverso_descricao, :quantidade,
+                        :valor_unitario, :observacao, :data_lancamento
+                    )
+                """)
+                connection.execute(query, lancamentos_dict)
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
+        return False
             
 def remover_lancamentos_por_id(ids_para_remover):
         if not ids_para_remover:
@@ -432,25 +546,20 @@ else:
                                     observacoes_extras[extra] = st.text_area("Observação (Obrigatório)", key=f"obs_{key_slug}")
 
                 if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
-                    salvar_novo_lancamento(df_para_salvar)
-                    st.rerun()
                     if not funcionario_selecionado:
                         st.warning("Por favor, selecione um funcionário.")
                     else:
                         erros = []
-                        if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
-                            if not obs_principal.strip():
-                                erros.append(f"Para o Serviço Principal '{servico_selecionado}', o campo 'Observação' é obrigatório.")
-                        if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
-                            if not obs_diverso.strip():
-                                erros.append(f"Para o Item Diverso '{descricao_diverso}', o campo 'Observação' é obrigatório.")
-                        if 'extras_selecionados' in locals() and extras_selecionados:
-                            for extra in extras_selecionados:
-                                if quantidades_extras.get(extra, 0) > 0:
-                                    if not datas_servico_extras.get(extra):
-                                        erros.append(f"Para o Item Extra '{extra}', a 'Data do Serviço' é obrigatória.")
-                                    if not observacoes_extras.get(extra, "").strip():
-                                        erros.append(f"Para o Item Extra '{extra}', a 'Observação' é obrigatória.")
+                        if servico_selecionado and quantidade_principal > 0 and not obs_principal.strip():
+                            erros.append("Para o Serviço Principal, o campo 'Observação' é obrigatório.")
+                        if descricao_diverso and quantidade_diverso > 0 and not obs_diverso.strip():
+                            erros.append("Para o Item Diverso, o campo 'Observação' é obrigatório.")
+                        for extra in extras_selecionados:
+                            if quantidades_extras.get(extra, 0) > 0:
+                                if not datas_servico_extras.get(extra):
+                                    erros.append(f"Para o Item Extra '{extra}', a 'Data do Serviço' é obrigatória.")
+                                if not observacoes_extras.get(extra, "").strip():
+                                    erros.append(f"Para o Item Extra '{extra}', a 'Observação' é obrigatória.")
                         
                         if erros:
                             for erro in erros:
@@ -458,71 +567,59 @@ else:
                         else:
                             novos_lancamentos_dicts = []
                             agora = datetime.now()
-                            
-                            if 'servico_selecionado' in locals() and servico_selecionado and quantidade_principal > 0:
+                            obra_selecionada_nome = st.session_state['obra_logada']
+                            if servico_selecionado and quantidade_principal > 0:
+                                servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
                                 valor_unitario = safe_float(servico_info.get('VALOR', 0))
                                 novos_lancamentos_dicts.append({
-                                    'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                    'Disciplina': servico_info['DISCIPLINA'], 'Serviço': servico_selecionado,
-                                    'Quantidade': quantidade_principal, 'Unidade': servico_info['UNIDADE'],
-                                    'Valor Unitário': valor_unitario, 
-                                    'Valor Parcial': round(quantidade_principal * valor_unitario, 2), 
-                                    'Data do Serviço': data_servico_principal, 'Observação': obs_principal
+                                    'data_servico': data_servico_principal, 'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
+                                    'servico_id': servico_info['id'], 'valor_extra_id': None, 'servico_diverso_descricao': None,
+                                    'quantidade': quantidade_principal, 'valor_unitario': valor_unitario, 'observacao': obs_principal, 'data_lancamento': agora, 'servico_nome': servico_selecionado
                                 })
-                            if 'descricao_diverso' in locals() and descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
+                            if descricao_diverso and quantidade_diverso > 0 and valor_diverso > 0:
                                 novos_lancamentos_dicts.append({
-                                    'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                    'Disciplina': "Diverso", 'Serviço': descricao_diverso,
-                                    'Quantidade': quantidade_diverso, 'Unidade': 'UN',
-                                    'Valor Unitário': valor_diverso, 
-                                    'Valor Parcial': round(quantidade_diverso * valor_diverso, 2), 
-                                    'Data do Serviço': data_servico_diverso, 'Observação': obs_diverso
+                                    'data_servico': data_servico_diverso, 'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
+                                    'servico_id': None, 'valor_extra_id': None, 'servico_diverso_descricao': descricao_diverso,
+                                    'quantidade': quantidade_diverso, 'valor_unitario': valor_diverso, 'observacao': obs_diverso, 'data_lancamento': agora, 'servico_nome': descricao_diverso
                                 })
-                            if 'extras_selecionados' in locals() and extras_selecionados:
-                                for extra in extras_selecionados:
-                                    qty = quantidades_extras.get(extra, 0)
-                                    if qty > 0:
-                                        extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                                        valor_unitario = safe_float(extra_info.get('VALOR', 0))
-                                        novos_lancamentos_dicts.append({
-                                            'Data': agora, 'Obra': obra_selecionada, 'Funcionário': funcionario_selecionado,
-                                            'Disciplina': "Extras", 'Serviço': extra,
-                                            'Quantidade': qty, 'Unidade': extra_info['UNIDADE'],
-                                            'Valor Unitário': valor_unitario, 
-                                            'Valor Parcial': round(qty * valor_unitario, 2), # Arredonda aqui
-                                            'Data do Serviço': datas_servico_extras[extra], 'Observação': observacoes_extras[extra]
-                                        })
+                            for extra in extras_selecionados:
+                                if quantidades_extras.get(extra, 0) > 0:
+                                    extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
+                                    valor_unitario_extra = safe_float(extra_info.get('VALOR', 0))
+                                    novos_lancamentos_dicts.append({
+                                        'data_servico': datas_servico_extras[extra], 'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
+                                        'servico_id': None, 'valor_extra_id': extra_info['id'], 'servico_diverso_descricao': None,
+                                        'quantidade': quantidades_extras[extra], 'valor_unitario': valor_unitario_extra, 'observacao': observacoes_extras[extra], 'data_lancamento': agora, 'servico_nome': extra
+                                    })
        
-                            if not novos_lancamentos_dicts:
-                                st.warning("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
-                            else:
+                            if novos_lancamentos_dicts:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
-                            
-                            # Mapeia Nomes para IDs
+
+                # Mapeia nomes para IDs
+                                obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
                                 func_id_map = funcionarios_df.set_index('NOME')['id']
-                                servico_id_map = precos_df.set_index('DESCRIÇÃO DO SERVIÇO')['id']
-                                vextra_id_map = valores_extras_df.set_index('VALORES EXTRAS')['id']
 
-                                df_para_salvar['obra_id'] = obra_logada_id
-                                df_para_salvar['funcionario_id'] = df_para_salvar['Funcionário'].map(func_id_map)
-                                df_para_salvar['servico_id'] = df_para_salvar['Serviço'].map(servico_id_map).astype('Int64')
-                                df_para_salvar['valor_extra_id'] = df_para_salvar['Serviço'].map(vextra_id_map).astype('Int64')
+                                df_para_salvar['obra_id'] = df_para_salvar['obra_nome'].map(obra_id_map)
+                                df_para_salvar['funcionario_id'] = df_para_salvar['funcionario_nome'].map(func_id_map)
 
-                                df_final = df_para_salvar.rename(columns={
-                                    'Data do Serviço': 'data_servico',
-                                    'Quantidade': 'quantidade',
-                                    'Valor Unitário': 'valor_unitario',
-                                    'Observação': 'observacao'
-                                })
+                # Seleciona e ordena as colunas para corresponder à query
+                                colunas_db = [
+                                    'data_servico', 'obra_id', 'funcionario_id', 'servico_id',
+                                    'valor_extra_id', 'servico_diverso_descricao', 'quantidade',
+                                    'valor_unitario', 'observacao', 'data_lancamento'
+                                ]
+                                df_final_para_db = df_para_salvar[colunas_db]
+                # Converte colunas de ID que podem ser float (por causa de NaN) para Int64
+                                df_final_para_db['servico_id'] = df_final_para_db['servico_id'].astype('Int64')
+                                df_final_para_db['valor_extra_id'] = df_final_para_db['valor_extra_id'].astype('Int64')
 
-                                df_final['servico_diverso_descricao'] = df_final.apply(
-                                     lambda row: row['Serviço'] if pd.isna(row['servico_id']) and pd.isna(row['valor_extra_id']) else None, axis=1
-                                )
-                            
-                                colunas_db = ['data_servico', 'obra_id', 'funcionario_id', 'servico_id', 'valor_extra_id', 'servico_diverso_descricao', 'quantidade', 'valor_unitario', 'observacao']
-                            
-                                if salvar_dados(df_final[colunas_db], 'lancamentos', engine):
+
+                                if salvar_novos_lancamentos(df_final_para_db, engine):
+                                    st.success("Lançamento(s) adicionado(s) com sucesso!")
+                                    st.cache_data.clear()
                                     st.rerun()
+                                else:
+                                    st.info("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
                                
                                     
             with col_view:
@@ -586,18 +683,19 @@ else:
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
                     if nome and funcao_selecionada and obra:
-                        try:
-                            gc = get_gsheets_connection()
-                            ws_func = gc.open_by_url(SHEET_URL).worksheet("Funcionários")
-                            nova_linha = ['', nome, funcao_selecionada, tipo, salario, obra]
-                            ws_func.append_row(nova_linha)
-                            st.success(f"Funcionário '{nome}' adicionado com sucesso!")
-                            st.cache_data.clear()
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Ocorreu um erro ao adicionar o funcionário: {e}")
-                    else:
-                        st.warning("Por favor, preencha nome, função e obra.")
+        # Pega os IDs correspondentes aos nomes selecionados
+                    obra_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id'].iloc[0]
+                    funcao_id = funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id'].iloc[0] # Assumindo que funcoes_df também tem 'id'
+
+        # Chama a nova função
+                    if adicionar_funcionario(engine, nome, funcao_id, obra_id):
+                        st.success(f"Funcionário '{nome}' adicionado com sucesso!")
+                        st.cache_data.clear()
+                        st.rerun()
+        # O 'else' já é tratado dentro da função com st.error
+                else:
+                    st.warning("Por favor, preencha nome, função e obra.")
+
         st.markdown("---")
         st.subheader("Remover Funcionário Existente")
         if funcionarios_df.empty:
@@ -607,15 +705,15 @@ else:
             func_para_remover = st.selectbox("Selecione o funcionário para remover", options=funcionarios_df['NOME'].unique(), index=None, placeholder="Selecione...")
             if func_para_remover:
                 if st.button(f"Remover {func_para_remover}", type="primary"):
-                    try:
-                        gc = get_gsheets_connection()
-                        ws_func = gc.open_by_url(SHEET_URL).worksheet("Funcionários")
-                        cell = ws_func.find(func_para_remover, in_column=2) 
-                        if cell:
-                            ws_func.delete_rows(cell.row)
-                            st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
-                            st.cache_data.clear()
-                            st.rerun()
+        # Pega o ID do funcionário selecionado
+        # Certifique-se que a coluna 'id' está disponível no funcionarios_df
+                funcionario_id = funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0]
+
+        # Chama a nova função
+                if remover_funcionario(engine, funcionario_id):
+                    st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
+                    st.cache_data.clear()
+                    st.rerun()
                         else:
                             st.error("Funcionário não encontrado na planilha.")
                     except Exception as e:
@@ -629,36 +727,29 @@ else:
             submitted = st.form_submit_button("Adicionar Obra")
             if submitted:
                 if nome_obra:
-                    try:
-                        gc = get_gsheets_connection()
-                        ws_obras = gc.open_by_url(SHEET_URL).worksheet("Obras")
-                        ws_obras.append_row([nome_obra])
+                    if adicionar_obra(engine, nome_obra):
                         st.success(f"Obra '{nome_obra}' adicionada com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Ocorreu um erro ao adicionar a obra: {e}")
                 else:
                     st.warning("Por favor, insira o nome da obra.")
+                    
         st.markdown("---")
         st.subheader("Remover Obra Existente")
         if obras_df.empty:
             st.info("Nenhuma obra cadastrada.")
         else:
             st.dataframe(obras_df, use_container_width=True)
-            obra_para_remover = st.selectbox("Selecione a obra para remover", options=obras_df['NOME DA OBRA'].unique(), index=None, placeholder="Selecione...")
+            obra_para_remover = st.selectbox("Selecione a obra para remover", ...)
             if obra_para_remover:
-                st.warning(f"Atenção: Remover uma obra não remove ou realoca os funcionários associados a ela. Certifique-se de que nenhum funcionário esteja alocado em '{obra_para_remover}' antes de continuar.")
+    # ... (st.warning sobre realocar funcionários) ...
                 if st.button(f"Remover Obra '{obra_para_remover}'", type="primary"):
-                    try:
-                        gc = get_gsheets_connection()
-                        ws_obras = gc.open_by_url(SHEET_URL).worksheet("Obras")
-                        cell = ws_obras.find(obra_para_remover)
-                        if cell:
-                            ws_obras.delete_rows(cell.row)
-                            st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
-                            st.cache_data.clear()
-                            st.rerun()
+                    obra_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover, 'id'].iloc[0]
+
+                    if remover_obra(engine, obra_id):
+                        st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
+                        st.cache_data.clear()
+                        st.rerun()
                         else:
                             st.error("Obra não encontrada na planilha.")
                     except Exception as e:
@@ -822,8 +913,6 @@ else:
                         for obra, funcionario in funcionarios_afetados:
                             status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
 
-
-                    ids_para_remover_local = linhas_para_remover['id_lancamento'].tolist()
                     df_original = pd.DataFrame(st.session_state.lancamentos)
                     df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
                     
@@ -1129,43 +1218,45 @@ else:
                             st.info("Nenhum lançamento de produção para este funcionário.")
                         else:
                             colunas_visiveis = [
-                                'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 
-                                'Valor Unitário', 'Valor Parcial', 'Observação', 'id_lancamento'
+                                'id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade',
+                                'Valor Unitário', 'Valor Parcial', 'Observação'
                             ]
                             colunas_config = {
-                                "id_lancamento": None, "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
-                                "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
-                                "Disciplina": st.column_config.TextColumn("Disciplina"), "Serviço": st.column_config.TextColumn("Serviço", width="large"),
-                                "Valor Unitário": st.column_config.NumberColumn("V. Unit.", format="R$ %.2f"),
-                                "Valor Parcial": st.column_config.NumberColumn("V. Parcial", format="R$ %.2f"),
+                                "id": None, # Esconde a coluna de ID do editor
+                                "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm", disabled=True),
+                                "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY", disabled=True),
+                                "Disciplina": st.column_config.TextColumn("Disciplina", disabled=True),
+                                "Serviço": st.column_config.TextColumn("Serviço", width="large", disabled=True),
+                                "Valor Unitário": st.column_config.NumberColumn("V. Unit.", format="R$ %.2f", disabled=True),
+                                "Valor Parcial": st.column_config.NumberColumn("V. Parcial", format="R$ %.2f", disabled=True),
+                                "Quantidade": st.column_config.NumberColumn("Qtd.", disabled=True),
                                 "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
                             }
-                            colunas_desabilitadas = ['Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
+                            is_editor_disabled = is_locked or ['Observação']
                             
                             edited_df = st.data_editor(
-                                lancamentos_do_funcionario[colunas_visiveis], key=f"editor_{obra_selecionada}_{funcionario}",
-                                hide_index=True, column_config=colunas_config,
-                                disabled=colunas_desabilitadas if is_locked else ['Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
+                                lancamentos_do_funcionario[colunas_visiveis],
+                                key=f"editor_{obra_selecionada}_{funcionario}",
+                                hide_index=True,
+                                column_config=colunas_config,
+                                disabled=is_editor_disabled
                             )
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=is_locked):
-                                    try:
-                                        lancamentos_df_global = pd.DataFrame(st.session_state.lancamentos)
-                                        lancamentos_df_global.set_index('id_lancamento', inplace=True)
-                                        edited_df.set_index('id_lancamento', inplace=True)
-                                        lancamentos_df_global.update(edited_df[['Observação']])
-                                        lancamentos_df_global.reset_index(inplace=True)
-                                        gc = get_gsheets_connection()
-                                        spreadsheet = gc.open_by_url(SHEET_URL)
-                                        ws_lancamentos = spreadsheet.worksheet("Lançamentos")
-                                        df_to_save = lancamentos_df_global.drop(columns=['id_lancamento'])
-                                        set_with_dataframe(ws_lancamentos, df_to_save, include_index=False, resize=True)
-                                        st.session_state.lancamentos = lancamentos_df_global.to_dict('records')
+                                original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
+                                edited_obs = edited_df.set_index('id')['Observação']
+                                alteracoes = edited_obs[original_obs != edited_obs]
+
+                                if not alteracoes.empty:
+                                    updates_list = [
+                                        {'id': lanc_id, 'obs': nova_obs}
+                                        for lanc_id, nova_obs in alteracoes.items()
+                                    ]
+
+                                    if atualizar_observacoes(engine, updates_list):
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Ocorreu um erro ao salvar as observações: {e}")
 
 
 
