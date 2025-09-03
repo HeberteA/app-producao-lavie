@@ -746,15 +746,11 @@ else:
             func_para_remover = st.selectbox("Selecione o funcionário para remover", options=funcionarios_df['NOME'].unique(), index=None, placeholder="Selecione...")
             if func_para_remover:
                 if st.button(f"Remover {func_para_remover}", type="primary"):
-                    funcionario_id = funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0]
-
-        # Chama a nova função
-                if remover_funcionario(engine, funcionario_id):
-                    st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.error("Funcionário não encontrado na planilha.")
+                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
+                    if remover_funcionario(engine, funcionario_id):
+                        st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
+                        st.cache_data.clear()
+                        st.rerun()
 
 
     elif st.session_state.page == "Gerenciar Obras" and st.session_state['role'] == 'admin':
@@ -1294,6 +1290,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
