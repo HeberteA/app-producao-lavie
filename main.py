@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from datetime import date
@@ -514,6 +514,7 @@ else:
         st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
 
     with st.sidebar:
+        st_autorefresh(interval=60000, limit=None, key="auto_refresher")
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
@@ -1442,6 +1443,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
