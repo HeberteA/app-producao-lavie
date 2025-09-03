@@ -1403,7 +1403,7 @@ else:
 
                                     if save_comment_data(engine, obra_id_selecionada, funcionario_id_selecionado, new_comment, mes_referencia=mes_selecionado):
                                         st.cache_data.clear()
-                                        st.rerun())
+                                        st.rerun()
                                         
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
@@ -1453,6 +1453,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
