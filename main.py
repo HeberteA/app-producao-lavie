@@ -23,49 +23,30 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)
 def load_data(_engine):
     if _engine is None:
         st.stop()
 
-    # Query para carregar funcionários já com os nomes das obras e funções
+    # Query para Funcionários (com obra_id)
     query_funcionarios = """
-    SELECT
-        f.id,
-        f.obra_id, -- ADICIONE ESTA LINHA
-        f.nome as "NOME",
-        o.nome_obra as "OBRA",
-        fn.funcao as "FUNÇÃO",
-        fn.tipo as "TIPO",
-        fn.salario_base as "SALARIO_BASE"
+    SELECT f.id, f.obra_id, f.nome as "NOME", o.nome_obra as "OBRA", 
+           fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
     FROM funcionarios f
     JOIN obras o ON f.obra_id = o.id
     JOIN funcoes fn ON f.funcao_id = fn.id;
     """
     funcionarios_df = pd.read_sql(query_funcionarios, _engine)
 
-    # Carregar as demais tabelas
-    precos_df = pd.read_sql('SELECT id, disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', _engine)
-    obras_df = pd.read_sql('SELECT id, nome_obra as "NOME DA OBRA", status as "Status", aviso as "Aviso" FROM obras', _engine)
-    valores_extras_df = pd.read_sql('SELECT id, descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
-    
-    # Adiciona nomes de funcionários e obras aos lançamentos para facilitar a exibição
+    # Query para Lançamentos (completa e com nomes corretos)
     query_lancamentos = """
     SELECT
-        l.id,
-        l.data_lancamento,
-        l.data_servico,
-        l.obra_id,
-        o.nome_obra AS "Obra",
-        f.nome AS "Funcionário",
-        s.disciplina AS "Disciplina",
-        -- COALESCE é usado para pegar o primeiro nome de serviço que não for nulo
+        l.id, l.data_lancamento, l.data_servico, l.obra_id,
+        o.nome_obra AS "Obra", f.nome AS "Funcionário", s.disciplina AS "Disciplina",
         COALESCE(s.descricao, ve.descricao, l.servico_diverso_descricao) AS "Serviço",
         CAST(l.quantidade AS INTEGER) AS "Quantidade",
-        -- Define 'UN' como unidade padrão para itens diversos
         COALESCE(s.unidade, ve.unidade, 'UN') AS "Unidade",
         l.valor_unitario AS "Valor Unitário",
-        -- Calcula o valor parcial diretamente na query
         (l.quantidade * l.valor_unitario) AS "Valor Parcial",
         l.observacao AS "Observação"
     FROM lancamentos l
@@ -76,43 +57,40 @@ def load_data(_engine):
     WHERE l.arquivado = FALSE;
     """
     lancamentos_df = pd.read_sql(query_lancamentos, _engine)
-    
+
+    # Processamento do lancamentos_df (Renomeia e converte tipos)
+    if not lancamentos_df.empty:
+        lancamentos_df = lancamentos_df.rename(columns={
+            'data_lancamento': 'Data',
+            'data_servico': 'Data do Serviço'
+        })
+        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
+        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
+
+    # Query para Status de Auditoria (com nomes e IDs)
     query_status = """
-    SELECT
-        sa.obra_id,
-        o.nome_obra AS "Obra",
-        sa.funcionario_id,
-        f.nome AS "Funcionario",
-        sa.mes_referencia AS "Mes",
-        sa.status AS "Status",
-        sa.comentario AS "Comentario"
+    SELECT sa.obra_id, o.nome_obra AS "Obra", sa.funcionario_id, f.nome AS "Funcionario",
+           sa.mes_referencia AS "Mes", sa.status AS "Status", sa.comentario AS "Comentario"
     FROM status_auditoria sa
     LEFT JOIN obras o ON sa.obra_id = o.id
     LEFT JOIN funcionarios f ON sa.funcionario_id = f.id;
     """
     status_df = pd.read_sql(query_status, _engine)
-    funcoes_df = pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', _engine)
+
+    # Query para Folhas Mensais (com nome da Obra)
     query_folhas = """
-    SELECT
-        f.obra_id,
-        o.nome_obra AS "Obra",
-        f.mes_referencia AS "Mes",
-        f.status
+    SELECT f.obra_id, o.nome_obra AS "Obra", f.mes_referencia AS "Mes", f.status
     FROM folhas_mensais f
     LEFT JOIN obras o ON f.obra_id = o.id;
     """
     folhas_df = pd.read_sql(query_folhas, _engine)
+
+    # Carrega as demais tabelas
+    precos_df = pd.read_sql('SELECT id, disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', _engine)
+    obras_df = pd.read_sql('SELECT id, nome_obra AS "NOME DA OBRA", status, aviso FROM obras', _engine)
+    valores_extras_df = pd.read_sql('SELECT id, descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
+    funcoes_df = pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', _engine)
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
-    
-    if not lancamentos_df.empty:
-        lancamentos_df = lancamentos_df.rename(columns={
-            'data_lancamento': 'Data',
-            'data_servico': 'Data do Serviço' 
-        })
-        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
-        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
-    if not folhas_df.empty:
-        folhas_df['Mes'] = pd.to_datetime(folhas_df['Mes'])
 
     return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
     
@@ -1272,13 +1250,12 @@ else:
                             ]
                             colunas_config = {
                                 "id": None, # Esconde a coluna de ID do editor
-                                "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm", disabled=True),
-                                "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY", disabled=True),
-                                "Disciplina": st.column_config.TextColumn("Disciplina", disabled=True),
-                                "Serviço": st.column_config.TextColumn("Serviço", width="large", disabled=True),
-                                "Valor Unitário": st.column_config.NumberColumn("V. Unit.", format="R$ %.2f", disabled=True),
-                                "Valor Parcial": st.column_config.NumberColumn("V. Parcial", format="R$ %.2f", disabled=True),
-                                "Quantidade": st.column_config.NumberColumn("Qtd.", disabled=True),
+                                "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
+                                "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
+                                "Disciplina": st.column_config.TextColumn("Disciplina"),
+                                "Serviço": st.column_config.TextColumn("Serviço", width="large"),
+                                "Valor Unitário": st.column_config.NumberColumn("V. Unit.", format="R$ %.2f"),
+                                "Valor Parcial": st.column_config.NumberColumn("V. Parcial", format="R$ %.2f"),
                                 "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
                             }
                             is_editor_disabled = is_locked or ['Observação']
@@ -1306,6 +1283,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
