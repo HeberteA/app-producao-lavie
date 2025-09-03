@@ -191,7 +191,6 @@ def login_page(obras_df, acessos_df):
             else:
                 st.error("Senha de administrador incorreta.")
     else:
-        # NOVO: Busca as obras e códigos da base de dados
         obras_com_acesso = pd.merge(obras_df, acessos_df, left_on='id', right_on='obra_id')
         
         obra_login = st.selectbox("Selecione a Obra", options=obras_com_acesso['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
@@ -225,6 +224,10 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
 else:
     # Carrega todos os dados após o login
     funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
+
+    if 'lancamentos' not in st.session_state or not st.session_state.lancamentos:
+        st.session_state.lancamentos = lancamentos_df.to_dict('records')
+
     
     if 'page' not in st.session_state:
         st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
@@ -1166,6 +1169,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
