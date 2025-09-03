@@ -291,6 +291,46 @@ def launch_monthly_sheet(obra_id, mes_dt):
             st.error(f"Ocorreu um erro ao lançar a folha: {e}")
             return False
 
+def save_geral_status_obra(engine, obra_id, status, mes_referencia):
+    """Insere ou atualiza o status GERAL de uma obra para um mês específico."""
+    mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                # Tenta atualizar primeiro, procurando pelo registro onde funcionario_id é NULO
+                query_update = text("""
+                    UPDATE status_auditoria 
+                    SET status = :status 
+                    WHERE obra_id = :obra_id 
+                    AND funcionario_id IS NULL 
+                    AND mes_referencia = :mes_ref
+                """)
+                result = connection.execute(query_update, {
+                    'status': status,
+                    'obra_id': obra_id,
+                    'mes_ref': mes_dt
+                })
+
+                # Se nenhuma linha foi atualizada, insere uma nova com funcionario_id NULO
+                if result.rowcount == 0:
+                    query_insert = text("""
+                        INSERT INTO status_auditoria 
+                        (obra_id, funcionario_id, mes_referencia, status, comentario) 
+                        VALUES (:obra_id, NULL, :mes_ref, :status, 'Status Geral da Obra')
+                    """)
+                    connection.execute(query_insert, {
+                        'obra_id': obra_id,
+                        'mes_ref': mes_dt,
+                        'status': status
+                    })
+                
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar o status geral da obra: {e}")
+        return False
+        
 def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
     """Insere ou atualiza o status de um funcionário para um mês/obra específico."""
     mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
@@ -331,6 +371,46 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o status: {e}")
+        return False
+
+def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referencia):
+    """Insere ou atualiza o comentário de um funcionário para um mês/obra específico."""
+    mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query_update = text("""
+                    UPDATE status_auditoria 
+                    SET comentario = :comentario 
+                    WHERE obra_id = :obra_id 
+                    AND funcionario_id = :funcionario_id 
+                    AND mes_referencia = :mes_ref
+                """)
+                result = connection.execute(query_update, {
+                    'comentario': comentario,
+                    'obra_id': obra_id,
+                    'funcionario_id': funcionario_id,
+                    'mes_ref': mes_dt
+                })
+
+                if result.rowcount == 0:
+                    query_insert = text("""
+                        INSERT INTO status_auditoria 
+                        (obra_id, funcionario_id, mes_referencia, status, comentario) 
+                        VALUES (:obra_id, :funcionario_id, :mes_ref, 'A Revisar', :comentario)
+                    """)
+                    connection.execute(query_insert, {
+                        'obra_id': obra_id,
+                        'funcionario_id': funcionario_id,
+                        'mes_ref': mes_dt,
+                        'comentario': comentario
+                    })
+                
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar o comentário: {e}")
         return False
         
 def calcular_salario_final(row):
@@ -1220,8 +1300,7 @@ else:
                     if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
                         if selected_status_obra != status_atual_obra:
                             obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
-                            funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
-                            if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
+                            if save_geral_status_obra(engine, obra_id_selecionada, selected_status_obra, mes_referencia=mes_selecionado):
                                 st.cache_data.clear()
                                 st.rerun()
                 
@@ -1299,8 +1378,12 @@ else:
                             )
                             if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=is_locked):
                                 if selected_status_func != status_atual_func:
-                                    status_df = save_status_data(status_df, obra_selecionada, funcionario, selected_status_func, mes=mes_selecionado)
-                                    st.rerun()
+                                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
+                                    funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
+                                    if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                    
                         with col_comment:
                             st.markdown("##### Comentário de Auditoria")
                             comment_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado)]
@@ -1313,8 +1396,15 @@ else:
                                 disabled=is_locked
                             )
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=is_locked):
-                                status_df = save_comment_data(status_df, obra_selecionada, funcionario, new_comment, mes=mes_selecionado)
-                                st.rerun()
+                                if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=is_locked):
+
+                                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
+                                    funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
+
+                                    if save_comment_data(engine, obra_id_selecionada, funcionario_id_selecionado, new_comment, mes_referencia=mes_selecionado):
+                                        st.cache_data.clear()
+                                        st.rerun())
+                                        
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
                         lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
@@ -1363,6 +1453,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
