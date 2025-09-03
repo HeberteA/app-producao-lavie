@@ -92,7 +92,7 @@ def load_data(_engine):
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
         lancamentos_df['data_servico'] = pd.to_datetime(lancamentos_df['data_servico'])
     if not folhas_df.empty:
-        folhas_df['Mes'] = pd.to_datetime(folhas_df['Mes])
+        folhas_df['Mes'] = pd.to_datetime(folhas_df['Mes'])
 
     return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
     
@@ -1286,6 +1286,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
