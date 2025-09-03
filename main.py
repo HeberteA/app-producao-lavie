@@ -235,6 +235,7 @@ else:
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
+            obra_logada = st.session_state['obra_logada']
             obra_logada_nome = st.session_state['obra_logada']
             obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
             status_geral_obra_row = status_df[status_df['obra_id'] == obra_logada_id] 
@@ -1165,6 +1166,7 @@ else:
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+
 
 
 
