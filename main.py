@@ -745,8 +745,8 @@ else:
                         st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
-                        else:
-                            st.error("Obra não encontrada na planilha.")
+                    else:
+                        st.error("Obra não encontrada na planilha.")
                     except Exception as e:
                         st.error(f"Ocorreu um erro ao remover a obra: {e}")
     
@@ -1252,6 +1252,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
