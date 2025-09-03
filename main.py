@@ -1180,11 +1180,21 @@ else:
                             status_df = save_status_data(status_df, obra_selecionada, 'GERAL', selected_status_obra, mes=mes_selecionado)
                             st.rerun()
                 
-                if st.button("Lançar Folha Mensal", ...):
-                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada_nome, 'id'].iloc[0]
+                is_launch_disabled = (status_atual_obra != 'Aprovado')
+
+                if st.button("Lançar Folha Mensal", 
+                             type="primary", 
+                             use_container_width=True, 
+                             disabled=is_launch_disabled, # O botão é desabilitado aqui
+                             help="A obra precisa estar com o status 'Aprovado' para lançar a folha." if is_launch_disabled else ""):
+        
+                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
                     mes_datetime = pd.to_datetime(st.session_state.selected_month)
-                    if launch_monthly_sheet(obra_id_selecionada, mes_datetime, engine):
+                    if launch_monthly_sheet(obra_id_selecionada, mes_datetime):
                         st.rerun()
+
+                        if is_launch_disabled and not is_launched:
+                            st.info("A obra precisa estar com o status 'Aprovado' para que a folha possa ser lançada.")
 
             with col_aviso_geral:
                 st.markdown("##### Aviso Geral da Obra")
@@ -1280,14 +1290,17 @@ else:
                                 "Valor Parcial": st.column_config.NumberColumn("V. Parcial", format="R$ %.2f"),
                                 "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
                             }
-                            is_editor_disabled = is_locked or ['Observação']
+                            colunas_desabilitadas = [
+                                'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 
+                                'Quantidade', 'Valor Unitário', 'Valor Parcial'
+                            ]
                             
                             edited_df = st.data_editor(
                                 lancamentos_do_funcionario[colunas_visiveis],
                                 key=f"editor_{obra_selecionada}_{funcionario}",
                                 hide_index=True,
                                 column_config=colunas_config,
-                                disabled=is_editor_disabled
+                                disabled=colunas_desabilitadas if is_locked else colunas_desabilitadas
                             )
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=is_locked):
@@ -1305,6 +1318,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
