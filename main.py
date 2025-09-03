@@ -51,6 +51,7 @@ def load_data(_engine):
     WHERE l.arquivado = FALSE;
     """
     lancamentos_df = pd.read_sql(query_lancamentos, _engine)
+    lancamentos_df = lancamentos_df.rename(columns={'data_lancamento': 'Data'})
     
     query_status = """
     SELECT
@@ -1269,6 +1270,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
