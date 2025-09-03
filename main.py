@@ -710,8 +710,8 @@ else:
                     st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
                     st.cache_data.clear()
                     st.rerun()
-                    else:
-                        st.error("Funcionário não encontrado na planilha.")
+                else:
+                    st.error("Funcionário não encontrado na planilha.")
                     except Exception as e:
                         st.error(f"Ocorreu um erro ao remover o funcionário: {e}")
 
@@ -1253,6 +1253,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
