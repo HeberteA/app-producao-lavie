@@ -24,7 +24,7 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=60)
 def load_data(_engine):
     if _engine is None:
         st.stop()
@@ -1487,6 +1487,7 @@ else:
                                         st.cache_data.clear()
                                         st.cache_resource.clear()
                                         st.rerun()
+
 
 
 
