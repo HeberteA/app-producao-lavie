@@ -244,20 +244,21 @@ def salvar_novos_lancamentos(df_para_salvar, engine):
         return False
             
 def remover_lancamentos_por_id(ids_para_remover, engine):
-        if not ids_para_remover:
-            return False
-        try:
-            with engine.connect() as connection:
-                with connection.begin() as transaction:
-                    query = text("DELETE FROM \"Lancamentos\" WHERE id = ANY(:ids)")
-                    connection.execute(query, {'ids': ids_para_remover})
-                    transaction.commit()
-            st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
-            st.cache_data.clear()
-            return True
-        except Exception as e:
-            st.error(f"Erro ao remover lançamentos: {e}")
-            return False
+    if not ids_para_remover:
+        return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                # CORREÇÃO AQUI: Tabela em minúsculas e sem aspas
+                query = text("DELETE FROM lancamentos WHERE id = ANY(:ids)")
+                connection.execute(query, {'ids': ids_para_remover})
+                transaction.commit()
+        st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao remover lançamentos: {e}")
+        return False
 
 def launch_monthly_sheet(obra_id, mes_dt):
         mes_inicio = mes_dt.strftime('%Y-%m-01')
@@ -1085,21 +1086,9 @@ else:
 
                         for obra, funcionario in funcionarios_afetados:
                             status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
+                        pass
+                    st.rerun()
 
-                    df_original = pd.DataFrame(st.session_state.lancamentos)
-                    df_atualizado = df_original[~df_original['id_lancamento'].isin(ids_para_remover_local)]
-                    
-                    try:
-                        gc = get_gsheets_connection()
-                        ws_lancamentos = gc.open_by_url(SHEET_URL).worksheet("Lançamentos")
-                        set_with_dataframe(ws_lancamentos, df_atualizado.drop(columns=['id_lancamento'], errors='ignore'), include_index=False, resize=True)
-                        st.session_state.lancamentos = df_atualizado.to_dict('records')
-                        st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
-                        st.cache_data.clear()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Ocorreu um erro ao atualizar a planilha: {e}")
-                            
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
         lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
@@ -1453,6 +1442,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
