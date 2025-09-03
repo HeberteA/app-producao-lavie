@@ -67,10 +67,15 @@ def load_data(_engine):
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
 
-    # Query para Status de Auditoria (com nomes e IDs)
     query_status = """
-    SELECT sa.obra_id, o.nome_obra AS "Obra", sa.funcionario_id, f.nome AS "Funcionario",
-           sa.mes_referencia AS "Mes", sa.status AS "Status", sa.comentario AS "Comentario"
+    SELECT
+        sa.obra_id,
+        o.nome_obra AS "Obra",
+        sa.funcionario_id, -- ADD THIS LINE
+        f.nome AS "Funcionario",
+        sa.mes_referencia AS "Mes",
+        sa.status AS "Status",
+        sa.comentario AS "Comentario"
     FROM status_auditoria sa
     LEFT JOIN obras o ON sa.obra_id = o.id
     LEFT JOIN funcionarios f ON sa.funcionario_id = f.id;
@@ -830,7 +835,7 @@ else:
         resumo_com_status_df = pd.merge(
             resumo_df_com_ids, 
             status_mes_df, 
-            on=['funcionario_id', 'obra_id'],
+            on=['funcionario_id', 'obra_id'], # The key columns
             how='left'
         )
         
@@ -1283,6 +1288,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
