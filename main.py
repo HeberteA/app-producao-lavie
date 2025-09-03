@@ -683,11 +683,9 @@ else:
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
                     if nome and funcao_selecionada and obra:
-        # Pega os IDs correspondentes aos nomes selecionados
-                    obra_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id'].iloc[0]
-                    funcao_id = funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id'].iloc[0] # Assumindo que funcoes_df também tem 'id'
+                        obra_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id'].iloc[0]
+                        funcao_id = funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id'].iloc[0] # Assumindo que funcoes_df também tem 'id'
 
-        # Chama a nova função
                     if adicionar_funcionario(engine, nome, funcao_id, obra_id):
                         st.success(f"Funcionário '{nome}' adicionado com sucesso!")
                         st.cache_data.clear()
@@ -1257,6 +1255,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
