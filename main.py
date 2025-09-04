@@ -294,37 +294,36 @@ def launch_monthly_sheet(obra_id, mes_dt):
 def save_geral_status_obra(engine, obra_id, status, mes_referencia):
     """Insere ou atualiza o status GERAL de uma obra para um mês específico."""
     mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
-    
+    ID_FUNCIONARIO_GERAL = 0 # Define o nosso ID especial
+
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # Tenta atualizar primeiro, procurando pelo registro onde funcionario_id é NULO
+                # Tenta atualizar primeiro, procurando pelo registro com funcionario_id = 0
                 query_update = text("""
-                    UPDATE status_auditoria 
-                    SET status = :status 
-                    WHERE obra_id = :obra_id 
-                    AND funcionario_id IS NULL 
+                    UPDATE status_auditoria
+                    SET status = :status
+                    WHERE obra_id = :obra_id
+                    AND funcionario_id = :id_geral
                     AND mes_referencia = :mes_ref
                 """)
                 result = connection.execute(query_update, {
-                    'status': status,
-                    'obra_id': obra_id,
-                    'mes_ref': mes_dt
+                    'status': status, 'obra_id': obra_id,
+                    'id_geral': ID_FUNCIONARIO_GERAL, 'mes_ref': mes_dt
                 })
 
-                # Se nenhuma linha foi atualizada, insere uma nova com funcionario_id NULO
+                # Se nenhuma linha foi atualizada, insere uma nova com funcionario_id = 0
                 if result.rowcount == 0:
                     query_insert = text("""
-                        INSERT INTO status_auditoria 
-                        (obra_id, funcionario_id, mes_referencia, status, comentario) 
-                        VALUES (:obra_id, NULL, :mes_ref, :status, 'Status Geral da Obra')
+                        INSERT INTO status_auditoria
+                        (obra_id, funcionario_id, mes_referencia, status, comentario)
+                        VALUES (:obra_id, :id_geral, :mes_ref, :status, 'Status Geral da Obra')
                     """)
                     connection.execute(query_insert, {
-                        'obra_id': obra_id,
-                        'mes_ref': mes_dt,
-                        'status': status
+                        'obra_id': obra_id, 'id_geral': ID_FUNCIONARIO_GERAL,
+                        'mes_ref': mes_dt, 'status': status
                     })
-                
+
                 transaction.commit()
         return True
     except Exception as e:
@@ -1449,6 +1448,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
