@@ -568,7 +568,7 @@ else:
         st.markdown("---")
         
         st.subheader("Mês de Referência")
-        todos_lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+        todos_lancamentos_df = lancamentos_df.copy()
         lancamentos_do_mes_df = pd.DataFrame()
         
         available_months = []
@@ -1472,6 +1472,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
