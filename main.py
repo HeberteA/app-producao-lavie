@@ -1508,17 +1508,19 @@ else:
                                     edited_obs = edited_df.set_index('id')['Observação']
                                     alteracoes = edited_obs[original_obs != edited_obs]
 
-                                if not alteracoes.empty:
-                                    updates_list = [
-                                        {'id': lanc_id, 'obs': nova_obs}
-                                        for lanc_id, nova_obs in alteracoes.items()
-                                    ]
+                                    if not alteracoes.empty:
+                                        updates_list = [
+                                            {'id': lanc_id, 'obs': nova_obs}
+                                            for lanc_id, nova_obs in alteracoes.items()
+                                        ]
 
-                                    if atualizar_observacoes(engine, updates_list):
-                                        st.toast("Observações salvas com sucesso!", icon="✅")
-                                        st.cache_data.clear()
-                                        st.rerun()
-
+                                        if atualizar_observacoes(engine, updates_list):
+                                            st.toast("Observações salvas com sucesso!", icon="✅")
+                                            st.cache_data.clear()
+                                            st.rerun()
+                                    else:
+                                        st.toast("Nenhuma alteração detectada.", icon="🤷")
+  
 
 
 
