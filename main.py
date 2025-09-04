@@ -917,7 +917,6 @@ else:
         st.header("Gerenciar Obras 🏗️")
         st.subheader("Adicionar Nova Obra")
         with st.form("add_obra", clear_on_submit=True):
-    # Cria duas colunas para os campos de texto
             col1, col2 = st.columns(2)
     
             with col1:
@@ -940,8 +939,24 @@ else:
         if obras_df.empty:
             st.info("Nenhuma obra cadastrada.")
         else:
-            st.dataframe(obras_df[['NOME DA OBRA', 'status']], use_container_width=True) # Exibe o nome e o status
-            obra_para_remover = st.selectbox(
+            mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
+            status_geral_do_mes_df = status_df[
+                (status_df['Funcionario'] == 'Status Geral da Obra') &
+                (status_df['Mes'] == mes_selecionado_dt)
+            ][['obra_id', 'Status']].rename(columns={'Status': 'Status do Mês'})
+
+            df_para_exibir = pd.merge(
+                obras_df,
+                status_geral_do_mes_df,
+                left_on='id',
+                right_on='obra_id',
+                how='left'
+            )
+            df_para_exibir['Status do Mês'] = df_para_exibir['Status do Mês'].fillna('A Revisar')
+            st.dataframe(
+                df_para_exibir[['NOME DA OBRA', 'Status do Mês']].applymap(style_status, subset=['Status']),
+                use_container_width=True
+                obra_para_remover = st.selectbox(
                 "Selecione a obra para remover", 
                 options=obras_df['NOME DA OBRA'].unique(), 
                 index=None, 
@@ -1480,6 +1495,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
