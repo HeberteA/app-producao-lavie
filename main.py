@@ -45,7 +45,6 @@ def load_data(_engine):
     """
     funcionarios_df = pd.read_sql(query_funcionarios, _engine)
 
-    # Query para Lançamentos (completa e com nomes corretos)
     query_lancamentos = """
     SELECT
         l.id, l.data_lancamento, l.data_servico, l.obra_id,
@@ -65,7 +64,6 @@ def load_data(_engine):
     """
     lancamentos_df = pd.read_sql(query_lancamentos, _engine)
 
-    # Processamento do lancamentos_df (Renomeia e converte tipos)
     if not lancamentos_df.empty:
         lancamentos_df = lancamentos_df.rename(columns={
             'data_lancamento': 'Data',
@@ -89,11 +87,8 @@ def load_data(_engine):
     """
     status_df = pd.read_sql(query_status, _engine)
     if not status_df.empty and 'Mes' in status_df.columns:
-        # Garante que a coluna 'Mes' contenha apenas objetos de data (sem tempo)
         status_df['Mes'] = pd.to_datetime(status_df['Mes']).dt.date
 
-
-    # Query para Folhas Mensais (com nome da Obra)
     query_folhas = """
     SELECT f.obra_id, o.nome_obra AS "Obra", f.mes_referencia AS "Mes", f.status
     FROM folhas_mensais f
@@ -101,7 +96,6 @@ def load_data(_engine):
     """
     folhas_df = pd.read_sql(query_folhas, _engine)
 
-    # Carrega as demais tabelas
     precos_df = pd.read_sql('SELECT id, disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', _engine)
     obras_df = pd.read_sql('SELECT id, nome_obra AS "NOME DA OBRA", status, aviso FROM obras', _engine)
     valores_extras_df = pd.read_sql('SELECT id, descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
@@ -206,7 +200,6 @@ def garantir_funcionario_geral(engine):
     """
     try:
         with engine.connect() as connection:
-            # Pega o ID de uma obra e função qualquer
             obra_id = connection.execute(text("SELECT id FROM obras LIMIT 1")).scalar_one_or_none()
             funcao_id = connection.execute(text("SELECT id FROM funcoes LIMIT 1")).scalar_one_or_none()
 
@@ -214,27 +207,25 @@ def garantir_funcionario_geral(engine):
                 st.warning("Não foi possível criar o funcionário geral. Cadastre pelo menos uma obra e uma função.")
                 return
 
-            # Executa o INSERT...ON CONFLICT e faz o commit automático ao sair do 'with'
             query = text("""
                 INSERT INTO funcionarios (id, nome, obra_id, funcao_id)
                 VALUES (0, 'Status Geral da Obra', :obra_id, :funcao_id)
                 ON CONFLICT (id) DO NOTHING;
             """)
             connection.execute(query, {'obra_id': obra_id, 'funcao_id': funcao_id})
-            connection.commit() # Adiciona commit explícito para clareza
+            connection.commit() 
             
         print(">>> Funcionário geral com ID 0 garantido no banco de dados.")
     except Exception as e:
         st.error(f"Erro ao tentar garantir o funcionário geral: {e}")
-        
-# Coloque esta função junto com as outras funções de banco de dados
+
 def atualizar_observacoes(engine, updates_list):
     """
     Atualiza a observação de múltiplos lançamentos em uma única transação.
     'updates_list' deve ser uma lista de dicionários, ex: [{'id': 1, 'obs': 'texto'}, ...]
     """
     if not updates_list:
-        return True # Nenhuma alteração a ser feita
+        return True 
 
     try:
         with engine.connect() as connection:
@@ -281,7 +272,6 @@ def remover_lancamentos_por_id(ids_para_remover, engine):
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # CORREÇÃO AQUI: Tabela em minúsculas e sem aspas
                 query = text("DELETE FROM lancamentos WHERE id = ANY(:ids)")
                 connection.execute(query, {'ids': ids_para_remover})
                 transaction.commit()
@@ -296,7 +286,6 @@ def launch_monthly_sheet(obra_id, mes_dt):
         try:
             with engine.connect() as connection:
                 with connection.begin() as transaction:
-                    # 1. Arquiva os lançamentos
                     query_update = text("""
                         UPDATE "Lancamentos"
                         SET arquivado = TRUE
@@ -305,7 +294,6 @@ def launch_monthly_sheet(obra_id, mes_dt):
                     """)
                     connection.execute(query_update, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
 
-                    # 2. Registra a folha como lançada
                     query_insert = text("""
                         INSERT INTO "Folhas_Mensais" (obra_id, mes_referencia, status)
                         VALUES (:obra_id, :mes_inicio, 'Lançada')
@@ -330,7 +318,6 @@ def save_geral_status_obra(engine, obra_id, status, mes_referencia):
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # Tenta atualizar primeiro, procurando pelo registro com funcionario_id = 0
                 query_update = text("""
                     UPDATE status_auditoria
                     SET status = :status
@@ -343,7 +330,6 @@ def save_geral_status_obra(engine, obra_id, status, mes_referencia):
                     'id_geral': ID_FUNCIONARIO_GERAL, 'mes_ref': mes_dt
                 })
 
-                # Se nenhuma linha foi atualizada, insere uma nova com funcionario_id = 0
                 if result.rowcount == 0:
                     query_insert = text("""
                         INSERT INTO status_auditoria
@@ -368,7 +354,6 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # Tenta atualizar primeiro
                 query_update = text("""
                     UPDATE status_auditoria 
                     SET status = :status 
@@ -382,8 +367,6 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
                     'funcionario_id': funcionario_id,
                     'mes_ref': mes_dt
                 })
-
-                # Se nenhuma linha foi atualizada (porque não existia), insere uma nova
                 if result.rowcount == 0:
                     query_insert = text("""
                         INSERT INTO status_auditoria 
@@ -621,12 +604,10 @@ else:
             display_status_box("Status da Obra", status_atual)
             aviso_obra = ""
             obra_logada_nome = st.session_state['obra_logada']
-            
-            # Verifica se a coluna 'aviso' existe e se a obra tem um aviso
+
             if 'aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada_nome].empty:
                 aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'aviso'].iloc[0]
-            
-            # Se o aviso não for nulo ou vazio, exibe na tela
+
             if aviso_obra and str(aviso_obra).strip():
                 st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
         
@@ -1067,7 +1048,7 @@ else:
                 codigo_acesso = st.text_input("Código de Acesso para a Obra")
             submitted = st.form_submit_button("Adicionar Obra")
             if submitted:
-                if nome_obra and codigo_acesso: # Verifica se ambos os campos foram preenchidos
+                if nome_obra and codigo_acesso: 
                     if adicionar_obra(engine, nome_obra, codigo_acesso):
                         st.success(f"Obra '{nome_obra}' adicionada com sucesso!")
                         st.cache_data.clear()
@@ -1088,7 +1069,7 @@ else:
             ]
             df_para_exibir = pd.merge(
                 obras_df,
-                status_do_mes_df[['obra_id', 'Status']], # Seleciona a coluna 'Status' original
+                status_do_mes_df[['obra_id', 'Status']], 
                 left_on='id',
                 right_on='obra_id',
                 how='left'
@@ -1183,20 +1164,18 @@ else:
             resumo_df = resumo_df.drop(columns=['Funcionário'])
 
         resumo_df.rename(columns={'id': 'funcionario_id'}, inplace=True)
-        resumo_df_com_ids = resumo_df # O DataFrame agora está pronto para o merge.
+        resumo_df_com_ids = resumo_df 
 
         mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
         status_mes_df = status_df[status_df['Mes'] == mes_selecionado_dt]
-        
-        # 4. MERGE FINAL (agora funcionará)
+
         resumo_com_status_df = pd.merge(
             resumo_df_com_ids,
             status_mes_df,
             on=['funcionario_id', 'obra_id'],
             how='left'
         )
-        
-        # --- RESTO DO CÓDIGO (sem alterações) ---
+
         resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
         resumo_com_status_df['PRODUÇÃO (R$)'] = resumo_com_status_df['PRODUÇÃO (R$)'].fillna(0)
         resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
@@ -1204,7 +1183,7 @@ else:
 
         colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status']
         if st.session_state['role'] == 'admin':
-            colunas_finais.insert(1, 'OBRA') # Adiciona a coluna OBRA para o admin
+            colunas_finais.insert(1, 'OBRA')
 
         colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
         resumo_final_df = resumo_final_df[colunas_existentes].reset_index(drop=True)
@@ -1226,7 +1205,6 @@ else:
         if df_para_editar.empty:
             st.info("Não há lançamentos para gerenciar no mês selecionado.")
         else:
-         # Todo o código restante da página agora fica dentro deste 'else'
             df_filtrado = df_para_editar.copy()
 
             if st.session_state['role'] == 'user':
@@ -1246,7 +1224,6 @@ else:
                         df_filtrado = df_filtrado[df_filtrado['obra_id'].isin(ids_obras_filtradas)]
                     
                 with filtro_col2:
-                # Agora esta linha está protegida pela verificação .empty
                     funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
                     funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
                     if funcionario_filtrado:
@@ -1275,14 +1252,14 @@ else:
                         "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
                         "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
                     },
-                    disabled=df_filtrado.columns.drop(['Remover'], errors='ignore') # Removido id_lancamento
+                    disabled=df_filtrado.columns.drop(['Remover'], errors='ignore') 
                 )
               
                 linhas_para_remover = df_modificado[df_modificado['Remover']]
             
                 if not linhas_para_remover.empty:
                     st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
-                    st.dataframe(linhas_para_remover.drop(columns=['Remover'], errors='ignore')) # Removido id_lancamento
+                    st.dataframe(linhas_para_remover.drop(columns=['Remover'], errors='ignore')) 
                 
                     razao_remocao = ""
                     if st.session_state['role'] == 'admin':
@@ -1458,7 +1435,7 @@ else:
             status_geral_row = status_df[
                 (status_df['Obra'] == obra_selecionada) & 
                 (status_df['Funcionario'] == 'Status Geral da Obra') & 
-                (status_df['Mes'] == mes_selecionado_dt)  # <-- O ponto da falha é aqui
+                (status_df['Mes'] == mes_selecionado_dt) 
             ]
             status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
             
@@ -1508,7 +1485,7 @@ else:
                 if st.button("Lançar Folha Mensal", 
                              type="primary", 
                              use_container_width=True, 
-                             disabled=is_launch_disabled, # O botão é desabilitado aqui
+                             disabled=is_launch_disabled, 
                              help="A obra precisa estar com o status 'Aprovado' para lançar a folha." if is_launch_disabled else ""):
         
                     obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
@@ -1615,7 +1592,7 @@ else:
                                 'Valor Unitário', 'Valor Parcial', 'Observação'
                             ]
                             colunas_config = {
-                                "id": None, # Esconde a coluna de ID do editor
+                                "id": None, 
                                 "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
                                 "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
                                 "Disciplina": st.column_config.TextColumn("Disciplina"),
@@ -1654,216 +1631,3 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
