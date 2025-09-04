@@ -1143,16 +1143,23 @@ else:
                             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
                     with filtro_col2:
                         funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-                        funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+                        funcionarios_filtrados_dash = st.multiselect(
+                            "Filtrar por Funcionário(s)", 
+                            options=funcionarios_disponiveis, 
+                            key="dash_func_admin"
+                        )
                         if funcionarios_filtrados_dash:
                             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-                else: # Filtro de funcionário para o usuário comum
-                    funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-                    funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
-                    if funcionarios_filtrados_dash:
-                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-                if df_filtrado_dash.empty:
-                    st.warning("Nenhum lançamento encontrado para os filtros selecionados.")      
+        
+            else: 
+                funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+                funcionarios_filtrados_dash = st.multiselect(
+                    "Filtrar por Funcionário(s)", 
+                    options=funcionarios_disponiveis, 
+                    key="dash_func_user"
+                )
+            if funcionarios_filtrados_dash:
+                df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]      
                 else: 
                     col1, col2 = st.columns(2)
                     data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
@@ -1468,6 +1475,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
