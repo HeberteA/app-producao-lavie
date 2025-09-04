@@ -1305,7 +1305,7 @@ else:
                     if len(nomes_funcionarios_obra) > 0:
                         status_funcionarios_obra = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Mes'] == mes_selecionado)]
                         for nome in nomes_funcionarios_obra:
-                            status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado_dt)]
+                            status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == Status Geral da Obra) & (status_df['Mes'] == mes_selecionado_dt)]
                             status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                             if status_func != 'Aprovado':
                                 todos_aprovados = False
@@ -1472,6 +1472,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
