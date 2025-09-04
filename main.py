@@ -472,16 +472,7 @@ def display_status_box(label, status):
     else:
         st.info(f"{label}: {status}")
 
-# Coloque esta função perto das outras funções de estilo/formatação
 
-def style_status_gerenciar(status):
-    color = 'inherit' # Cor padrão do tema
-    if status == 'Aprovado':
-        color = 'green'
-    elif status == 'Analisar':
-        color = 'red'
-    return f'color: {color}; font-weight: bold;'
-    
 def style_status(status):
     color = 'gray'
     if status == 'Aprovado':
@@ -1150,6 +1141,11 @@ else:
                     st.rerun()
 
     elif st.session_state.page == "Dashboard de Análise 📈":
+        st.warning("--- PONTO DE VERIFICAÇÃO DO DASHBOARD ---")
+        st.write(f"Iniciando a página do Dashboard para o perfil: {st.session_state['role']}")
+        st.metric("Linhas em `lancamentos_do_mes_df` neste ponto:", len(lancamentos_do_mes_df))
+        st.dataframe(lancamentos_do_mes_df)
+        st.warning("--- FIM DA VERIFICAÇÃO ---")
         st.header("Dashboard de Análise")
         base_para_dash = lancamentos_do_mes_df.copy()
 
@@ -1203,17 +1199,7 @@ else:
                         if funcionarios_filtrados_dash:
                             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
                             
-            st.error("--- MODO DE DEPURAÇÃO ---")
-            st.write(f"Perfil atual: {st.session_state['role']}")
-            st.write("1. Dados ANTES da aplicação dos filtros:")
-            st.metric("Linhas em `base_para_dash`", len(base_para_dash))
-            st.dataframe(base_para_dash.head(3))
-            st.divider()
-            st.write("2. Dados DEPOIS da aplicação dos filtros:")
-            st.metric("Linhas em `df_filtrado_dash`", len(df_filtrado_dash))
-            st.dataframe(df_filtrado_dash.head(3))
-            st.error("--- FIM DA DEPURAÇÃO ---")
-        # -----------------------------------------
+
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
@@ -1519,6 +1505,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
