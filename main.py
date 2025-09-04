@@ -579,21 +579,20 @@ else:
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            obra_logada = st.session_state['obra_logada']
-            obra_logada_nome = st.session_state['obra_logada']
-            obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
-            status_geral_obra_row = status_df[status_df['obra_id'] == obra_logada_id] 
-            status_atual = 'A Revisar'
-            if not status_geral_obra_row.empty:
-                status_atual = status_geral_obra_row['Status'].iloc[0]
+            # ... (código que mostra o status da obra) ...
             display_status_box("Status da Obra", status_atual)
 
+            # --- ADICIONE ESTE BLOCO DE CÓDIGO ABAIXO ---
             aviso_obra = ""
-            if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada].empty:
-                aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'Aviso'].iloc[0]
+            obra_logada_nome = st.session_state['obra_logada']
             
+            # Verifica se a coluna 'aviso' existe e se a obra tem um aviso
+            if 'aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada_nome].empty:
+                aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'aviso'].iloc[0]
+            
+            # Se o aviso não for nulo ou vazio, exibe na tela
             if aviso_obra and str(aviso_obra).strip():
-                st.error(f"📢 Aviso: {aviso_obra}")
+                st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
         
         st.markdown("---")
         
@@ -869,10 +868,9 @@ else:
                     comment = ""
                     st.markdown("---")
                     st.subheader("Comentário")
-                    if not func_status_row.empty and 'Comentario' in func_status_row.columns:
-                        comment = func_status_row['Comentario'].iloc[0]
-                    if comment and str(comment).strip():
-                        st.warning(f"Comentário: {comment}")
+                    if comentario_auditoria and str(comentario_auditoria).strip():
+                        st.warning(f"Comentário: {comentario_auditoria}")
+
                     
                     st.markdown("---")
 
@@ -1510,6 +1508,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
