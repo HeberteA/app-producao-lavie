@@ -1064,89 +1064,91 @@ else:
         
         df_para_editar = lancamentos_do_mes_df.copy()
 
-        if st.session_state['role'] == 'user':
-            if not df_para_editar.empty:
-                df_para_editar = df_para_editar[df_para_editar['Obra'] == st.session_state['obra_logada']]
-            
-            funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
-            funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_user")
-            if funcionario_filtrado:
-                df_para_editar = df_para_editar[df_para_editar['Funcionário'].isin(funcionario_filtrado)]
-
-        else: 
-            filtro_col1, filtro_col2 = st.columns(2)
-            with filtro_col1:
-                ids_obras_disponiveis = df_para_editar['obra_id'].unique()
-                nomes_obras_disponiveis = sorted(obras_df[obras_df['id'].isin(ids_obras_disponiveis)]['NOME DA OBRA'].unique())
-                obras_filtradas_nomes = st.multiselect("Filtrar por Obra(s):", options=nomes_obras_disponiveis, key="editar_obras_admin")
-
-                if obras_filtradas_nomes:
-                    ids_obras_filtradas = obras_df[obras_df['NOME DA OBRA'].isin(obras_filtradas_nomes)]['id'].tolist()
-                    df_para_editar = df_para_editar[df_para_editar['obra_id'].isin(ids_obras_filtradas)]
-                    
-            with filtro_col2:
-                funcionarios_para_filtrar = sorted(df_para_editar['Funcionário'].unique())
-                funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
-                if funcionario_filtrado:
-                    df_para_editar = df_para_editar[df_para_editar['Funcionário'].isin(funcionario_filtrado)]
-        
-        df_filtrado = df_para_editar.copy()
-
-        if df_filtrado.empty:
-            st.info("Nenhum lançamento encontrado para os filtros selecionados.")
+        if df_para_editar.empty:
+            st.info("Não há lançamentos para gerenciar no mês selecionado.")
         else:
-            df_filtrado['Remover'] = False
-            
-            colunas_visiveis = [
-                'id', 'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
-                'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 'Data do Serviço'
-            ]
-            colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
-            
-            st.write("Marque as caixas dos lançamentos que deseja apagar e clique no botão de remoção.")
-            
-            df_modificado = st.data_editor(
-                df_filtrado[colunas_existentes],
-                hide_index=True,
-                column_config={
-                    "id": None, 
-                    "Remover": st.column_config.CheckboxColumn(required=True),
-                    "Disciplina": st.column_config.TextColumn("Disciplina"),
-                    "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
-                    "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
-                },
-                disabled=df_filtrado.columns.drop(['Remover', 'id_lancamento'], errors='ignore')
-            )
-            
-            linhas_para_remover = df_modificado[df_modificado['Remover']]
-            
-            if not linhas_para_remover.empty:
-                st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
-                st.dataframe(linhas_para_remover.drop(columns=['Remover', 'id_lancamento'], errors='ignore'))
-                
-                razao_remocao = ""
-                if st.session_state['role'] == 'admin':
-                    razao_remocao = st.text_area("Justificativa para a remoção (obrigatório):", key="razao_remocao_admin")
+         # Todo o código restante da página agora fica dentro deste 'else'
+            df_filtrado = df_para_editar.copy()
 
-                confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
-                
-                is_disabled = not confirmacao_remocao
-                if st.session_state['role'] == 'admin':
-                    is_disabled = not confirmacao_remocao or not razao_remocao.strip()
+            if st.session_state['role'] == 'user':
+                funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
+                funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_user")
+                if funcionario_filtrado:
+                    df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
+            else: 
+                filtro_col1, filtro_col2 = st.columns(2)
+                with filtro_col1:
+                    ids_obras_disponiveis = df_filtrado['obra_id'].unique()
+                    nomes_obras_disponiveis = sorted(obras_df[obras_df['id'].isin(ids_obras_disponiveis)]['NOME DA OBRA'].unique())
+                    obras_filtradas_nomes = st.multiselect("Filtrar por Obra(s):", options=nomes_obras_disponiveis, key="editar_obras_admin")
 
-                if st.button("Remover Itens Selecionados", ...):
-                    ids_a_remover = linhas_para_remover['id'].tolist()
-                    if remover_lancamentos_por_id(ids_a_remover, engine):
+                    if obras_filtradas_nomes:
+                        ids_obras_filtradas = obras_df[obras_df['NOME DA OBRA'].isin(obras_filtradas_nomes)]['id'].tolist()
+                        df_filtrado = df_filtrado[df_filtrado['obra_id'].isin(ids_obras_filtradas)]
+                    
+                with filtro_col2:
+                # Agora esta linha está protegida pela verificação .empty
+                    funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
+                    funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
+                    if funcionario_filtrado:
+                        df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
+          
+            if df_filtrado.empty:
+                st.info("Nenhum lançamento encontrado para os filtros selecionados.")
+            else:
+                df_filtrado['Remover'] = False
+            
+                colunas_visiveis = [
+                    'id', 'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 
+                    'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação', 'Data do Serviço'
+                ]
+                colunas_existentes = [col for col in colunas_visiveis if col in df_filtrado.columns]
+            
+                st.write("Marque as caixas dos lançamentos que deseja apagar e clique no botão de remoção.")
+              
+                df_modificado = st.data_editor(
+                    df_filtrado[colunas_existentes],
+                    hide_index=True,
+                    column_config={
+                        "id": None, 
+                        "Remover": st.column_config.CheckboxColumn(required=True),
+                        "Disciplina": st.column_config.TextColumn("Disciplina"),
+                        "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
+                        "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
+                    },
+                    disabled=df_filtrado.columns.drop(['Remover'], errors='ignore') # Removido id_lancamento
+                )
+              
+                linhas_para_remover = df_modificado[df_modificado['Remover']]
+            
+                if not linhas_para_remover.empty:
+                    st.warning("Atenção! Você selecionou os seguintes lançamentos para remoção permanente:")
+                    st.dataframe(linhas_para_remover.drop(columns=['Remover'], errors='ignore')) # Removido id_lancamento
+                
+                    razao_remocao = ""
+                    if st.session_state['role'] == 'admin':
+                        razao_remocao = st.text_area("Justificativa para a remoção (obrigatório):", key="razao_remocao_admin")
+ 
+                    confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
+                
+                    is_disabled = not confirmacao_remocao
+                    if st.session_state['role'] == 'admin':
+                       is_disabled = not confirmacao_remocao or not razao_remocao.strip()
+
+
+                    if st.button("Remover Itens Selecionados", ...):
+                        ids_a_remover = linhas_para_remover['id'].tolist()
+                        if remover_lancamentos_por_id(ids_a_remover, engine):
+                            st.cache_data.clear()
+                            st.rerun()
+                        if st.session_state['role'] == 'admin' and razao_remocao:
+                            funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
+
+                            for obra, funcionario in funcionarios_afetados:
+                                status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
+                            pass
                         st.cache_data.clear()
                         st.rerun()
-                    if st.session_state['role'] == 'admin' and razao_remocao:
-                        funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
-
-                        for obra, funcionario in funcionarios_afetados:
-                            status_df = save_comment_data(status_df, obra, funcionario, razao_remocao, append=True)
-                        pass
-                    st.cache_data.clear()
-                    st.rerun()
 
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
@@ -1490,6 +1492,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
