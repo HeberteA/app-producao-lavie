@@ -1284,7 +1284,7 @@ else:
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
 
-            status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'GERAL') & (status_df['Mes'] == mes_selecionado)]
+            status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'Status Geral da Obra') & (status_df['Mes'] == mes_selecionado)]
             status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
             
             folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_selecionada) & (folhas_df['Mes'] == mes_selecionado)]
@@ -1403,7 +1403,7 @@ else:
                             )
                             if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=is_locked):
                                 if selected_status_func != status_atual_func:
-                                    obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
+                                    obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                                     funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
                                     if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
                                         st.cache_data.clear()
@@ -1476,6 +1476,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
