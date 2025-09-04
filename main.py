@@ -1296,7 +1296,7 @@ else:
                     selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True, key=f"radio_status_obra_{obra_selecionada}")
                     if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
                         if selected_status_obra != status_atual_obra:
-                            obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
+                            obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                             if save_geral_status_obra(engine, obra_id_selecionada, selected_status_obra, mes_referencia=mes_selecionado):
                                 st.cache_data.clear()
                                 st.rerun()
@@ -1377,7 +1377,7 @@ else:
                             if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=is_locked):
                                 if selected_status_func != status_atual_func:
                                     obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
-                                    funcionario_id_selecionado = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0]
+                                    funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
                                     if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
                                         st.cache_data.clear()
                                         st.rerun()
@@ -1449,6 +1449,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
