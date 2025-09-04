@@ -954,7 +954,9 @@ else:
             )
             df_para_exibir['Status do Mês'] = df_para_exibir['Status do Mês'].fillna('A Revisar')
             st.dataframe(
-                df_para_exibir[['NOME DA OBRA', 'Status do Mês']].applymap(style_status, subset=['Status']),
+                df_para_exibir[['NOME DA OBRA', 'Status do Mês']].applymap(
+                    style_status,
+                    subset=['Status Do Mes']
                 ),
                 use_container_width=True
                 obra_para_remover = st.selectbox(
@@ -1496,6 +1498,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
