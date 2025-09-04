@@ -971,8 +971,26 @@ else:
         if funcionarios_df.empty:
             st.info("Nenhum funcionário cadastrado.")
         else:
-            st.dataframe(funcionarios_df[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
-            func_para_remover = st.selectbox("Selecione o funcionário para remover", options=funcionarios_df['NOME'].unique(), index=None, placeholder="Selecione...")
+            obra_filtro_remover = st.selectbox(
+                "Filtre por Obra para ver os funcionários",
+                 options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
+                 index=0,
+                 key="filtro_obra_remover"
+            )
+
+            df_para_remover = funcionarios_df
+
+            if obra_filtro_remover and obra_filtro_remover != "Todas":
+                df_para_remover = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
+
+            st.dataframe(df_para_remover[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
+
+            func_para_remover = st.selectbox(
+                "Selecione o funcionário para remover", 
+                options=sorted(df_para_remover['NOME'].unique()), 
+                index=None, 
+                placeholder="Selecione um funcionário da lista acima..."
+            )
             if func_para_remover:
                 if st.button(f"Remover {func_para_remover}", type="primary"):
                     funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
@@ -1637,6 +1655,7 @@ else:
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
   
+
 
 
 
