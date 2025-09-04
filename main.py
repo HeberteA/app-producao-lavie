@@ -1280,14 +1280,15 @@ else:
         
         if obra_selecionada:
             mes_selecionado = st.session_state.selected_month
+            mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
 
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
 
-            status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'Status Geral da Obra') & (status_df['Mes'] == mes_selecionado)]
+            status_geral_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == 'Status Geral da Obra') & (status_df['Mes'] == mes_selecionado_dt)]
             status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
             
-            folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_selecionada) & (folhas_df['Mes'] == mes_selecionado)]
+            folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_selecionada) & (folhas_df['Mes'] == mes_selecionado_dt)] 
             is_launched = not folha_lancada_row.empty
 
             is_locked = (status_atual_obra == "Aprovado") or is_launched
@@ -1384,7 +1385,7 @@ else:
                     header_cols[2].metric("Produção", format_currency(row['PRODUÇÃO (R$)']))
                     header_cols[3].metric("Salário a Receber", format_currency(row['SALÁRIO A RECEBER (R$)']))
 
-                    status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado)]
+                    status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado_dt)]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                     
                     with header_cols[4]:
@@ -1476,6 +1477,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
