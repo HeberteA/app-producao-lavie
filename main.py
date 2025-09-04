@@ -1306,7 +1306,7 @@ else:
                         status_funcionarios_obra = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Mes'] == mes_selecionado)]
                         for nome in nomes_funcionarios_obra:
                             status_func_row = status_funcionarios_obra[status_funcionarios_obra['Funcionario'] == nome]
-                            status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+                            status_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else 'A Revisar'
                             if status_func != 'Aprovado':
                                 todos_aprovados = False
                                 break
@@ -1472,6 +1472,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
