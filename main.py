@@ -1142,31 +1142,14 @@ else:
 
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
-
-    # Vamos criar um DataFrame base para o dashboard de forma limpa
         df_para_o_dashboard = lancamentos_do_mes_df.copy()
-
-    # Se for um usuário, aplica o filtro da sua obra
         if st.session_state['role'] == 'user':
             df_para_o_dashboard = df_para_o_dashboard[df_para_o_dashboard['Obra'] == st.session_state['obra_logada']]
-
-    # --- VERIFICAÇÃO FINAL E DEFINITIVA ---
-        st.error(f"--- VERIFICAÇÃO (Perfil: {st.session_state['role']}) ---")
-        st.write(f"O DataFrame `df_para_o_dashboard` tem **{len(df_para_o_dashboard)}** linhas.")
-        st.write(f"A propriedade `df_para_o_dashboard.empty` é: **{df_para_o_dashboard.empty}**")
-        st.dataframe(df_para_o_dashboard)
-        st.error("--- FIM DA VERIFICAÇÃO ---")
-    # ------------------------------------
-
-    # Agora verificamos se o dataframe está vazio
         if df_para_o_dashboard.empty:
             st.info("Ainda não há lançamentos para analisar neste mês ou para a obra selecionada.")
         else:
-        # Se não estiver vazio, o resto da página é renderizado aqui
             st.markdown("#### Filtros Adicionais")
             df_filtrado_dash = df_para_o_dashboard.copy()
-
-        # Filtros para o Administrador
             if st.session_state['role'] == 'admin':
                 filtro_col1, filtro_col2 = st.columns(2)
                 with filtro_col1:
@@ -1183,8 +1166,7 @@ else:
                     )
                     if funcionarios_filtrados_dash:
                         df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-        
-        # Filtros para o Usuário Comum
+
             else: 
                 funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
                 funcionarios_filtrados_dash = st.multiselect(
@@ -1198,7 +1180,6 @@ else:
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
-            # --- Início da seção de KPIs e Gráficos ---
                 st.markdown("---")
                 total_produzido = df_filtrado_dash['Valor Parcial'].sum()
                 top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
@@ -1500,6 +1481,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
