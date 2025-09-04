@@ -573,6 +573,7 @@ else:
         todos_lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
         lancamentos_do_mes_df = pd.DataFrame()
         
+        available_months = []
         if not todos_lancamentos_df.empty:
             todos_lancamentos_df['Data'] = pd.to_datetime(todos_lancamentos_df['Data'])
             mes_selecionado_periodo = pd.Period(st.session_state.selected_month, 'M')
@@ -1466,6 +1467,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
