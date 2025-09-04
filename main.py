@@ -1,11 +1,11 @@
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 from supabase import create_client, Client
+import threading
+from realtime_client import SupabaseListener
 import pandas as pd
 from datetime import datetime, timedelta
 from datetime import date
 from sqlalchemy import create_engine, text
-from sqlalchemy.pool import NullPool
 import numpy as np
 import re
 import plotly.express as px
@@ -532,10 +532,30 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
 else:
     # Carrega todos os dados após o login
     funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
+    if 'listener_thread' not in st.session_state:
+        st.session_state['new_launch_received'] = False
+        
+        # Pega as credenciais do Supabase dos seus secrets
+        supabase_url = st.secrets["supabase"]["url"]
+        supabase_key = st.secrets["supabase"]["key"]
+        
+        # Cria e inicia o ouvinte na thread em segundo plano
+        listener = SupabaseListener(supabase_url, supabase_key, st.session_state)
+        thread = threading.Thread(target=listener.listen, daemon=True)
+        st.session_state['listener_thread'] = thread
+        st.session_state['listener_obj'] = listener 
+        thread.start()
+        print("Thread do ouvinte iniciada.")
+
+    if st.session_state.get('new_launch_received', False):
+        st.toast("Novo lançamento recebido! Atualizando a lista...")
+        st.session_state['new_launch_received'] = False 
+        st.cache_data.clear()
+        st.rerun()
 
     if 'lancamentos' not in st.session_state or not st.session_state.lancamentos:
         st.session_state.lancamentos = lancamentos_df.to_dict('records')
-
+    
     
     if 'page' not in st.session_state:
         st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
@@ -1472,6 +1492,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
