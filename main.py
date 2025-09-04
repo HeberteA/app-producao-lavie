@@ -592,6 +592,7 @@ else:
             lancamentos_do_mes_df = todos_lancamentos_df[
                 todos_lancamentos_df['Data'].dt.to_period('M') == mes_selecionado_periodo
             ].copy()
+        st.metric("Lançamentos Encontrados no Mês:", len(lancamentos_do_mes_df))
 
         current_month_str = datetime.now().strftime('%Y-%m')
         if current_month_str not in available_months:
@@ -1156,7 +1157,7 @@ else:
 
         if st.session_state['role'] == 'user':
             base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
-
+                
             if base_para_dash.empty:
                 st.info("Ainda não há lançamentos para analisar neste mês.")
             else:
@@ -1508,6 +1509,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
