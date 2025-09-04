@@ -199,12 +199,10 @@ def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
 def garantir_funcionario_geral(engine):
     """
     Verifica se o funcionário 'Status Geral' com id=0 existe e, se não, o cria.
-    Usa 'ON CONFLICT DO NOTHING' para evitar erros se o registro já existir.
     """
     try:
-        # Pega o ID de uma obra e função qualquer para usar no registro geral
-        # Isso é necessário para satisfazer as regras da tabela 'funcionarios'
         with engine.connect() as connection:
+            # Pega o ID de uma obra e função qualquer
             obra_id = connection.execute(text("SELECT id FROM obras LIMIT 1")).scalar_one_or_none()
             funcao_id = connection.execute(text("SELECT id FROM funcoes LIMIT 1")).scalar_one_or_none()
 
@@ -212,14 +210,15 @@ def garantir_funcionario_geral(engine):
                 st.warning("Não foi possível criar o funcionário geral. Cadastre pelo menos uma obra e uma função.")
                 return
 
-            with connection.begin() as transaction:
-                query = text("""
-                    INSERT INTO funcionarios (id, nome, obra_id, funcao_id)
-                    VALUES (0, 'Status Geral da Obra', :obra_id, :funcao_id)
-                    ON CONFLICT (id) DO NOTHING;
-                """)
-                connection.execute(query, {'obra_id': obra_id, 'funcao_id': funcao_id})
-                transaction.commit()
+            # Executa o INSERT...ON CONFLICT e faz o commit automático ao sair do 'with'
+            query = text("""
+                INSERT INTO funcionarios (id, nome, obra_id, funcao_id)
+                VALUES (0, 'Status Geral da Obra', :obra_id, :funcao_id)
+                ON CONFLICT (id) DO NOTHING;
+            """)
+            connection.execute(query, {'obra_id': obra_id, 'funcao_id': funcao_id})
+            connection.commit() # Adiciona commit explícito para clareza
+            
         print(">>> Funcionário geral com ID 0 garantido no banco de dados.")
     except Exception as e:
         st.error(f"Erro ao tentar garantir o funcionário geral: {e}")
@@ -1477,6 +1476,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
