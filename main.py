@@ -1174,23 +1174,6 @@ else:
                     )
                     if funcionarios_filtrados_dash:
                         df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-             st.markdown("---")
-             st.subheader("Exportar Dados da Análise")
-    
-    # Prepara o DataFrame para exportação (remove colunas desnecessárias, se quiser)
-            df_para_exportar = df_filtrado_dash.drop(columns=['id', 'obra_id', 'servico_id', 'valor_extra_id'], errors='ignore')
-    
-    # Converte o DataFrame filtrado para Excel em memória
-            excel_data = to_excel(df_para_exportar)
-    
-            st.download_button(
-                label="📥 Baixar Dados Filtrados em Excel",
-                data=excel_data,
-                file_name=f"analise_filtrada_{st.session_state.selected_month}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-    # --- FIM DO NOVO TRECHO ---
 
     st.markdown("---")
 
@@ -1509,6 +1492,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
