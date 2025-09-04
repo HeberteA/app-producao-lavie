@@ -534,7 +534,7 @@ def login_page(obras_df, acessos_df):
 
         if st.button("Entrar", use_container_width=True, type="primary"):
             if obra_login and codigo_login:
-                try: # Adicione o 'try' aqui
+                try: 
                     codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
                     if codigo_correto == codigo_login:
                         st.session_state['logged_in'] = True
@@ -543,7 +543,7 @@ def login_page(obras_df, acessos_df):
                         st.rerun()
                     else:
                         st.error("Obra ou código de acesso incorreto.")
-                except IndexError: # O 'except' agora tem um 'try' correspondente
+                except IndexError:
                     st.error("Obra ou código de acesso incorreto.")
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
@@ -579,10 +579,12 @@ else:
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            # ... (código que mostra o status da obra) ...
+            obra_logada = st.session_state['obra_logada']
+            obra_logada_nome = st.session_state['obra_logada']
+            obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
+            status_geral_obra_row = status_df[status_df['obra_id'] == obra_logada_id] 
+            status_atual = 'A Revisar'
             display_status_box("Status da Obra", status_atual)
-
-            # --- ADICIONE ESTE BLOCO DE CÓDIGO ABAIXO ---
             aviso_obra = ""
             obra_logada_nome = st.session_state['obra_logada']
             
@@ -1508,6 +1510,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
