@@ -1152,6 +1152,7 @@ else:
 
                 if df_filtrado_dash.empty:
                     st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
+                    
             else: 
                 col1, col2 = st.columns(2)
                 data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
@@ -1467,6 +1468,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
