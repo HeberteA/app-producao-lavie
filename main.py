@@ -592,7 +592,6 @@ else:
             lancamentos_do_mes_df = todos_lancamentos_df[
                 todos_lancamentos_df['Data'].dt.to_period('M') == mes_selecionado_periodo
             ].copy()
-        st.metric("Lançamentos Encontrados no Mês:", len(lancamentos_do_mes_df))
 
         current_month_str = datetime.now().strftime('%Y-%m')
         if current_month_str not in available_months:
@@ -656,13 +655,7 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-    if not lancamentos_df.empty:
-        mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
-        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
-        lancamentos_df = lancamentos_df[
-            (lancamentos_df['Data'].dt.month == mes_selecionado_dt.month) &
-            (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
-        ]
+   
 
     if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
@@ -1509,6 +1502,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
