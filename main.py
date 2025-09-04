@@ -965,6 +965,22 @@ else:
                     else:
                         st.warning("Por favor, preencha nome, função e obra.")
 
+ 
+        st.markdown("---")
+        st.subheader("Remover Funcionário Existente")
+        if funcionarios_df.empty:
+            st.info("Nenhum funcionário cadastrado.")
+        else:
+            st.dataframe(funcionarios_df[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
+            func_para_remover = st.selectbox("Selecione o funcionário para remover", options=funcionarios_df['NOME'].unique(), index=None, placeholder="Selecione...")
+            if func_para_remover:
+                if st.button(f"Remover {func_para_remover}", type="primary"):
+                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
+                    if remover_funcionario(engine, funcionario_id):
+                        st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
+                        st.cache_data.clear()
+                        st.rerun()
+                        
         st.markdown("---")
         st.subheader("Mudar Funcionário de Obra")
         with st.container(border=True):
@@ -996,20 +1012,6 @@ else:
                 else:
                     st.warning("Por favor, selecione um funcionário e uma obra de destino.")
  
-        st.markdown("---")
-        st.subheader("Remover Funcionário Existente")
-        if funcionarios_df.empty:
-            st.info("Nenhum funcionário cadastrado.")
-        else:
-            st.dataframe(funcionarios_df[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
-            func_para_remover = st.selectbox("Selecione o funcionário para remover", options=funcionarios_df['NOME'].unique(), index=None, placeholder="Selecione...")
-            if func_para_remover:
-                if st.button(f"Remover {func_para_remover}", type="primary"):
-                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
-                    if remover_funcionario(engine, funcionario_id):
-                        st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
-                        st.cache_data.clear()
-                        st.rerun()
 
 
     elif st.session_state.page == "Gerenciar Obras" and st.session_state['role'] == 'admin':
@@ -1033,31 +1035,7 @@ else:
                 else:
                     st.warning("Por favor, insira o nome e o código de acesso da obra.")
 
-        st.markdown("---")
-        st.subheader("Alterar Código de Acesso")
-        with st.container(border=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                obra_para_alterar_codigo = st.selectbox(
-                    "1. Selecione a Obra",
-                    options=obras_df['NOME DA OBRA'].unique(),
-                    index=None,
-                    placeholder="Selecione..."
-                )
-            with col2:
-                novo_codigo = st.text_input("2. Digite o Novo Código de Acesso", type="password")
-
-            if st.button("Alterar Código", use_container_width=True):
-                if obra_para_alterar_codigo and novo_codigo:
-                    obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo, 'id'].iloc[0])
-                
-                    if mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
-                        st.toast(f"Código de acesso da obra '{obra_para_alterar_codigo}' alterado com sucesso!", icon="🔑")
-                        st.cache_data.clear()
-                        st.rerun()
-                else:
-                    st.warning("Por favor, selecione uma obra e digite o novo código.")
-                    
+        
         st.markdown("---")
         st.subheader("Remover Obra Existente")
         if obras_df.empty:
@@ -1098,6 +1076,32 @@ else:
                         st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
+
+        st.markdown("---")
+        st.subheader("Alterar Código de Acesso")
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                obra_para_alterar_codigo = st.selectbox(
+                    "1. Selecione a Obra",
+                    options=obras_df['NOME DA OBRA'].unique(),
+                    index=None,
+                    placeholder="Selecione..."
+                )
+            with col2:
+                novo_codigo = st.text_input("2. Digite o Novo Código de Acesso", type="password")
+
+            if st.button("Alterar Código", use_container_width=True):
+                if obra_para_alterar_codigo and novo_codigo:
+                    obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo, 'id'].iloc[0])
+                
+                    if mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
+                        st.toast(f"Código de acesso da obra '{obra_para_alterar_codigo}' alterado com sucesso!", icon="🔑")
+                        st.cache_data.clear()
+                        st.rerun()
+                else:
+                    st.warning("Por favor, selecione uma obra e digite o novo código.")
+                    
     
     elif st.session_state.page == "Resumo da Folha 📊":
         st.header("Resumo da Folha")
@@ -1611,6 +1615,7 @@ else:
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
   
+
 
 
 
