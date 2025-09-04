@@ -443,6 +443,40 @@ def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referenci
         st.error(f"Erro ao salvar o comentário: {e}")
         return False
 
+def mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
+    """Muda um funcionário para uma nova obra no banco de dados."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE funcionarios
+                    SET obra_id = :nova_obra_id
+                    WHERE id = :funcionario_id
+                """)
+                connection.execute(query, {'nova_obra_id': nova_obra_id, 'funcionario_id': funcionario_id})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao mudar funcionário de obra: {e}")
+        return False
+
+def mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
+    """Altera o código de acesso de uma obra específica."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE acessos_obras
+                    SET codigo_acesso = :novo_codigo
+                    WHERE obra_id = :obra_id
+                """)
+                connection.execute(query, {'novo_codigo': novo_codigo, 'obra_id': obra_id})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao alterar o código de acesso: {e}")
+        return False
+        
 def save_aviso_data(engine, obra_nome, novo_aviso):
     """Atualiza o aviso de uma obra específica no banco de dados."""
     try:
@@ -932,6 +966,37 @@ else:
                         st.warning("Por favor, preencha nome, função e obra.")
 
         st.markdown("---")
+        st.subheader("Mudar Funcionário de Obra")
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                func_para_mudar = st.selectbox(
+                    "1. Selecione o Funcionário", 
+                    options=funcionarios_df['NOME'].unique(), 
+                    index=None, 
+                    placeholder="Selecione..."
+                )
+            with col2:
+                obra_destino = st.selectbox(
+                    "2. Selecione a Nova Obra", 
+                    options=obras_df['NOME DA OBRA'].unique(), 
+                    index=None, 
+                    placeholder="Selecione..."
+                )
+
+            if st.button("Mudar de Obra", use_container_width=True):
+                if func_para_mudar and obra_destino:
+                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id'].iloc[0])
+                    nova_obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id'].iloc[0])
+                
+                    if mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
+                        st.toast(f"Funcionário '{func_para_mudar}' movido para a obra '{obra_destino}'!", icon="✅")
+                        st.cache_data.clear()
+                        st.rerun()
+                else:
+                    st.warning("Por favor, selecione um funcionário e uma obra de destino.")
+ 
+        st.markdown("---")
         st.subheader("Remover Funcionário Existente")
         if funcionarios_df.empty:
             st.info("Nenhum funcionário cadastrado.")
@@ -967,7 +1032,32 @@ else:
                         st.rerun()
                 else:
                     st.warning("Por favor, insira o nome e o código de acesso da obra.")
-                        
+
+        st.markdown("---")
+        st.subheader("Alterar Código de Acesso")
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                obra_para_alterar_codigo = st.selectbox(
+                    "1. Selecione a Obra",
+                    options=obras_df['NOME DA OBRA'].unique(),
+                    index=None,
+                    placeholder="Selecione..."
+                )
+            with col2:
+                novo_codigo = st.text_input("2. Digite o Novo Código de Acesso", type="password")
+
+            if st.button("Alterar Código", use_container_width=True):
+                if obra_para_alterar_codigo and novo_codigo:
+                    obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo, 'id'].iloc[0])
+                
+                    if mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
+                        st.toast(f"Código de acesso da obra '{obra_para_alterar_codigo}' alterado com sucesso!", icon="🔑")
+                        st.cache_data.clear()
+                        st.rerun()
+                else:
+                    st.warning("Por favor, selecione uma obra e digite o novo código.")
+                    
         st.markdown("---")
         st.subheader("Remover Obra Existente")
         if obras_df.empty:
@@ -1521,6 +1611,7 @@ else:
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
   
+
 
 
 
