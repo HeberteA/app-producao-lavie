@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-@st.cache_resource
+@st.cache_resource(ttl=60)
 def get_db_connection():
     try:
         engine = create_engine(st.secrets["database"]["url"])
@@ -1472,6 +1472,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
