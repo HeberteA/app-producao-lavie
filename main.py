@@ -570,12 +570,15 @@ else:
         st.markdown("---")
         
         st.subheader("Mês de Referência")
-        lancamentos_df_sidebar = pd.DataFrame(st.session_state.lancamentos)
+        todos_lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
+        lancamentos_do_mes_df = pd.DataFrame()
         
-        available_months = []
-        if not lancamentos_df_sidebar.empty and 'Data' in lancamentos_df_sidebar.columns:
-            lancamentos_df_sidebar['Mes'] = pd.to_datetime(lancamentos_df_sidebar['Data']).dt.to_period('M')
-            available_months = sorted(lancamentos_df_sidebar['Mes'].unique().astype(str))
+        if not todos_lancamentos_df.empty:
+            todos_lancamentos_df['Data'] = pd.to_datetime(todos_lancamentos_df['Data'])
+            mes_selecionado_periodo = pd.Period(st.session_state.selected_month, 'M')
+            lancamentos_do_mes_df = todos_lancamentos_df[
+                todos_lancamentos_df['Data'].dt.to_period('M') == mes_selecionado_periodo
+            ].copy()
 
         current_month_str = datetime.now().strftime('%Y-%m')
         if current_month_str not in available_months:
@@ -801,22 +804,17 @@ else:
        
                             if novos_lancamentos_dicts:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
-
-                # Mapeia nomes para IDs
                                 obra_id_map = obras_df.set_index('NOME DA OBRA')['id']
                                 func_id_map = funcionarios_df.set_index('NOME')['id']
 
                                 df_para_salvar['obra_id'] = df_para_salvar['obra_nome'].map(obra_id_map)
                                 df_para_salvar['funcionario_id'] = df_para_salvar['funcionario_nome'].map(func_id_map)
-
-                # Seleciona e ordena as colunas para corresponder à query
                                 colunas_db = [
                                     'data_servico', 'obra_id', 'funcionario_id', 'servico_id',
                                     'valor_extra_id', 'servico_diverso_descricao', 'quantidade',
                                     'valor_unitario', 'observacao', 'data_lancamento'
                                 ]
                                 df_final_para_db = df_para_salvar[colunas_db]
-                # Converte colunas de ID que podem ser float (por causa de NaN) para Int64
                                 df_final_para_db['servico_id'] = df_final_para_db['servico_id'].astype('Int64')
                                 df_final_para_db['valor_extra_id'] = df_final_para_db['valor_extra_id'].astype('Int64')
 
@@ -851,16 +849,14 @@ else:
                     st.markdown("---")
 
                 st.subheader("Histórico Recente na Obra")
-                lancamentos_recentes_df = pd.DataFrame(st.session_state.lancamentos)
-                if not lancamentos_recentes_df.empty:
-                    lancamentos_da_obra = lancamentos_recentes_df[lancamentos_recentes_df['Obra'] == st.session_state['obra_logada']]
-                    colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
+                if not lancamentos_do_mes_df.empty:
+                    lancamentos_da_obra = lancamentos_do_mes_df[lancamentos_do_mes_df['Obra'] == st.session_state['obra_logada']]
+                    colunas_display = ['Data', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Data do Serviço', 'Observação']
                     colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
-                    if 'Data' in lancamentos_da_obra.columns:
-                        lancamentos_da_obra['Data'] = pd.to_datetime(lancamentos_da_obra['Data'])
-                        st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
+
+                    st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({'Valor Unitário': 'R$ {:,.2f}', 'Valor Parcial': 'R$ {:,.2f}'}), use_container_width=True)
                 else:
-                    st.info("Nenhum lançamento adicionado ainda.")
+                    st.info("Nenhum lançamento adicionado ainda neste mês.")
     
 
    
@@ -987,7 +983,7 @@ else:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
             if not lancamentos_df.empty:
-                producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+                producao_por_funcionario = lancamentos_do_mes_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
                 producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
                 resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             else:
@@ -1037,7 +1033,7 @@ else:
     elif st.session_state.page == "Remover Lançamentos 🗑️":
         st.header("Gerenciar Lançamentos")
         
-        df_para_editar = lancamentos_df.copy()
+        df_para_editar = lancamentos_do_mes_df.copy()
 
         if st.session_state['role'] == 'user':
             if not df_para_editar.empty:
@@ -1124,44 +1120,38 @@ else:
 
     elif st.session_state.page == "Dashboard de Análise 📈":
         st.header("Dashboard de Análise")
-        lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
-        base_para_dash = lancamentos_df.copy()
+        base_para_dash = lancamentos_do_mes_df.copy()
+
 
         if st.session_state['role'] == 'user':
-            st.header(f"Obra: {st.session_state['obra_logada']}")
-            if not base_para_dash.empty:
-                base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
+            base_para_dash = base_para_dash[base_para_dash['Obra'] == st.session_state['obra_logada']]
 
-        if base_para_dash.empty:
-            st.info("Ainda não há lançamentos para analisar.")
-        else:
-            st.markdown("#### Filtros do Dashboard")
-            
-            df_filtrado_dash = base_para_dash.copy()
+            if base_para_dash.empty:
+                st.info("Ainda não há lançamentos para analisar neste mês.")
+            else:
+                st.markdown("#### Filtros Adicionais")
+                df_filtrado_dash = base_para_dash.copy()
 
-            if st.session_state['role'] == 'admin':
-                filtro_col1, filtro_col2 = st.columns(2)
-                with filtro_col1:
-                    data_inicio = st.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_admin")
-                with filtro_col2:
-                    data_fim = st.date_input("Data de Fim", value=datetime.now().date(), key="dash_data_fim_admin")
-
-                data_inicio_ts = pd.to_datetime(data_inicio)
-                data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
-                df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
-
-                filtro_col3, filtro_col4 = st.columns(2)
-                with filtro_col3:
-                    obras_disponiveis = sorted(df_filtrado_dash['Obra'].unique())
-                    obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
-                    if obras_filtradas_dash:
-                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
-                with filtro_col4:
+                if st.session_state['role'] == 'admin':
+                    filtro_col1, filtro_col2 = st.columns(2)
+                    with filtro_col1:
+                        obras_disponiveis = sorted(df_filtrado_dash['Obra'].unique())
+                        obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
+                        if obras_filtradas_dash:
+                            df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
+                    with filtro_col2:
+                        funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+                        funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+                        if funcionarios_filtrados_dash:
+                            df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+                else: # Filtro de funcionário para o usuário comum
                     funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
                     funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
                     if funcionarios_filtrados_dash:
-                        df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
-            
+                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+
+                if df_filtrado_dash.empty:
+                    st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else: 
                 col1, col2 = st.columns(2)
                 data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
@@ -1477,6 +1467,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
