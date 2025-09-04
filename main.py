@@ -859,10 +859,16 @@ else:
             with col_view:
                 if 'funcionario_selecionado' in locals() and funcionario_selecionado:
                     st.subheader("Status")
-                    status_da_obra = status_df[status_df['Obra'] == obra_logada]
-                    func_status_row = status_da_obra[status_da_obra['Funcionario'] == funcionario_selecionado]
-                    
+                    obra_logada_nome = st.session_state['obra_logada']
+                    mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
+                    status_do_funcionario_row = status_df[
+                        (status_df['Obra'] == obra_logada_nome) &
+                        (status_df['Funcionario'] == funcionario_selecionado) &
+                        (status_df['Mes'] == mes_selecionado_dt)
+                    ]
+
                     status_atual = 'A Revisar'
+                    comentario_auditoria = ""
                     if not func_status_row.empty and 'Status' in func_status_row.columns:
                         status_atual = func_status_row['Status'].iloc[0]
                         comentario_auditoria = status_do_funcionario_row['Comentario'].iloc[0]
@@ -1512,6 +1518,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
