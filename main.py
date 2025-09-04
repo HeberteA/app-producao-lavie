@@ -1149,20 +1149,21 @@ else:
                     funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
                     if funcionarios_filtrados_dash:
                         df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-                    
-            else: 
-                col1, col2 = st.columns(2)
-                data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
-                data_fim = col2.date_input("Data de Fim", value=datetime.now().date(), key="dash_data_fim_user")
+                if df_filtrado_dash.empty:
+                    st.warning("Nenhum lançamento encontrado para os filtros selecionados.")      
+                else: 
+                    col1, col2 = st.columns(2)
+                    data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
+                    data_fim = col2.date_input("Data de Fim", value=datetime.now().date(), key="dash_data_fim_user")
                 
-                data_inicio_ts = pd.to_datetime(data_inicio)
-                data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
-                df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
+                    data_inicio_ts = pd.to_datetime(data_inicio)
+                    data_fim_ts = pd.to_datetime(data_fim) + timedelta(days=1)
+                    df_filtrado_dash = base_para_dash[(base_para_dash['Data'].dt.tz_localize(None) >= data_inicio_ts) & (base_para_dash['Data'].dt.tz_localize(None) < data_fim_ts)]
 
-                funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-                funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
-                if funcionarios_filtrados_dash:
-                    df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+                    funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+                    funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
+                    if funcionarios_filtrados_dash:
+                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
 
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
@@ -1465,6 +1466,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
