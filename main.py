@@ -471,7 +471,17 @@ def display_status_box(label, status):
         st.error(f"{label}: {status}")
     else:
         st.info(f"{label}: {status}")
-        
+
+# Coloque esta função perto das outras funções de estilo/formatação
+
+def style_status_gerenciar(status):
+    color = 'inherit' # Cor padrão do tema
+    if status == 'Aprovado':
+        color = 'green'
+    elif status == 'Analisar':
+        color = 'red'
+    return f'color: {color}; font-weight: bold;'
+    
 def style_status(status):
     color = 'gray'
     if status == 'Aprovado':
@@ -940,14 +950,15 @@ else:
             st.info("Nenhuma obra cadastrada.")
         else:
             mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month).date().replace(day=1)
-            status_geral_do_mes_df = status_df[
+            status_do_mes_df = status_df[
                 (status_df['Funcionario'] == 'Status Geral da Obra') &
                 (status_df['Mes'] == mes_selecionado_dt)
-            ][['obra_id', 'Status']].rename(columns={'Status': 'Status do Mês'})
+            ]
+
 
             df_para_exibir = pd.merge(
                 obras_df,
-                status_geral_do_mes_df,
+                status_do_mes_df[['obra_id', 'Status']], # Seleciona a coluna 'Status' original
                 left_on='id',
                 right_on='obra_id',
                 how='left'
@@ -955,7 +966,7 @@ else:
             df_para_exibir['Status do Mês'] = df_para_exibir['Status do Mês'].fillna('A Revisar')
             st.dataframe(
                 df_para_exibir[['NOME DA OBRA', 'Status do Mês']].style.applymap(
-                    style_status,
+                    style_status_gerenciar,
                     subset=['Status']
                 ),
                 use_container_width=True
@@ -1499,6 +1510,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
