@@ -655,8 +655,14 @@ else:
                 del st.session_state[key]
             st.rerun()
 
+        if not lancamentos_df.empty:
+            mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
+            lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
+            lancamentos_df = lancamentos_df[
+                (lancamentos_df['Data'].dt.month == mes_selecionado_dt.month) &
+                (lancamentos_df['Data'].dt.year == mes_selecionado_dt.year)
+            ]
    
-
     if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
         
@@ -1196,7 +1202,18 @@ else:
                         funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=funcionarios_disponiveis)
                         if funcionarios_filtrados_dash:
                             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-
+                            
+            st.error("--- MODO DE DEPURAÇÃO ---")
+            st.write(f"Perfil atual: {st.session_state['role']}")
+            st.write("1. Dados ANTES da aplicação dos filtros:")
+            st.metric("Linhas em `base_para_dash`", len(base_para_dash))
+            st.dataframe(base_para_dash.head(3))
+            st.divider()
+            st.write("2. Dados DEPOIS da aplicação dos filtros:")
+            st.metric("Linhas em `df_filtrado_dash`", len(df_filtrado_dash))
+            st.dataframe(df_filtrado_dash.head(3))
+            st.error("--- FIM DA DEPURAÇÃO ---")
+        # -----------------------------------------
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
@@ -1502,6 +1519,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
