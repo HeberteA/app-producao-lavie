@@ -865,6 +865,8 @@ else:
                     status_atual = 'A Revisar'
                     if not func_status_row.empty and 'Status' in func_status_row.columns:
                         status_atual = func_status_row['Status'].iloc[0]
+                        comentario_auditoria = status_do_funcionario_row['Comentario'].iloc[0]
+
                     display_status_box(f"Status de {funcionario_selecionado}", status_atual)
                     
                     comment = ""
@@ -1510,6 +1512,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
