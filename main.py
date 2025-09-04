@@ -956,7 +956,7 @@ else:
             st.dataframe(
                 df_para_exibir[['NOME DA OBRA', 'Status do Mês']].style.applymap(
                     style_status,
-                    subset=['Status Do Mes']
+                    subset=['Status']
                 ),
                 use_container_width=True
             )  
@@ -1499,6 +1499,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
