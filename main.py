@@ -442,6 +442,23 @@ def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referenci
     except Exception as e:
         st.error(f"Erro ao salvar o comentário: {e}")
         return False
+
+def save_aviso_data(engine, obra_nome, novo_aviso):
+    """Atualiza o aviso de uma obra específica no banco de dados."""
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE obras
+                    SET aviso = :aviso
+                    WHERE nome_obra = :nome
+                """)
+                connection.execute(query, {'aviso': novo_aviso, 'nome': obra_nome})
+                transaction.commit()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar o aviso: {e}")
+        return False
         
 def calcular_salario_final(row):
     if str(row['TIPO']).upper() == 'PRODUCAO':
@@ -1370,9 +1387,10 @@ else:
                     "Aviso para a Obra:", value=aviso_atual, key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
                 )
                 if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=is_locked):
-                    obras_df = save_aviso_data(obras_df, obra_selecionada, novo_aviso)
-                    st.cache_data.clear()
-                    st.rerun()
+                    if save_aviso_data(engine, obra_selecionada, novo_aviso):
+                        st.toast("Aviso salvo com sucesso!", icon="✅")
+                        st.cache_data.clear()
+                        st.rerun()
 
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
@@ -1492,6 +1510,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
