@@ -954,8 +954,6 @@ else:
                 (status_df['Funcionario'] == 'Status Geral da Obra') &
                 (status_df['Mes'] == mes_selecionado_dt)
             ]
-
-
             df_para_exibir = pd.merge(
                 obras_df,
                 status_do_mes_df[['obra_id', 'Status']], # Seleciona a coluna 'Status' original
@@ -963,7 +961,7 @@ else:
                 right_on='obra_id',
                 how='left'
             )
-            df_para_exibir['Status do Mês'] = df_para_exibir['Status do Mês'].fillna('A Revisar')
+            df_para_exibir['Status'] = df_para_exibir['Status'].fillna('A Revisar')
             st.dataframe(
                 df_para_exibir[['NOME DA OBRA', 'Status do Mês']].style.applymap(
                     style_status_gerenciar,
@@ -1510,6 +1508,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
