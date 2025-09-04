@@ -196,6 +196,34 @@ def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
         st.error(f"Erro ao salvar observação: {e}")
         return False
 
+def garantir_funcionario_geral(engine):
+    """
+    Verifica se o funcionário 'Status Geral' com id=0 existe e, se não, o cria.
+    Usa 'ON CONFLICT DO NOTHING' para evitar erros se o registro já existir.
+    """
+    try:
+        # Pega o ID de uma obra e função qualquer para usar no registro geral
+        # Isso é necessário para satisfazer as regras da tabela 'funcionarios'
+        with engine.connect() as connection:
+            obra_id = connection.execute(text("SELECT id FROM obras LIMIT 1")).scalar_one_or_none()
+            funcao_id = connection.execute(text("SELECT id FROM funcoes LIMIT 1")).scalar_one_or_none()
+
+            if obra_id is None or funcao_id is None:
+                st.warning("Não foi possível criar o funcionário geral. Cadastre pelo menos uma obra e uma função.")
+                return
+
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO funcionarios (id, nome, obra_id, funcao_id)
+                    VALUES (0, 'Status Geral da Obra', :obra_id, :funcao_id)
+                    ON CONFLICT (id) DO NOTHING;
+                """)
+                connection.execute(query, {'obra_id': obra_id, 'funcao_id': funcao_id})
+                transaction.commit()
+        print(">>> Funcionário geral com ID 0 garantido no banco de dados.")
+    except Exception as e:
+        st.error(f"Erro ao tentar garantir o funcionário geral: {e}")
+        
 # Coloque esta função junto com as outras funções de banco de dados
 def atualizar_observacoes(engine, updates_list):
     """
@@ -502,6 +530,7 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         st.error(f"Não foi possível conectar à base de dados para o login. Verifique os segredos e a conexão. Erro: {e}")
 else:
     # Carrega todos os dados após o login
+    garantir_funcionario_geral(engine)
     funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
 
     if st.session_state.get('new_launch_received', False):
@@ -1448,6 +1477,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
