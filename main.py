@@ -538,9 +538,6 @@ else:
         st.session_state['new_launch_received'] = False 
         st.cache_data.clear()
         st.rerun()
-
-    if 'lancamentos' not in st.session_state or not st.session_state.lancamentos:
-        st.session_state.lancamentos = lancamentos_df.to_dict('records')
     
     
     if 'page' not in st.session_state:
@@ -644,7 +641,6 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-    lancamentos_df = pd.DataFrame(st.session_state.lancamentos)
     if not lancamentos_df.empty:
         mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
         lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
@@ -827,7 +823,7 @@ else:
                                     st.rerun()
                                 else:
                                     st.info("Nenhum serviço ou item com quantidade maior que zero foi adicionado.")
-                               
+                                    pass
                                     
             with col_view:
                 if 'funcionario_selecionado' in locals() and funcionario_selecionado:
@@ -1110,6 +1106,7 @@ else:
                 if st.button("Remover Itens Selecionados", ...):
                     ids_a_remover = linhas_para_remover['id'].tolist()
                     if remover_lancamentos_por_id(ids_a_remover, engine):
+                        st.cache_data.clear()
                         st.rerun()
                     if st.session_state['role'] == 'admin' and razao_remocao:
                         funcionarios_afetados = { (row['Obra'], row['Funcionário']) for _, row in linhas_para_remover.iterrows() }
@@ -1475,6 +1472,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
