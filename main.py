@@ -1,5 +1,5 @@
 import streamlit as st
-from supabase import create_client, Clien
+from supabase import create_client, Client
 import pandas as pd
 from datetime import datetime, timedelta
 from datetime import date
@@ -1449,6 +1449,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
