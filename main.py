@@ -449,6 +449,14 @@ def calcular_salario_final(row):
     else: 
         return row['SALÁRIO BASE (R$)'] + row['PRODUÇÃO (R$)']
 
+
+def to_excel(df):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='DadosFiltrados')
+    processed_data = output.getvalue()
+    return processed_data
+    
 def format_currency(value):
     try:
         return f"R$ {float(value):,.2f}"
@@ -1166,6 +1174,25 @@ else:
                     )
                     if funcionarios_filtrados_dash:
                         df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
+             st.markdown("---")
+             st.subheader("Exportar Dados da Análise")
+    
+    # Prepara o DataFrame para exportação (remove colunas desnecessárias, se quiser)
+            df_para_exportar = df_filtrado_dash.drop(columns=['id', 'obra_id', 'servico_id', 'valor_extra_id'], errors='ignore')
+    
+    # Converte o DataFrame filtrado para Excel em memória
+            excel_data = to_excel(df_para_exportar)
+    
+            st.download_button(
+                label="📥 Baixar Dados Filtrados em Excel",
+                data=excel_data,
+                file_name=f"analise_filtrada_{st.session_state.selected_month}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+    # --- FIM DO NOVO TRECHO ---
+
+    st.markdown("---")
 
             else: 
                 funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
@@ -1180,6 +1207,7 @@ else:
             if df_filtrado_dash.empty:
                 st.warning("Nenhum lançamento encontrado para os filtros selecionados.")
             else:
+                
                 st.markdown("---")
                 total_produzido = df_filtrado_dash['Valor Parcial'].sum()
                 top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
@@ -1481,6 +1509,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
