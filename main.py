@@ -1,12 +1,9 @@
 import streamlit as st
-from supabase import create_client, Client
-import threading
-from realtime_client import SupabaseListener
+from supabase import create_client, Clien
 import pandas as pd
 from datetime import datetime, timedelta
 from datetime import date
 from sqlalchemy import create_engine, text
-from sqlalchemy.pool import NullPool
 import numpy as np
 import re
 import plotly.express as px
@@ -21,11 +18,7 @@ st.set_page_config(
 @st.cache_resource
 def get_db_connection():
     try:
-        engine = create_engine(
-            st.secrets["database"]["url"],
-            isolation_level="AUTOCOMMIT",
-            poolclass=NullPool
-        )
+        engine = create_engine(st.secrets["database"]["url"])
         return engine
     except Exception as e:
         st.error(f"Erro ao conectar com o banco de dados: {e}")
@@ -150,8 +143,6 @@ def remover_funcionario(engine, funcionario_id):
         return True
     except Exception as e:
         st.error(f"Erro ao remover funcionário do banco de dados: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
         
 def adicionar_obra(engine, nome_obra, codigo_acesso):
@@ -170,8 +161,6 @@ def adicionar_obra(engine, nome_obra, codigo_acesso):
         return True
     except Exception as e:
         st.error(f"Erro ao adicionar obra no banco de dados: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
 
 def remover_obra(engine, obra_id):
@@ -188,8 +177,6 @@ def remover_obra(engine, obra_id):
         return True
     except Exception as e:
         st.error(f"Erro ao remover obra do banco de dados: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
 
 def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
@@ -207,8 +194,6 @@ def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar observação: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
 
 # Coloque esta função junto com as outras funções de banco de dados
@@ -229,8 +214,6 @@ def atualizar_observacoes(engine, updates_list):
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
         
 def salvar_novos_lancamentos(df_para_salvar, engine):
@@ -259,8 +242,6 @@ def salvar_novos_lancamentos(df_para_salvar, engine):
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
             
 def remover_lancamentos_por_id(ids_para_remover, engine):
@@ -274,8 +255,6 @@ def remover_lancamentos_por_id(ids_para_remover, engine):
                 connection.execute(query, {'ids': ids_para_remover})
                 transaction.commit()
         st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
-        st.cache_data.clear()
-        st.rerun()
         return True
     except Exception as e:
         st.error(f"Erro ao remover lançamentos: {e}")
@@ -306,8 +285,6 @@ def launch_monthly_sheet(obra_id, mes_dt):
                     transaction.commit()
             
             st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} lançada e arquivada!", icon="🚀") 
-            st.cache_data.clear()
-            st.rerun()
             return True
 
         except Exception as e:
@@ -352,8 +329,6 @@ def save_geral_status_obra(engine, obra_id, status, mes_referencia):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o status geral da obra: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
         
 def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
@@ -396,8 +371,6 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o status: {e}") 
-        st.cache_data.clear()
-        st.rerun()
         return False
 
 def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referencia):
@@ -438,8 +411,6 @@ def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referenci
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o comentário: {e}")
-        st.cache_data.clear()
-        st.rerun()
         return False
         
 def calcular_salario_final(row):
@@ -533,20 +504,6 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
 else:
     # Carrega todos os dados após o login
     funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
-    if 'listener_thread' not in st.session_state:
-        st.session_state['new_launch_received'] = False
-        
-        # Pega as credenciais do Supabase dos seus secrets
-        supabase_url = st.secrets["supabase"]["url"]
-        supabase_key = st.secrets["supabase"]["key"]
-        
-        # Cria e inicia o ouvinte na thread em segundo plano
-        listener = SupabaseListener(supabase_url, supabase_key, st.session_state)
-        thread = threading.Thread(target=listener.listen, daemon=True)
-        st.session_state['listener_thread'] = thread
-        st.session_state['listener_obj'] = listener 
-        thread.start()
-        print("Thread do ouvinte iniciada.")
 
     if st.session_state.get('new_launch_received', False):
         st.toast("Novo lançamento recebido! Atualizando a lista...")
@@ -1492,6 +1449,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
