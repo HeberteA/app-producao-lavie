@@ -17,9 +17,14 @@ class SupabaseListener:
     def listen(self):
         """Inicia a escuta em uma thread."""
         print(">>> INICIANDO OUVINTE SUPABASE REALTIME...")
+        realtime_conn = None  # Inicializa a variável como None
         try:
-            # SINTAXE ATUALIZADA (v2)
             realtime_conn = self.supabase.realtime
+            
+            # VERIFICAÇÃO DE SEGURANÇA: Checa se o cliente realtime foi criado
+            if realtime_conn is None:
+                raise Exception("O cliente Realtime não foi inicializado. Verifique a instalação da dependência 'realtime-py'.")
+
             channel = realtime_conn.channel('custom-insert-channel')
             channel.on(
                 'postgres_changes',
@@ -29,17 +34,16 @@ class SupabaseListener:
                 callback=self._callback
             )
             channel.subscribe()
-            realtime_conn.connect() # Conecta ao websocket
+            realtime_conn.connect()
 
-            # Mantém a thread viva para continuar ouvindo
             while not self._stop_event.is_set():
                 time.sleep(1)
 
         except Exception as e:
             print(f">>> ERRO na thread do ouvinte: {e}")
         finally:
-            # Garante a desconexão ao parar
-            if 'realtime_conn' in locals() and realtime_conn.is_connected():
+            # VERIFICAÇÃO DE SEGURANÇA: Só tenta desconectar se a conexão existia e estava ativa
+            if realtime_conn and hasattr(realtime_conn, 'is_connected') and realtime_conn.is_connected():
                 realtime_conn.disconnect()
             print(">>> OUVINTE SUPABASE REALTIME PARADO.")
 
