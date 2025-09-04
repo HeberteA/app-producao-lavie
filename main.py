@@ -528,7 +528,8 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     except Exception as e:
         st.error(f"Não foi possível conectar à base de dados para o login. Verifique os segredos e a conexão. Erro: {e}")
 else:
-    # Carrega todos os dados após o login
+    if 'selected_month' not in st.session_state:
+        st.session_state.selected_month = datetime.now().strftime('%Y-%m')
     garantir_funcionario_geral(engine)
     funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
 
@@ -1467,6 +1468,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
