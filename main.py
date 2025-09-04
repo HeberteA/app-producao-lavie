@@ -964,7 +964,7 @@ else:
             df_para_exibir['Status'] = df_para_exibir['Status'].fillna('A Revisar')
             st.dataframe(
                 df_para_exibir[['NOME DA OBRA', 'Status']].style.applymap(
-                    style_status_gerenciar,
+                    style_status,
                     subset=['Status']
                 ),
                 use_container_width=True
@@ -1508,6 +1508,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
