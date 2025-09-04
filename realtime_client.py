@@ -12,29 +12,36 @@ class SupabaseListener:
     def _callback(self, payload):
         """Esta função é chamada quando uma nova notificação chega."""
         print(">>> NOVO LANÇAMENTO RECEBIDO:", payload)
-        # Levanta a "bandeira" no session_state para o app principal ver
         self.session_state['new_launch_received'] = True
 
     def listen(self):
         """Inicia a escuta em uma thread."""
         print(">>> INICIANDO OUVINTE SUPABASE REALTIME...")
-        channel = self.supabase.channel('custom-insert-channel')
-        channel.on(
-            'postgres_changes',
-            event='INSERT',
-            schema='public',
-            table='lancamentos',
-            callback=self._callback
-        )
-        subscription = channel.subscribe()
+        try:
+            # SINTAXE ATUALIZADA (v2)
+            realtime_conn = self.supabase.realtime
+            channel = realtime_conn.channel('custom-insert-channel')
+            channel.on(
+                'postgres_changes',
+                event='INSERT',
+                schema='public',
+                table='lancamentos',
+                callback=self._callback
+            )
+            channel.subscribe()
+            realtime_conn.connect() # Conecta ao websocket
 
-        # Mantém a thread viva para continuar ouvindo
-        while not self._stop_event.is_set():
-            time.sleep(1)
-        
-        # Se a thread for parada, cancela a inscrição
-        print(">>> PARANDO OUVINTE SUPABASE REALTIME...")
-        self.supabase.unsubscribe(subscription)
+            # Mantém a thread viva para continuar ouvindo
+            while not self._stop_event.is_set():
+                time.sleep(1)
+
+        except Exception as e:
+            print(f">>> ERRO na thread do ouvinte: {e}")
+        finally:
+            # Garante a desconexão ao parar
+            if 'realtime_conn' in locals() and realtime_conn.is_connected():
+                realtime_conn.disconnect()
+            print(">>> OUVINTE SUPABASE REALTIME PARADO.")
 
     def stop(self):
         """Sinaliza para a thread parar."""
