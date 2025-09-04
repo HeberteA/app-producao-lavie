@@ -1158,8 +1158,8 @@ else:
                         options=funcionarios_disponiveis, 
                         key="dash_func_user"
                     )
-            if funcionarios_filtrados_dash:
-                df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]      
+                    if funcionarios_filtrados_dash:
+                        df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]      
                 else: 
                     col1, col2 = st.columns(2)
                     data_inicio = col1.date_input("Data de Início", value=(datetime.now() - timedelta(days=30)).date(), key="dash_data_inicio_user")
@@ -1475,6 +1475,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
