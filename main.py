@@ -984,24 +984,46 @@ else:
         st.markdown("---")
         st.subheader("Mudar Funcionário de Obra")
         with st.container(border=True):
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
+
             with col1:
-                func_para_mudar = st.selectbox(
-                    "1. Selecione o Funcionário", 
-                    options=funcionarios_df['NOME'].unique(), 
-                    index=None, 
+                obra_origem = st.selectbox(
+                    "1. Obra de Origem",
+                    options=sorted(obras_df['NOME DA OBRA'].unique()),
+                    index=None,
                     placeholder="Selecione..."
                 )
             with col2:
+                opcoes_funcionarios = []
+                if obra_origem:
+                    opcoes_funcionarios = sorted(
+                        funcionarios_df[funcionarios_df['OBRA'] == obra_origem]['NOME'].unique()
+                    )
+            
+                func_para_mudar = st.selectbox(
+                    "2. Funcionário a Mudar",
+                    options=opcoes_funcionarios,
+                    index=None,
+                    placeholder="Escolha uma obra...",
+                    disabled=not obra_origem
+                )
+            with col3:
+                opcoes_destino = []
+                if obra_origem:
+                    opcoes_destino = sorted(
+                        obras_df[obras_df['NOME DA OBRA'] != obra_origem]['NOME DA OBRA'].unique()
+                    )
+
                 obra_destino = st.selectbox(
-                    "2. Selecione a Nova Obra", 
-                    options=obras_df['NOME DA OBRA'].unique(), 
-                    index=None, 
-                    placeholder="Selecione..."
+                    "3. Nova Obra de Destino",
+                    options=opcoes_destino,
+                    index=None,
+                    placeholder="Escolha uma obra...",
+                    disabled=not obra_origem
                 )
 
-            if st.button("Mudar de Obra", use_container_width=True):
-                if func_para_mudar and obra_destino:
+            if st.button("Mudar Funcionário de Obra", use_container_width=True):
+                if obra_origem and func_para_mudar and obra_destino:
                     funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id'].iloc[0])
                     nova_obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id'].iloc[0])
                 
@@ -1010,7 +1032,7 @@ else:
                         st.cache_data.clear()
                         st.rerun()
                 else:
-                    st.warning("Por favor, selecione um funcionário e uma obra de destino.")
+                    st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
  
 
 
@@ -1615,6 +1637,7 @@ else:
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
   
+
 
 
 
