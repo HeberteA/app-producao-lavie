@@ -9,8 +9,8 @@ google-auth-oauthlib
 psycopg2-binary
 sqlalchemy
 streamlit-autorefresh
-supabase 
-realtime
+supabase-py[realtime]
+
 
 
 
