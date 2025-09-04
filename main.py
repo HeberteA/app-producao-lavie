@@ -959,7 +959,8 @@ else:
                     subset=['Status Do Mes']
                 ),
                 use_container_width=True
-                obra_para_remover = st.selectbox(
+            )  
+            obra_para_remover = st.selectbox(
                 "Selecione a obra para remover", 
                 options=obras_df['NOME DA OBRA'].unique(), 
                 index=None, 
@@ -1498,6 +1499,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
