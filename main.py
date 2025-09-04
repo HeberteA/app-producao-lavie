@@ -1151,13 +1151,13 @@ else:
                         if funcionarios_filtrados_dash:
                             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
         
-            else: 
-                funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-                funcionarios_filtrados_dash = st.multiselect(
-                    "Filtrar por Funcionário(s)", 
-                    options=funcionarios_disponiveis, 
-                    key="dash_func_user"
-                )
+                else: 
+                    funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
+                    funcionarios_filtrados_dash = st.multiselect(
+                        "Filtrar por Funcionário(s)", 
+                        options=funcionarios_disponiveis, 
+                        key="dash_func_user"
+                    )
             if funcionarios_filtrados_dash:
                 df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]      
                 else: 
@@ -1475,6 +1475,7 @@ else:
                                         st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+
 
 
 
