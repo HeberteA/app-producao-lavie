@@ -29,7 +29,6 @@ def load_data(_engine):
     if _engine is None:
         st.stop()
 
-    # Query para Funcionários (com obra_id)
     query_funcionarios = """
     SELECT 
         f.id,
@@ -1631,3 +1630,4 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
