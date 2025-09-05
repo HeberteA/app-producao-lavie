@@ -1512,10 +1512,11 @@ else:
                         st.toast("Aviso salvo com sucesso!", icon="✅")
                         st.cache_data.clear()
                         st.rerun()
-
+            
+            funcionarios_unicos_df = funcionarios_obra_df.drop_duplicates(subset=['NOME'], keep='first')
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+            resumo_df = pd.merge(funcionarios_unicos_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
             resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
@@ -1527,29 +1528,6 @@ else:
             
             if funcionarios_filtrados:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
-                
-            resumo_df.drop_duplicates(subset=['Funcionário'], keep='first', inplace=True)
-
-        # --- NOVO BLOCO DE DEPURAÇÃO ---
-            st.error("--- INSPETOR DE DUPLICATAS ---")
-        
-        # Limpa espaços em branco extras dos nomes dos funcionários
-            resumo_df['Funcionário'] = resumo_df['Funcionário'].str.strip()
-        
-            lista_de_funcionarios = resumo_df['Funcionário'].tolist()
-            st.write("Lista de funcionários que o loop vai percorrer (após limpeza):", lista_de_funcionarios)
-        
-        # Verificação de duplicatas
-            if len(lista_de_funcionarios) != len(set(lista_de_funcionarios)):
-                st.error("ALERTA: DUPLICATAS ENCONTRADAS MESMO APÓS A LIMPEZA!")
-                import pandas as pd
-                st.write("Contagem de cada nome:")
-            # Mostra quais nomes estão duplicados e quantas vezes aparecem
-                st.dataframe(pd.Series(lista_de_funcionarios).value_counts())
-            else:
-                st.success("VERIFICADO: Nenhuma duplicata encontrada na lista.")
-        
-            st.error("--- FIM DO INSPETOR ---")
             
             if resumo_df.empty:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
@@ -1656,6 +1634,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
