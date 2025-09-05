@@ -1513,9 +1513,14 @@ else:
                         st.cache_data.clear()
                         st.rerun()
             
-            funcionarios_unicos_df = funcionarios_obra_df.drop_duplicates(subset=['NOME'], keep='first')
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
+            duplicados = funcionarios_obra_df[funcionarios_obra_df.duplicated(subset=['NOME'], keep=False)]
+            if not duplicados.empty:
+                st.error("⚠️ **Atenção: Funcionário(s) Duplicado(s) Encontrado(s)**")
+                st.warning("O(s) funcionário(s) abaixo está(ão) cadastrado(s) mais de uma vez nesta obra. O aplicativo irá continuar, mas é recomendado corrigir o cadastro no banco de dados.")
+                st.dataframe(duplicados.sort_values(by="NOME"))
+            funcionarios_unicos_df = funcionarios_obra_df.drop_duplicates(subset=['NOME'], keep='first')
             resumo_df = pd.merge(funcionarios_unicos_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
@@ -1634,6 +1639,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
