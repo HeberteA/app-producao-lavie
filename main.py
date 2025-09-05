@@ -1442,7 +1442,8 @@ else:
             folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_selecionada) & (folhas_df['Mes'] == mes_selecionado_dt)] 
             is_launched = not folha_lancada_row.empty
 
-            is_locked = (status_atual_obra == "Aprovado") or is_launched
+            folha_lancada = is_launched
+            edicao_bloqueada = (status_atual_obra == "Aprovado") or folha_lancada
             if is_launched:
                 st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi lançada e arquivada. Nenhuma edição é permitida.")
             elif is_locked:
@@ -1455,7 +1456,7 @@ else:
                 st.markdown("##### Status e Finalização do Mês")
                 display_status_box("Status Geral", status_atual_obra)
                 
-                with st.popover("Alterar Status", disabled=is_locked):
+                with st.popover("Alterar Status", disabled=folha_lancada):
                     todos_aprovados = True
                     nomes_funcionarios_ativos = lancamentos_obra_df['Funcionário'].unique()
                     if len(nomes_funcionarios_ativos) > 0:
@@ -1506,7 +1507,7 @@ else:
                 novo_aviso = st.text_area(
                     "Aviso para a Obra:", value=aviso_atual, key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
                 )
-                if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=is_locked):
+                if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=edicao_bloqueada):
                     if save_aviso_data(engine, obra_selecionada, novo_aviso):
                         st.toast("Aviso salvo com sucesso!", icon="✅")
                         st.cache_data.clear()
@@ -1553,13 +1554,13 @@ else:
                             selected_status_func = st.radio(
                                 "Definir Status:", options=status_options_func, index=idx_func, horizontal=True, 
                                 key=f"status_{obra_selecionada}_{funcionario}",
-                                disabled=is_locked
+                                disabled=edicao_bloqueada
                             )
-                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=is_locked):
+                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 if selected_status_func != status_atual_func:
                                     obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                                     funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
-                                    if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
+                                    if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                         st.cache_data.clear()
                                         st.rerun()
                                     
@@ -1572,9 +1573,9 @@ else:
                             new_comment = st.text_area(
                                 "Adicionar/Editar Comentário:", value=current_comment, key=f"comment_{obra_selecionada}_{funcionario}",
                                 help="Este comentário será visível na tela de lançamento.", label_visibility="collapsed",
-                                disabled=is_locked
+                                disabled=edicao_bloqueada
                             )
-                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=is_locked):
+                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                                 funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
                                 if save_comment_data(engine, obra_id_selecionada, funcionario_id_selecionado, new_comment, mes_referencia=mes_selecionado):
@@ -1612,10 +1613,10 @@ else:
                                 key=f"editor_{obra_selecionada}_{funcionario}",
                                 hide_index=True,
                                 column_config=colunas_config,
-                                disabled=colunas_desabilitadas if is_locked else colunas_desabilitadas
+                                disabled=edicao_bloqueada
                             )
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
-                                if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=is_locked):
+                                if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=edicao_bloqueada):
                                     original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
                                     edited_obs = edited_df.set_index('id')['Observação']
                                     alteracoes = edited_obs[original_obs != edited_obs]
@@ -1632,5 +1633,6 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
