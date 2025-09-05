@@ -953,15 +953,16 @@ else:
         else:
             obra_filtro_remover = st.selectbox(
                 "Filtre por Obra para ver os funcionários",
-                 options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
-                 index=0,
-                 key="filtro_obra_remover"
+                options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
+                index=0,
+                key="filtro_obra_remover"
             )
 
-            df_para_remover = funcionarios_df
-
+            df_filtrado = funcionarios_df
             if obra_filtro_remover and obra_filtro_remover != "Todas":
-                df_para_remover = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
+                df_filtrado = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
+
+            df_para_remover = df_filtrado[df_filtrado['id'] != 0]
 
             st.dataframe(df_para_remover[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
 
@@ -1456,20 +1457,21 @@ else:
                 
                 with st.popover("Alterar Status", disabled=is_locked):
                     todos_aprovados = True
-                    nomes_funcionarios_obra = funcionarios_obra_df['NOME'].unique()
-                    if len(nomes_funcionarios_obra) > 0:
-                        status_funcionarios_obra = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Mes'] == mes_selecionado)]
-                        for nome in nomes_funcionarios_obra:
+                    nomes_funcionarios_ativos = lancamentos_obra_df['Funcionário'].unique()
+                    if len(nomes_funcionarios_ativos) > 0:
+                        status_funcionarios_obra = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Mes'] == mes_selecionado_dt)]
+                        for nome in nomes_funcionarios_ativos:
                             status_func_row = status_funcionarios_obra[status_funcionarios_obra['Funcionario'] == nome]
                             status_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else 'A Revisar'
                             if status_func != 'Aprovado':
                                 todos_aprovados = False
-                                break
+                            break
+                
                     status_options = ['A Revisar', 'Analisar']
                     if todos_aprovados:
                         status_options.append('Aprovado')
                     else:
-                        st.info("Para aprovar a obra, todos os funcionários devem ter o status 'Aprovado'.")
+                        st.info("Para aprovar a obra, todos os funcionários COM LANÇAMENTOS no mês devem ter o status 'Aprovado'.")
                     idx = status_options.index(status_atual_obra) if status_atual_obra in status_options else 0
                     selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True, key=f"radio_status_obra_{obra_selecionada}")
                     if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
@@ -1630,4 +1632,5 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
