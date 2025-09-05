@@ -1528,11 +1528,28 @@ else:
             resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
+            if funcionarios_filtrados:
+                resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
+                duplicatas_encontradas = resumo_df[resumo_df.duplicated(subset=['Funcionário'], keep=False)]
+                
             st.markdown("---")
             st.subheader("Análise por Funcionário")
             
-            if funcionarios_filtrados:
-                resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
+
+            if not duplicatas_encontradas.empty:
+                st.error("🔴 DIAGNÓSTICO: O ERRO OCORRE PORQUE A TABELA ABAIXO TEM NOMES DUPLICADOS")
+                st.warning(
+                    "A lista de funcionários abaixo, que seria usada para criar os botões, contém duplicatas. "
+                    "Isso geralmente acontece por um erro de cadastro no banco de dados. "
+                    "O(s) nome(s) do(s) funcionário(s) problemático(s) está(ão) destacado(s) abaixo."
+                )
+                st.dataframe(duplicatas_encontradas.sort_values(by="Funcionário"))
+                st.info("SOLUÇÃO: Vá para a tela 'Gerenciar Funcionários' e remova o cadastro duplicado, ou corrija diretamente no banco de dados.")
+
+            else:
+                st.success("✅ Diagnóstico: Nenhuma duplicata encontrada na lista de funcionários para exibição.")
+                st.info("Se você está vendo esta mensagem verde, mas o erro de 'Duplicate Key' ainda ocorre ao recarregar, o problema é mais complexo e pode estar relacionado ao cache do Streamlit. Tente limpar o cache do navegador ou reiniciar o contêiner do aplicativo.")
+
             
             if resumo_df.empty:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
@@ -1639,6 +1656,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
