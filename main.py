@@ -1380,7 +1380,7 @@ else:
                 if st.session_state['role'] == 'admin':
                     st.subheader("Produção por Obra")
                     prod_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
-                    fig_bar_obra = px.bar(prod_obra, x='Obra', y='Valor Parcial', text_auto=True, title="Produção Total por Obra")
+                    fig_bar_obra = px.bar(prod_obra, x='Obra', y='Valor Parcial', text_auto=True, title="Produção Total por Obra",template="plotly_dark")
                     fig_bar_obra.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
                     st.plotly_chart(fig_bar_obra, use_container_width=True)
                 
