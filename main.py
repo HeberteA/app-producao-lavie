@@ -1527,7 +1527,9 @@ else:
             
             if funcionarios_filtrados:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
-
+                
+            resumo_df.drop_duplicates(subset=['Funcionário'], keep='first', inplace=True)
+            
             if resumo_df.empty:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
             else:
@@ -1633,6 +1635,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
