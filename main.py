@@ -1426,13 +1426,10 @@ else:
             funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
         
         if obra_selecionada:
-            st.info("✅ Checkpoint 1: A obra foi selecionada. Iniciando processamento.")
             mes_selecionado = st.session_state.selected_month
             mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
             lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
             funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
-
-            st.info("✅ Checkpoint 2: DataFrames de lançamentos e funcionários filtrados por obra.") 
             
             status_geral_row = status_df[
                 (status_df['Obra'] == obra_selecionada) & 
@@ -1444,8 +1441,6 @@ else:
             folha_lancada_row = folhas_df[(folhas_df['Obra'] == obra_selecionada) & (folhas_df['Mes'] == mes_selecionado_dt)] 
             is_launched = not folha_lancada_row.empty
             
-            st.info("✅ Checkpoint 3: Status da obra e variáveis de bloqueio calculadas.")
-
 
             folha_lancada = is_launched
             edicao_bloqueada = (status_atual_obra == "Aprovado") or folha_lancada
@@ -1512,7 +1507,6 @@ else:
                 novo_aviso = st.text_area(
                     "Aviso para a Obra:", value=aviso_atual, key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
                 )
-                st.info("✅ Checkpoint 4: Widgets de status e aviso renderizados.")
                 if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=edicao_bloqueada):
                     if save_aviso_data(engine, obra_selecionada, novo_aviso):
                         st.toast("Aviso salvo com sucesso!", icon="✅")
@@ -1521,12 +1515,6 @@ else:
             
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            duplicados = funcionarios_obra_df[funcionarios_obra_df.duplicated(subset=['NOME'], keep=False)]
-            if not duplicados.empty:
-                st.error("⚠️ **Atenção: Funcionário(s) Duplicado(s) Encontrado(s)**")
-                st.warning("O(s) funcionário(s) abaixo está(ão) cadastrado(s) mais de uma vez nesta obra. O aplicativo irá continuar, mas é recomendado corrigir o cadastro no banco de dados.")
-                st.dataframe(duplicados.sort_values(by="NOME"))
-            funcionarios_unicos_df = funcionarios_obra_df.drop_duplicates(subset=['NOME'], keep='first')
             resumo_df = pd.merge(funcionarios_unicos_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
@@ -1537,8 +1525,6 @@ else:
             if funcionarios_filtrados:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
                 duplicatas_encontradas = resumo_df[resumo_df.duplicated(subset=['Funcionário'], keep=False)]
-
-            st.info("✅ Checkpoint 6: Se você vê esta mensagem, o código está prestes a entrar no loop final.")
         
             st.markdown("---")
             st.subheader("Análise por Funcionário")
@@ -1558,8 +1544,6 @@ else:
             resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
-            st.info("✅ Checkpoint 5: DataFrame `resumo_df` foi criado com sucesso.")
-
             if resumo_df.empty:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
             else:
@@ -1570,8 +1554,6 @@ else:
                     header_cols[1].metric("Salário Base", format_currency(row['SALÁRIO BASE (R$)']))
                     header_cols[2].metric("Produção", format_currency(row['PRODUÇÃO (R$)']))
                     header_cols[3].metric("Salário a Receber", format_currency(row['SALÁRIO A RECEBER (R$)']))
-                    st.markdown(f"Processando funcionário: **{row['Funcionário']}**")
-            st.info("✅ Checkpoint 7: Loop final concluído com sucesso.")
                     status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado_dt)]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                     
@@ -1666,6 +1648,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
