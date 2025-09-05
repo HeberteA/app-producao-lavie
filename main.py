@@ -15,6 +15,27 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+
+    /* Adiciona cantos arredondados aos containers (cards) */
+    [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
+        border-radius: 10px;
+    }
+    
+    /* Adiciona cantos arredondados aos botões */
+    .stButton>button {
+        border-radius: 10px;
+    }
+
+    /* Adiciona cantos arredondados aos campos de texto */
+    .stTextInput>div>div>input, .stDateInput>div>div>input {
+        border-radius: 10px;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
 @st.cache_resource(ttl=60)
 def get_db_connection():
     try:
@@ -1550,14 +1571,15 @@ else:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
             else:
                 for index, row in resumo_df.iterrows():
-                    funcionario = row['Funcionário']
-                    header_cols = st.columns([3, 2, 2, 2, 2])
-                    header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
-                    header_cols[1].metric("Salário Base", format_currency(row['SALÁRIO BASE (R$)']))
-                    header_cols[2].metric("Produção", format_currency(row['PRODUÇÃO (R$)']))
-                    header_cols[3].metric("Salário a Receber", format_currency(row['SALÁRIO A RECEBER (R$)']))
-                    status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado_dt)]
-                    status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+                    with st.container(border=True):
+                        funcionario = row['Funcionário']
+                        header_cols = st.columns([3, 2, 2, 2, 2])
+                        header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
+                        header_cols[1].metric("Salário Base", format_currency(row['SALÁRIO BASE (R$)']))
+                        header_cols[2].metric("Produção", format_currency(row['PRODUÇÃO (R$)']))
+                        header_cols[3].metric("Salário a Receber", format_currency(row['SALÁRIO A RECEBER (R$)']))
+                        status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario) & (status_df['Mes'] == mes_selecionado_dt)]
+                        status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                     
                     with header_cols[4]:
                         display_status_box("Status", status_atual_func)
