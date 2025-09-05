@@ -1575,9 +1575,8 @@ else:
                                 if selected_status_func != status_atual_func:
                                     obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                                     funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
-                                    if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
-                                        st.cache_data.clear()
-                                        st.rerun()
+                                    st.cache_data.clear()
+                                    st.rerun()
                                     
                         with col_comment:
                             st.markdown("##### Comentário de Auditoria")
@@ -1648,6 +1647,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
