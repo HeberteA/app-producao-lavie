@@ -1541,12 +1541,9 @@ else:
             total_producao_obra = resumo_df['PRODUÇÃO (R$)'].sum()
             num_funcionarios = len(resumo_df)
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
             col1.metric("Produção Total da Obra", f"R$ {total_producao_obra:,.2f}")
-            col2.metric("Nº de Funcionários com Lançamento", num_funcionarios)
-            col3.metric("Status Geral", status_atual_obra)
-
-            st.markdown("---")
+            col2.metric("Nº de Funcionários", num_funcionarios)
         
             st.markdown("---")
             st.subheader("Análise por Funcionário")
@@ -1655,6 +1652,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
