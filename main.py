@@ -1200,8 +1200,6 @@ else:
                 'SALÁRIO A RECEBER (R$)': 'R$ {:,.2f}'
             }).applymap(
                 style_status, subset=['Status']
-            ).background_gradient( # <-- Adicione esta linha
-                cmap='Greens', subset=['PRODUÇÃO (R$)'] # Usa um gradiente de verde
             ),
             use_container_width=True
         )
@@ -1652,6 +1650,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
