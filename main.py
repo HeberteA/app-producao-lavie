@@ -15,6 +15,15 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+    /* Força o texto dentro da barra lateral (menu) a ser escuro */
+    [data-testid="stSidebar"] * {
+        color: #31333F !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 @st.cache_resource(ttl=60)
 def get_db_connection():
     try:
