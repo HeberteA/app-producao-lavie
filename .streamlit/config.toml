@@ -1,13 +1,6 @@
 [theme]
 primaryColor = "#E37026"
-
-# Fundo principal escuro.
-backgroundColor = "#000000ff"
-
-# Containers e sidebar em um tom de cinza ligeiramente mais claro.
-secondaryBackgroundColor = "#3b3b3bff"
-
-# Texto em um tom de branco suave para não cansar a vista.
-textColor = "#FAFAFA"
-
+backgroundColor = "#b1b1b1f6"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#000000ff"
 font = "sans serif"
