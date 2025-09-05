@@ -1519,6 +1519,9 @@ else:
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
             if 'PRODUÇÃO (R$)' not in resumo_df.columns:
+                resumo_df['PRODUÇÃO (R$)'] = 0
+            else:
+                resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
             resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
@@ -1528,24 +1531,6 @@ else:
         
             st.markdown("---")
             st.subheader("Análise por Funcionário")
-
-            duplicados = funcionarios_obra_df[funcionarios_obra_df.duplicated(subset=['NOME'], keep=False)]
-            if not duplicados.empty:
-                st.error("⚠️ ERRO DE DADOS: Funcionário(s) duplicado(s) encontrado(s).")
-                st.dataframe(duplicados)
-        
-            funcionarios_unicos_df = funcionarios_obra_df.drop_duplicates(subset=['NOME'], keep='first')
-            producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-            resumo_df = pd.merge(funcionarios_unicos_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-        
-            if 'Funcionário' in resumo_df.columns:
-                resumo_df = resumo_df.drop(columns=['Funcionário'])
-            if 'PRODUÇÃO (R$)' not in resumo_df.columns:
-                resumo_df['PRODUÇÃO (R$)'] = 0
-            else:
-                resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-            resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
-            resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
             if resumo_df.empty:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
@@ -1650,6 +1635,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
