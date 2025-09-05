@@ -2,10 +2,10 @@
 primaryColor = "#E37026"
 
 # Fundo principal escuro.
-backgroundColor = "#0E1117"
+backgroundColor = "#000000ff"
 
 # Containers e sidebar em um tom de cinza ligeiramente mais claro.
-secondaryBackgroundColor = "#262730"
+secondaryBackgroundColor = "#3b3b3bff"
 
 # Texto em um tom de branco suave para não cansar a vista.
 textColor = "#FAFAFA"
