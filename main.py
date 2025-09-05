@@ -1651,24 +1651,3 @@ else:
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
