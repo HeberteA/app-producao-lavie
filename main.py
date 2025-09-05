@@ -1515,7 +1515,7 @@ else:
             
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            resumo_df = pd.merge(funcionarios_unicos_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
             resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
@@ -1647,6 +1647,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
