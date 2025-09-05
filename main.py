@@ -130,16 +130,27 @@ def adicionar_funcionario(engine, nome, funcao_id, obra_id):
         return False
 
 def remover_funcionario(engine, funcionario_id):
-    """Remove um funcionário do banco de dados pelo seu ID."""
+    """Remove um funcionário e todo o seu histórico do banco de dados."""
     try:
         with engine.connect() as connection:
-            with connection.begin() as transaction:
-                query = text("DELETE FROM funcionarios WHERE id = :id")
-                connection.execute(query, {'id': funcionario_id})
+            with connection.begin() as transaction: # A transação garante que tudo seja executado ou nada
+                
+                # 1. Deleta o histórico de status de auditoria
+                query_status = text("DELETE FROM status_auditoria WHERE funcionario_id = :id")
+                connection.execute(query_status, {'id': funcionario_id})
+
+                # 2. Deleta o histórico de lançamentos (IMPORTANTE!)
+                query_lancamentos = text("DELETE FROM lancamentos WHERE funcionario_id = :id")
+                connection.execute(query_lancamentos, {'id': funcionario_id})
+                
+                # 3. Finalmente, deleta o funcionário
+                query_func = text("DELETE FROM funcionarios WHERE id = :id")
+                connection.execute(query_func, {'id': funcionario_id})
+                
                 transaction.commit()
         return True
     except Exception as e:
-        st.error(f"Erro ao remover funcionário do banco de dados: {e}")
+        st.error(f"Erro ao remover funcionário e seu histórico: {e}")
         return False
         
 def adicionar_obra(engine, nome_obra, codigo_acesso):
@@ -1636,6 +1647,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
