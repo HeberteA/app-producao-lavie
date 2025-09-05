@@ -1529,6 +1529,27 @@ else:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
                 
             resumo_df.drop_duplicates(subset=['Funcionário'], keep='first', inplace=True)
+
+        # --- NOVO BLOCO DE DEPURAÇÃO ---
+            st.error("--- INSPETOR DE DUPLICATAS ---")
+        
+        # Limpa espaços em branco extras dos nomes dos funcionários
+            resumo_df['Funcionário'] = resumo_df['Funcionário'].str.strip()
+        
+            lista_de_funcionarios = resumo_df['Funcionário'].tolist()
+            st.write("Lista de funcionários que o loop vai percorrer (após limpeza):", lista_de_funcionarios)
+        
+        # Verificação de duplicatas
+            if len(lista_de_funcionarios) != len(set(lista_de_funcionarios)):
+                st.error("ALERTA: DUPLICATAS ENCONTRADAS MESMO APÓS A LIMPEZA!")
+                import pandas as pd
+                st.write("Contagem de cada nome:")
+            # Mostra quais nomes estão duplicados e quantas vezes aparecem
+                st.dataframe(pd.Series(lista_de_funcionarios).value_counts())
+            else:
+                st.success("VERIFICADO: Nenhuma duplicata encontrada na lista.")
+        
+            st.error("--- FIM DO INSPETOR ---")
             
             if resumo_df.empty:
                 st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
@@ -1635,6 +1656,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
