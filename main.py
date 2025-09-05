@@ -1457,15 +1457,6 @@ else:
                 st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi lançada e arquivada. Nenhuma edição é permitida.")
             elif edicao_bloqueada:
                 st.warning(f"🔒 A obra {obra_selecionada} está com status 'Aprovado' para o mês {mes_selecionado}. As edições estão bloqueadas.")
-            total_producao_obra = resumo_df['PRODUÇÃO (R$)'].sum()
-            num_funcionarios = len(resumo_df)
-
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Produção Total da Obra", f"R$ {total_producao_obra:,.2f}")
-            col2.metric("Nº de Funcionários com Lançamento", num_funcionarios)
-            col3.metric("Status Geral", status_atual_obra)
-
-            st.markdown("---")
 
             st.markdown("---")
             col_status_geral, col_aviso_geral = st.columns(2)
@@ -1546,6 +1537,16 @@ else:
             if funcionarios_filtrados:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
                 duplicatas_encontradas = resumo_df[resumo_df.duplicated(subset=['Funcionário'], keep=False)]
+                
+            total_producao_obra = resumo_df['PRODUÇÃO (R$)'].sum()
+            num_funcionarios = len(resumo_df)
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Produção Total da Obra", f"R$ {total_producao_obra:,.2f}")
+            col2.metric("Nº de Funcionários com Lançamento", num_funcionarios)
+            col3.metric("Status Geral", status_atual_obra)
+
+            st.markdown("---")
         
             st.markdown("---")
             st.subheader("Análise por Funcionário")
@@ -1654,6 +1655,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
