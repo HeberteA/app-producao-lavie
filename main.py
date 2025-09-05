@@ -1444,9 +1444,9 @@ else:
 
             folha_lancada = is_launched
             edicao_bloqueada = (status_atual_obra == "Aprovado") or folha_lancada
-            if is_launched:
+            if folha_lancada:
                 st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi lançada e arquivada. Nenhuma edição é permitida.")
-            elif is_locked:
+            elif edicao_bloqueada:
                 st.warning(f"🔒 A obra {obra_selecionada} está com status 'Aprovado' para o mês {mes_selecionado}. As edições estão bloqueadas.")
 
             st.markdown("---")
@@ -1633,6 +1633,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
