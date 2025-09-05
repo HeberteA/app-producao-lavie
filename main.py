@@ -1518,7 +1518,7 @@ else:
             resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
-            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
+            if 'PRODUÇÃO (R$)' not in resumo_df.columns:
             resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
@@ -1540,7 +1540,10 @@ else:
         
             if 'Funcionário' in resumo_df.columns:
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
-            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
+            if 'PRODUÇÃO (R$)' not in resumo_df.columns:
+                resumo_df['PRODUÇÃO (R$)'] = 0
+            else:
+                resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
             resumo_df = resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(calcular_salario_final, axis=1)
 
@@ -1647,6 +1650,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
