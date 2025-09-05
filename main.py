@@ -1652,7 +1652,7 @@ else:
                                 key=f"editor_{obra_selecionada}_{funcionario}",
                                 hide_index=True,
                                 column_config=colunas_config,
-                                disabled=edicao_bloqueada
+                                disabled=colunas_desabilitadas
                             )
                             if not edited_df.equals(lancamentos_do_funcionario[colunas_visiveis]):
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=edicao_bloqueada):
