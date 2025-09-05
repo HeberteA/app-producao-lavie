@@ -719,7 +719,7 @@ else:
             ]
    
     # SUBSTITUA TODA A SEÇÃO DE "LANÇAMENTO FOLHA" POR ESTE BLOCO DE CÓDIGO
-    elif st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
+    if st.session_state.page == "Lançamento Folha 📝" and st.session_state['role'] == 'user':
         st.header("Adicionar Novo Lançamento de Produção")
 
         # NOVO: Inicializa o estado da sessão para o lançamento em lote, se não existir
