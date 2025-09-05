@@ -1,0 +1,16 @@
+streamlit
+pandas
+gspread
+gspread-dataframe
+plotly
+numpy
+xlsxwriter
+google-auth-oauthlib
+psycopg2-binary
+sqlalchemy
+streamlit-autorefresh
+supabase 
+realtime
+
+
+
