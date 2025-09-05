@@ -915,126 +915,128 @@ else:
    
     elif st.session_state.page == "Gerenciar Funcionários" and st.session_state['role'] == 'admin':
         st.header("Gerenciar Funcionários 👥")
-        st.subheader("Adicionar Novo Funcionário")
-        with st.container(border=True):
-            lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
-            funcao_selecionada = st.selectbox(
-                "1. Selecione a Função",
-                options=lista_funcoes,
-                index=0,
-                help="A escolha da função preencherá o tipo e o salário automaticamente."
-            )
-            tipo = ""
-            salario = 0.0
-            if funcao_selecionada:
-                info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao_selecionada].iloc[0]
-                tipo = info_funcao['TIPO']
-                salario = info_funcao['SALARIO_BASE']
-                col_tipo, col_salario = st.columns(2)
-                col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True)
-                col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True)
-            with st.form("add_funcionario_form", clear_on_submit=True):
-                nome = st.text_input("2. Nome do Funcionário")
-                obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
-                submitted = st.form_submit_button("Adicionar Funcionário")
-                if submitted:
-                    if nome and funcao_selecionada and obra:
-                        obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id'].iloc[0])
-                        funcao_id = int(funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id'].iloc[0])
-                        if adicionar_funcionario(engine, nome, funcao_id, obra_id):
-                            st.success(f"Funcionário '{nome}' adicionado com sucesso!")
+        tab_adicionar, tab_gerenciar, tab_mudar_obra = st.tabs(["➕ Adicionar Novo", "📋 Gerenciar Existentes", "🔄 Mudar de Obra"])
+        with tab_adicionar:
+            st.subheader("Adicionar Novo Funcionário")
+            with st.container(border=True):
+                lista_funcoes = [""] + funcoes_df['FUNÇÃO'].dropna().unique().tolist()
+                funcao_selecionada = st.selectbox(
+                    "1. Selecione a Função",
+                    options=lista_funcoes,
+                    index=0,
+                    help="A escolha da função preencherá o tipo e o salário automaticamente."
+                )
+                tipo = ""
+                salario = 0.0
+                if funcao_selecionada:
+                    info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao_selecionada].iloc[0]
+                    tipo = info_funcao['TIPO']
+                    salario = info_funcao['SALARIO_BASE']
+                    col_tipo, col_salario = st.columns(2)
+                    col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True)
+                    col_salario.text_input("Salário Base", value=format_currency(salario), disabled=True)
+                with st.form("add_funcionario_form", clear_on_submit=True):
+                    nome = st.text_input("2. Nome do Funcionário")
+                    obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
+                    submitted = st.form_submit_button("Adicionar Funcionário")
+                    if submitted:
+                        if nome and funcao_selecionada and obra:
+                            obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id'].iloc[0])
+                            funcao_id = int(funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id'].iloc[0])
+                            if adicionar_funcionario(engine, nome, funcao_id, obra_id):
+                                st.success(f"Funcionário '{nome}' adicionado com sucesso!")
+                                st.cache_data.clear()
+                                st.rerun()
+                        else:
+                            st.warning("Por favor, preencha nome, função e obra.")
+
+ 
+        with tab_gerenciar:
+            st.subheader("Inativar Funcionário Existente")
+            if funcionarios_df.empty:
+                st.info("Nenhum funcionário cadastrado.")
+            else:
+                obra_filtro_remover = st.selectbox(
+                    "Filtre por Obra para ver os funcionários",
+                    options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
+                    index=0,
+                    key="filtro_obra_remover"
+                )
+
+                df_filtrado = funcionarios_df
+                if obra_filtro_remover and obra_filtro_remover != "Todas":
+                    df_filtrado = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
+
+                df_para_remover = df_filtrado[df_filtrado['id'] != 0]
+
+                st.dataframe(df_para_remover[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
+
+                func_para_remover = st.selectbox(
+                    "Selecione o funcionário para remover", 
+                    options=sorted(df_para_remover['NOME'].unique()), 
+                    index=None, 
+                    placeholder="Selecione um funcionário da lista acima..."
+                )
+                if func_para_remover:
+                    if st.button(f"Remover {func_para_remover}", type="primary"):
+                        funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
+                        if remover_funcionario(engine, funcionario_id):
+                            st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
+                            st.cache_data.clear()
+                            st.rerun()
+                        
+        with tab_mudar_obra:
+            st.subheader("Mudar Funcionário de Obra")
+            with st.container(border=True):
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    obra_origem = st.selectbox(
+                        "1. Obra de Origem",
+                        options=sorted(obras_df['NOME DA OBRA'].unique()),
+                        index=None,
+                        placeholder="Selecione..."
+                    )
+                with col2:
+                    opcoes_funcionarios = []
+                    if obra_origem:
+                        opcoes_funcionarios = sorted(
+                            funcionarios_df[funcionarios_df['OBRA'] == obra_origem]['NOME'].unique()
+                        )
+            
+                    func_para_mudar = st.selectbox(
+                        "2. Funcionário a Mudar",
+                        options=opcoes_funcionarios,
+                        index=None,
+                        placeholder="Escolha uma obra...",
+                        disabled=not obra_origem
+                    )
+                with col3:
+                    opcoes_destino = []
+                    if obra_origem:
+                        opcoes_destino = sorted(
+                            obras_df[obras_df['NOME DA OBRA'] != obra_origem]['NOME DA OBRA'].unique()
+                        )
+
+                    obra_destino = st.selectbox(
+                        "3. Nova Obra de Destino",
+                        options=opcoes_destino,
+                        index=None,
+                        placeholder="Escolha uma obra...",
+                        disabled=not obra_origem
+                    )
+
+                if st.button("Mudar Funcionário de Obra", use_container_width=True):
+                    if obra_origem and func_para_mudar and obra_destino:
+                        funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id'].iloc[0])
+                        nova_obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id'].iloc[0])
+                
+                        if mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
+                            st.toast(f"Funcionário '{func_para_mudar}' movido para a obra '{obra_destino}'!", icon="✅")
                             st.cache_data.clear()
                             st.rerun()
                     else:
-                        st.warning("Por favor, preencha nome, função e obra.")
-
- 
-        st.markdown("---")
-        st.subheader("Remover Funcionário Existente")
-        if funcionarios_df.empty:
-            st.info("Nenhum funcionário cadastrado.")
-        else:
-            obra_filtro_remover = st.selectbox(
-                "Filtre por Obra para ver os funcionários",
-                options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
-                index=0,
-                key="filtro_obra_remover"
-            )
-
-            df_filtrado = funcionarios_df
-            if obra_filtro_remover and obra_filtro_remover != "Todas":
-                df_filtrado = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
-
-            df_para_remover = df_filtrado[df_filtrado['id'] != 0]
-
-            st.dataframe(df_para_remover[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
-
-            func_para_remover = st.selectbox(
-                "Selecione o funcionário para remover", 
-                options=sorted(df_para_remover['NOME'].unique()), 
-                index=None, 
-                placeholder="Selecione um funcionário da lista acima..."
-            )
-            if func_para_remover:
-                if st.button(f"Remover {func_para_remover}", type="primary"):
-                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
-                    if remover_funcionario(engine, funcionario_id):
-                        st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
-                        st.cache_data.clear()
-                        st.rerun()
-                        
-        st.markdown("---")
-        st.subheader("Mudar Funcionário de Obra")
-        with st.container(border=True):
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                obra_origem = st.selectbox(
-                    "1. Obra de Origem",
-                    options=sorted(obras_df['NOME DA OBRA'].unique()),
-                    index=None,
-                    placeholder="Selecione..."
-                )
-            with col2:
-                opcoes_funcionarios = []
-                if obra_origem:
-                    opcoes_funcionarios = sorted(
-                        funcionarios_df[funcionarios_df['OBRA'] == obra_origem]['NOME'].unique()
-                    )
-            
-                func_para_mudar = st.selectbox(
-                    "2. Funcionário a Mudar",
-                    options=opcoes_funcionarios,
-                    index=None,
-                    placeholder="Escolha uma obra...",
-                    disabled=not obra_origem
-                )
-            with col3:
-                opcoes_destino = []
-                if obra_origem:
-                    opcoes_destino = sorted(
-                        obras_df[obras_df['NOME DA OBRA'] != obra_origem]['NOME DA OBRA'].unique()
-                    )
-
-                obra_destino = st.selectbox(
-                    "3. Nova Obra de Destino",
-                    options=opcoes_destino,
-                    index=None,
-                    placeholder="Escolha uma obra...",
-                    disabled=not obra_origem
-                )
-
-            if st.button("Mudar Funcionário de Obra", use_container_width=True):
-                if obra_origem and func_para_mudar and obra_destino:
-                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id'].iloc[0])
-                    nova_obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id'].iloc[0])
-                
-                    if mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
-                        st.toast(f"Funcionário '{func_para_mudar}' movido para a obra '{obra_destino}'!", icon="✅")
-                        st.cache_data.clear()
-                        st.rerun()
-                else:
-                    st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
+                        st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
  
 
 
@@ -1196,7 +1198,11 @@ else:
                 'SALÁRIO BASE (R$)': 'R$ {:,.2f}',
                 'PRODUÇÃO (R$)': 'R$ {:,.2f}',
                 'SALÁRIO A RECEBER (R$)': 'R$ {:,.2f}'
-            }).applymap(style_status, subset=['Status']),
+            }).applymap(
+                style_status, subset=['Status']
+            ).background_gradient( # <-- Adicione esta linha
+                cmap='Greens', subset=['PRODUÇÃO (R$)'] # Usa um gradiente de verde
+            ),
             use_container_width=True
         )
 
@@ -1451,6 +1457,15 @@ else:
                 st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi lançada e arquivada. Nenhuma edição é permitida.")
             elif edicao_bloqueada:
                 st.warning(f"🔒 A obra {obra_selecionada} está com status 'Aprovado' para o mês {mes_selecionado}. As edições estão bloqueadas.")
+            total_producao_obra = resumo_df['PRODUÇÃO (R$)'].sum()
+            num_funcionarios = len(resumo_df)
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Produção Total da Obra", f"R$ {total_producao_obra:,.2f}")
+            col2.metric("Nº de Funcionários com Lançamento", num_funcionarios)
+            col3.metric("Status Geral", status_atual_obra)
+
+            st.markdown("---")
 
             st.markdown("---")
             col_status_geral, col_aviso_geral = st.columns(2)
@@ -1639,6 +1654,7 @@ else:
                                             st.rerun()
                                     else:
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
+
 
 
 
