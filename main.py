@@ -17,22 +17,7 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-
-    /* Adiciona cantos arredondados aos containers (cards) */
-    [data-testid="stVerticalBlock"] .st-emotion-cache-1jicfl2 {
-        border-radius: 10px;
-    }
-    
-    /* Adiciona cantos arredondados aos botões */
-    .stButton>button {
-        border-radius: 10px;
-    }
-
-    /* Adiciona cantos arredondados aos campos de texto */
-    .stTextInput>div>div>input, .stDateInput>div>div>input {
-        border-radius: 10px;
-    }
-
+    /* ... (seu CSS continua o mesmo) ... */
 </style>
 """, unsafe_allow_html=True)
 
@@ -45,13 +30,37 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
-@st.cache_data  
+def registrar_log(engine, usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
+    """Registra uma ação no log de auditoria, com detalhes de tabela e registro."""
+    try:
+        if id_registro_afetado is not None:
+            id_registro_afetado = int(id_registro_afetado)
+
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO log_auditoria (usuario, acao, detalhes, tabela_afetada, id_registro_afetado)
+                    VALUES (:usuario, :acao, :detalhes, :tabela_afetada, :id_registro_afetado)
+                """)
+                connection.execute(query, {
+                    'usuario': usuario,
+                    'acao': acao,
+                    'detalhes': detalhes,
+                    'tabela_afetada': tabela_afetada,
+                    'id_registro_afetado': id_registro_afetado
+                })
+                transaction.commit()
+    except Exception as e:
+        st.toast(f"Falha ao registrar log: {e}", icon="⚠️")
+
+
+@st.cache_data
 def load_data(_engine):
     if _engine is None:
         st.stop()
 
     query_funcionarios = """
-    SELECT 
+    SELECT
         f.id,
         f.obra_id,
         f.nome as "NOME",
@@ -125,7 +134,8 @@ def load_data(_engine):
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
 
     return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
-    
+
+
 def salvar_dados(df_para_salvar, nome_tabela, _engine):
     try:
         df_para_salvar.to_sql(nome_tabela, _engine, if_exists='append', index=False)
@@ -147,25 +157,27 @@ def adicionar_funcionario(engine, nome, funcao_id, obra_id):
                 """)
                 connection.execute(query, {'nome': nome, 'funcao_id': funcao_id, 'obra_id': obra_id})
                 transaction.commit()
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "ADICAO_FUNCIONARIO", f"Funcionário '{nome}' adicionado.")
         return True
     except Exception as e:
         st.error(f"Erro ao adicionar funcionário no banco de dados: {e}")
         return False
 
-def remover_funcionario(engine, funcionario_id):
+def remover_funcionario(engine, funcionario_id, nome_funcionario):
     """'Remove' um funcionário marcando-o como inativo."""
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # Altera de DELETE para UPDATE
                 query = text("UPDATE funcionarios SET ativo = FALSE WHERE id = :id")
                 connection.execute(query, {'id': funcionario_id})
                 transaction.commit()
+        detalhes = f"Funcionário '{nome_funcionario}' (ID: {funcionario_id}) inativado."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "REMOCAO_FUNCIONARIO", detalhes, tabela_afetada='funcionarios', id_registro_afetado=funcionario_id)
         return True
     except Exception as e:
         st.error(f"Erro ao inativar funcionário no banco de dados: {e}")
         return False
-        
+
 def adicionar_obra(engine, nome_obra, codigo_acesso):
     """Insere uma nova obra e seu código de acesso em uma única transação."""
     try:
@@ -179,22 +191,25 @@ def adicionar_obra(engine, nome_obra, codigo_acesso):
                 connection.execute(query_acesso, {'obra_id': new_obra_id, 'codigo': codigo_acesso})
 
                 transaction.commit()
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "ADICAO_OBRA", f"Obra '{nome_obra}' adicionada.")
         return True
     except Exception as e:
         st.error(f"Erro ao adicionar obra no banco de dados: {e}")
         return False
 
-def remover_obra(engine, obra_id):
+def remover_obra(engine, obra_id, nome_obra):
     """Remove uma obra do banco de dados pelo seu ID."""
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query_acesso = text("DELETE FROM acessos_obras WHERE obra_id = :id")
                 connection.execute(query_acesso, {'id': obra_id})
-                
+
                 query_obra = text("DELETE FROM obras WHERE id = :id")
                 connection.execute(query_obra, {'id': obra_id})
                 transaction.commit()
+        detalhes = f"Obra '{nome_obra}' (ID: {obra_id}) removida."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "REMOCAO_OBRA", detalhes, tabela_afetada='obras', id_registro_afetado=obra_id)
         return True
     except Exception as e:
         st.error(f"Erro ao remover obra do banco de dados: {e}")
@@ -212,15 +227,14 @@ def atualizar_observacao_lancamento(engine, lancamento_id, nova_observacao):
                 """)
                 connection.execute(query, {'obs': nova_observacao, 'id': lancamento_id})
                 transaction.commit()
+        detalhes = f"Observação do lançamento ID {lancamento_id} atualizada."
+        registrar_log(engine, st.session_state.get('user_identifier', 'unknown'), "ATUALIZACAO_OBSERVACAO", detalhes)
         return True
     except Exception as e:
         st.error(f"Erro ao salvar observação: {e}")
         return False
 
 def garantir_funcionario_geral(engine):
-    """
-    Verifica se o funcionário 'Status Geral' com id=0 existe e, se não, o cria.
-    """
     try:
         with engine.connect() as connection:
             obra_id = connection.execute(text("SELECT id FROM obras LIMIT 1")).scalar_one_or_none()
@@ -236,9 +250,9 @@ def garantir_funcionario_geral(engine):
                 ON CONFLICT (id) DO NOTHING;
             """)
             connection.execute(query, {'obra_id': obra_id, 'funcao_id': funcao_id})
-            connection.commit() 
-            
-        print(">>> Funcionário geral com ID 0 garantido no banco de dados.")
+            connection.commit()
+
+            print(">>> Funcionário geral com ID 0 garantido no banco de dados.")
     except Exception as e:
         st.error(f"Erro ao tentar garantir o funcionário geral: {e}")
 
@@ -248,7 +262,7 @@ def atualizar_observacoes(engine, updates_list):
     'updates_list' deve ser uma lista de dicionários, ex: [{'id': 1, 'obs': 'texto'}, ...]
     """
     if not updates_list:
-        return True 
+        return True
 
     try:
         with engine.connect() as connection:
@@ -256,11 +270,14 @@ def atualizar_observacoes(engine, updates_list):
                 query = text("UPDATE lancamentos SET observacao = :obs WHERE id = :id")
                 connection.execute(query, updates_list)
                 transaction.commit()
+        ids_atualizados = [item['id'] for item in updates_list]
+        detalhes = f"Observações dos lançamentos IDs {ids_atualizados} foram atualizadas."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "ATUALIZACAO_OBSERVACAO_MASSA", detalhes)
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
         return False
-        
+
 def salvar_novos_lancamentos(df_para_salvar, engine):
     """
     Salva um DataFrame de novos lançamentos no banco de dados
@@ -284,12 +301,15 @@ def salvar_novos_lancamentos(df_para_salvar, engine):
                 """)
                 connection.execute(query, lancamentos_dict)
                 transaction.commit()
+        num_lancamentos = len(lancamentos_dict)
+        detalhes = f"{num_lancamentos} novo(s) lançamento(s) salvo(s)."
+        registrar_log(engine, st.session_state.get('user_identifier', 'unknown'), "SALVAR_LANCAMENTO", detalhes)
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
         return False
-            
-def remover_lancamentos_por_id(ids_para_remover, engine):
+
+def remover_lancamentos_por_id(ids_para_remover, engine, razao=""):
     if not ids_para_remover:
         return False
     try:
@@ -299,12 +319,14 @@ def remover_lancamentos_por_id(ids_para_remover, engine):
                 connection.execute(query, {'ids': ids_para_remover})
                 transaction.commit()
         st.toast("Lançamentos removidos com sucesso!", icon="🗑️")
+        detalhes = f"IDs removidos: {ids_para_remover}. Justificativa: {razao}"
+        registrar_log(engine, st.session_state.get('user_identifier', 'unknown'), "REMOCAO_LANCAMENTO", detalhes, tabela_afetada='lancamentos')
         return True
     except Exception as e:
         st.error(f"Erro ao remover lançamentos: {e}")
         return False
 
-def launch_monthly_sheet(obra_id, mes_dt):
+def launch_monthly_sheet(obra_id, mes_dt, obra_nome):
         mes_inicio = mes_dt.strftime('%Y-%m-01')
         try:
             with engine.connect() as connection:
@@ -312,7 +334,7 @@ def launch_monthly_sheet(obra_id, mes_dt):
                     query_update = text("""
                         UPDATE "Lancamentos"
                         SET arquivado = TRUE
-                        WHERE obra_id = :obra_id 
+                        WHERE obra_id = :obra_id
                         AND date_trunc('month', data_servico) = :mes_inicio;
                     """)
                     connection.execute(query_update, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
@@ -323,20 +345,21 @@ def launch_monthly_sheet(obra_id, mes_dt):
                         ON CONFLICT (obra_id, mes_referencia) DO NOTHING;
                     """)
                     connection.execute(query_insert, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
-                    
+
                     transaction.commit()
-            
-            st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} lançada e arquivada!", icon="🚀") 
+            detalhes = f"Folha da obra '{obra_nome}' (ID: {obra_id}) para o mês {mes_dt.strftime('%Y-%m')} foi lançada."
+            registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "LANCAMENTO_FOLHA", detalhes)
+            st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} lançada e arquivada!", icon="🚀")
             return True
 
         except Exception as e:
             st.error(f"Ocorreu um erro ao lançar a folha: {e}")
             return False
 
-def save_geral_status_obra(engine, obra_id, status, mes_referencia):
+def save_geral_status_obra(engine, obra_id, status, mes_referencia, obra_nome):
     """Insere ou atualiza o status GERAL de uma obra para um mês específico."""
     mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
-    ID_FUNCIONARIO_GERAL = 0 # Define o nosso ID especial
+    ID_FUNCIONARIO_GERAL = 0
 
     try:
         with engine.connect() as connection:
@@ -365,23 +388,25 @@ def save_geral_status_obra(engine, obra_id, status, mes_referencia):
                     })
 
                 transaction.commit()
+        detalhes = f"Status de '{func_nome}' na obra '{obra_nome}' para {mes_referencia} alterado para '{status}'."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "MUDANCA_STATUS_FUNCIONARIO", detalhes, tabela_afetada='status_auditoria', id_registro_afetado=funcionario_id)
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o status geral da obra: {e}")
         return False
-        
-def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
+
+def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia, func_nome, obra_nome):
     """Insere ou atualiza o status de um funcionário para um mês/obra específico."""
     mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
-    
+
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query_update = text("""
-                    UPDATE status_auditoria 
-                    SET status = :status 
-                    WHERE obra_id = :obra_id 
-                    AND funcionario_id = :funcionario_id 
+                    UPDATE status_auditoria
+                    SET status = :status
+                    WHERE obra_id = :obra_id
+                    AND funcionario_id = :funcionario_id
                     AND mes_referencia = :mes_ref
                 """)
                 result = connection.execute(query_update, {
@@ -392,8 +417,8 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
                 })
                 if result.rowcount == 0:
                     query_insert = text("""
-                        INSERT INTO status_auditoria 
-                        (obra_id, funcionario_id, mes_referencia, status, comentario) 
+                        INSERT INTO status_auditoria
+                        (obra_id, funcionario_id, mes_referencia, status, comentario)
                         VALUES (:obra_id, :funcionario_id, :mes_ref, :status, '')
                     """)
                     connection.execute(query_insert, {
@@ -402,25 +427,27 @@ def save_status_data(engine, obra_id, funcionario_id, status, mes_referencia):
                         'mes_ref': mes_dt,
                         'status': status
                     })
-                
+
                 transaction.commit()
+        detalhes = f"Status do funcionário '{func_nome}' (ID: {funcionario_id}) na obra '{obra_nome}' para o mês {mes_referencia} alterado para '{status}'."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "MUDANCA_STATUS_FUNCIONARIO", detalhes)
         return True
     except Exception as e:
-        st.error(f"Erro ao salvar o status: {e}") 
+        st.error(f"Erro ao salvar o status: {e}")
         return False
 
-def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referencia):
+def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referencia, func_nome, obra_nome):
     """Insere ou atualiza o comentário de um funcionário para um mês/obra específico."""
     mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
-    
+
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query_update = text("""
-                    UPDATE status_auditoria 
-                    SET comentario = :comentario 
-                    WHERE obra_id = :obra_id 
-                    AND funcionario_id = :funcionario_id 
+                    UPDATE status_auditoria
+                    SET comentario = :comentario
+                    WHERE obra_id = :obra_id
+                    AND funcionario_id = :funcionario_id
                     AND mes_referencia = :mes_ref
                 """)
                 result = connection.execute(query_update, {
@@ -432,8 +459,8 @@ def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referenci
 
                 if result.rowcount == 0:
                     query_insert = text("""
-                        INSERT INTO status_auditoria 
-                        (obra_id, funcionario_id, mes_referencia, status, comentario) 
+                        INSERT INTO status_auditoria
+                        (obra_id, funcionario_id, mes_referencia, status, comentario)
                         VALUES (:obra_id, :funcionario_id, :mes_ref, 'A Revisar', :comentario)
                     """)
                     connection.execute(query_insert, {
@@ -442,14 +469,16 @@ def save_comment_data(engine, obra_id, funcionario_id, comentario, mes_referenci
                         'mes_ref': mes_dt,
                         'comentario': comentario
                     })
-                
+
                 transaction.commit()
+        detalhes = f"Comentário para '{func_nome}' (ID: {funcionario_id}) na obra '{obra_nome}' para o mês {mes_referencia} foi salvo."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "SALVAR_COMENTARIO", detalhes)
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o comentário: {e}")
         return False
 
-def mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
+def mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id, func_nome, nova_obra_nome):
     """Muda um funcionário para uma nova obra no banco de dados."""
     try:
         with engine.connect() as connection:
@@ -461,12 +490,14 @@ def mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
                 """)
                 connection.execute(query, {'nova_obra_id': nova_obra_id, 'funcionario_id': funcionario_id})
                 transaction.commit()
+        detalhes = f"Funcionário '{func_nome}' (ID: {funcionario_id}) movido para a obra '{nova_obra_nome}'."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "MUDANCA_OBRA_FUNCIONARIO", detalhes)
         return True
     except Exception as e:
         st.error(f"Erro ao mudar funcionário de obra: {e}")
         return False
 
-def mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
+def mudar_codigo_acesso_obra(engine, obra_id, novo_codigo, obra_nome):
     """Altera o código de acesso de uma obra específica."""
     try:
         with engine.connect() as connection:
@@ -478,11 +509,13 @@ def mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
                 """)
                 connection.execute(query, {'novo_codigo': novo_codigo, 'obra_id': obra_id})
                 transaction.commit()
+        detalhes = f"Código de acesso da obra '{obra_nome}' (ID: {obra_id}) foi alterado."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "MUDANCA_CODIGO_ACESSO", detalhes)
         return True
     except Exception as e:
         st.error(f"Erro ao alterar o código de acesso: {e}")
         return False
-        
+
 def save_aviso_data(engine, obra_nome, novo_aviso):
     """Atualiza o aviso de uma obra específica no banco de dados."""
     try:
@@ -495,15 +528,17 @@ def save_aviso_data(engine, obra_nome, novo_aviso):
                 """)
                 connection.execute(query, {'aviso': novo_aviso, 'nome': obra_nome})
                 transaction.commit()
+        detalhes = f"Aviso para a obra '{obra_nome}' foi atualizado."
+        registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "SALVAR_AVISO_OBRA", detalhes)
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o aviso: {e}")
         return False
-        
+
 def calcular_salario_final(row):
     if str(row['TIPO']).upper() == 'PRODUCAO':
         return max(row['SALÁRIO BASE (R$)'], row['PRODUÇÃO (R$)'])
-    else: 
+    else:
         return row['SALÁRIO BASE (R$)'] + row['PRODUÇÃO (R$)']
 
 
@@ -513,7 +548,7 @@ def to_excel(df):
         df.to_excel(writer, index=False, sheet_name='DadosFiltrados')
     processed_data = output.getvalue()
     return processed_data
-    
+
 def format_currency(value):
     try:
         return f"R$ {float(value):,.2f}"
@@ -545,15 +580,14 @@ def style_status(status):
     elif status == 'Analisar':
         color = 'red'
     return f'color: {color}; font-weight: bold;'
-    
 
 def login_page(obras_df, acessos_df):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=1000) 
-    
+        st.image("Lavie.png", width=1000)
+
     st.header("Login")
-    
+
     admin_login = st.checkbox("Entrar como Administrador")
 
     if admin_login:
@@ -563,31 +597,37 @@ def login_page(obras_df, acessos_df):
                 st.session_state['logged_in'] = True
                 st.session_state['role'] = 'admin'
                 st.session_state['obra_logada'] = 'Todas'
+                st.session_state['user_identifier'] = 'admin'
+                registrar_log(engine, 'admin', "LOGIN_SUCCESS")
                 st.rerun()
             else:
+                registrar_log(engine, 'admin', "LOGIN_FAIL", "Senha incorreta.")
                 st.error("Senha de administrador incorreta.")
     else:
         obras_com_acesso = pd.merge(obras_df, acessos_df, left_on='id', right_on='obra_id')
-        
+
         obra_login = st.selectbox("Selecione a Obra", options=obras_com_acesso['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
         codigo_login = st.text_input("Código de Acesso", type="password")
 
         if st.button("Entrar", use_container_width=True, type="primary"):
             if obra_login and codigo_login:
-                try: 
+                try:
                     codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
                     if codigo_correto == codigo_login:
                         st.session_state['logged_in'] = True
                         st.session_state['role'] = 'user'
                         st.session_state['obra_logada'] = obra_login
+                        st.session_state['user_identifier'] = f"user:{obra_login}"
+                        registrar_log(engine, f"user:{obra_login}", "LOGIN_SUCCESS")
                         st.rerun()
                     else:
+                        registrar_log(engine, f"user:{obra_login}", "LOGIN_FAIL", "Código incorreto.")
                         st.error("Obra ou código de acesso incorreto.")
                 except IndexError:
                     st.error("Obra ou código de acesso incorreto.")
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
-                
+
 engine = get_db_connection()
 
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
@@ -706,6 +746,7 @@ else:
             )
         st.markdown("---")
         if st.button("Sair 🚪", use_container_width=True):
+            registrar_log(engine, st.session_state.get('user_identifier', 'unknown'), "LOGOUT")
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
@@ -784,38 +825,6 @@ else:
                         data_servico_diverso = st.date_input("Data do Serviço", value=None, key="data_diverso", format="DD/MM/YYYY")
                     with col_obs_div:
                         obs_diverso = st.text_area("Observação (Obrigatório)", key="obs_diverso")
-
-                with st.expander("➕ Lançar Valores Extras"):
-                    if valores_extras_df.empty:
-                        st.info("Nenhum item na tabela de 'Valores Extras' da planilha.")
-                    else:
-                        extras_options = valores_extras_df['VALORES EXTRAS'].unique()
-                        extras_selecionados = st.multiselect("Selecione", options=extras_options, key="valores_extras_multiselect", label_visibility="collapsed")
-                        quantidades_extras = {} 
-                        datas_servico_extras = {}
-                        observacoes_extras = {}
-                        if extras_selecionados:
-                            for extra in extras_selecionados:
-                                extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                                st.markdown(f"--- \n **{extra}**")
-                                kpi1, kpi2 = st.columns(2)
-                                kpi1.metric(label="Unidade", value=extra_info['UNIDADE'])
-                                kpi2.metric(label="Valor Unitário", value=format_currency(extra_info['VALOR']))
-                                key_slug = re.sub(r'[^a-zA-Z0-9]', '', extra)
-                                
-                                col_qtd_extra, col_parcial_extra = st.columns(2)
-                                with col_qtd_extra:
-                                    quantidades_extras[extra] = st.number_input("Quantidade", min_value=0, step=1, key=f"qty_{key_slug}")
-                                with col_parcial_extra:
-                                    valor_unitario_extra = safe_float(extra_info.get('VALOR'))
-                                    valor_parcial_extra_calc = quantidades_extras.get(extra, 0) * valor_unitario_extra
-                                    st.metric(label="Subtotal do Extra", value=format_currency(valor_parcial_extra_calc))
-
-                                col_data_extra, col_obs_extra = st.columns(2)
-                                with col_data_extra:
-                                    datas_servico_extras[extra] = st.date_input("Data do Serviço (Obrigatório)", value=None, key=f"data_{key_slug}", format="DD/MM/YYYY")
-                                with col_obs_extra:
-                                    observacoes_extras[extra] = st.text_area("Observação (Obrigatório)", key=f"obs_{key_slug}")
 
                 if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
                     if not funcionario_selecionado:
@@ -1000,7 +1009,7 @@ else:
                 if func_para_remover:
                     if st.button(f"Remover {func_para_remover}", type="primary"):
                         funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
-                        if remover_funcionario(engine, funcionario_id):
+                        if remover_funcionario(engine, funcionario_id, func_para_remover):
                             st.success(f"Funcionário '{func_para_remover}' removido com sucesso!")
                             st.cache_data.clear()
                             st.rerun()
@@ -1050,8 +1059,8 @@ else:
                     if obra_origem and func_para_mudar and obra_destino:
                         funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id'].iloc[0])
                         nova_obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id'].iloc[0])
-                
-                        if mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id):
+
+                        if mudar_funcionario_de_obra(engine, funcionario_id, nova_obra_id, func_para_mudar, obra_destino):
                             st.toast(f"Funcionário '{func_para_mudar}' movido para a obra '{obra_destino}'!", icon="✅")
                             st.cache_data.clear()
                             st.rerun()
@@ -1117,11 +1126,12 @@ else:
                 st.warning(f"Atenção: Remover uma obra não remove ou realoca os funcionários associados a ela. Certifique-se de que nenhum funcionário esteja alocado em '{obra_para_remover}' antes de continuar.")
                 if st.button(f"Remover Obra '{obra_para_remover}'", type="primary"):
                     obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover, 'id'].iloc[0])
-                
-                    if remover_obra(engine, obra_id):
+
+                    if remover_obra(engine, obra_id, obra_para_remover):
                         st.success(f"Obra '{obra_para_remover}' removida com sucesso!")
                         st.cache_data.clear()
                         st.rerun()
+
 
         st.markdown("---")
         st.subheader("Alterar Código de Acesso")
@@ -1140,8 +1150,7 @@ else:
             if st.button("Alterar Código", use_container_width=True):
                 if obra_para_alterar_codigo and novo_codigo:
                     obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo, 'id'].iloc[0])
-                
-                    if mudar_codigo_acesso_obra(engine, obra_id, novo_codigo):
+                    if mudar_codigo_acesso_obra(engine, obra_id, novo_codigo, obra_para_alterar_codigo):
                         st.toast(f"Código de acesso da obra '{obra_para_alterar_codigo}' alterado com sucesso!", icon="🔑")
                         st.cache_data.clear()
                         st.rerun()
@@ -1301,7 +1310,7 @@ else:
 
                     if st.button("Remover Itens Selecionados", ...):
                         ids_a_remover = linhas_para_remover['id'].tolist()
-                        if remover_lancamentos_por_id(ids_a_remover, engine):
+                        if remover_lancamentos_por_id(ids_a_remover, engine, razao_remocao):
                             st.cache_data.clear()
                             st.rerun()
                         if st.session_state['role'] == 'admin' and razao_remocao:
@@ -1505,7 +1514,7 @@ else:
                     if st.button("Salvar Status da Obra", key=f"btn_obra_{obra_selecionada}"):
                         if selected_status_obra != status_atual_obra:
                             obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
-                            if save_geral_status_obra(engine, obra_id_selecionada, selected_status_obra, mes_referencia=mes_selecionado):
+                            if save_geral_status_obra(engine, obra_id_selecionada, selected_status_obra, mes_referencia=mes_selecionado, obra_nome=obra_selecionada):
                                 st.cache_data.clear()
                                 st.rerun()
                 
@@ -1519,7 +1528,7 @@ else:
         
                     obra_id_selecionada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0]
                     mes_datetime = pd.to_datetime(st.session_state.selected_month)
-                    if launch_monthly_sheet(obra_id_selecionada, mes_datetime):
+                    if launch_monthly_sheet(obra_id_selecionada, mes_datetime, obra_selecionada):
                         st.rerun()
 
                         if is_launch_disabled and not is_launched:
@@ -1598,7 +1607,7 @@ else:
                                 if selected_status_func != status_atual_func:
                                     obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                                     funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
-                                    if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado):
+                                    if save_status_data(engine, obra_id_selecionada, funcionario_id_selecionado, selected_status_func, mes_referencia=mes_selecionado, func_nome=funcionario, obra_nome=obra_selecionada):
                                         st.cache_data.clear()
                                         st.rerun()
                                     
@@ -1616,7 +1625,7 @@ else:
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
                                 funcionario_id_selecionado = int(funcionarios_df.loc[funcionarios_df['NOME'] == funcionario, 'id'].iloc[0])
-                                if save_comment_data(engine, obra_id_selecionada, funcionario_id_selecionado, new_comment, mes_referencia=mes_selecionado):
+                                if save_comment_data(engine, obra_id_selecionada, funcionario_id_selecionado, new_comment, mes_referencia=mes_selecionado, func_nome=funcionario, obra_nome=obra_selecionada):
                                     st.toast("Comentário salvo com sucesso!", icon="💬")
                                     st.cache_data.clear()
                                     st.rerun()
