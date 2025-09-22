@@ -1593,26 +1593,26 @@ else:
 
             with col_aviso_geral:
                 st.markdown("##### Status de Envio da Obra")
-                    if not folha_lancada_row.empty:
-                        data_envio = pd.to_datetime(folha_lancada_row['data_lancamento'].iloc[0])
-                        status_envio = folha_lancada_row['status'].iloc[0]
+                if not folha_lancada_row.empty:
+                    data_envio = pd.to_datetime(folha_lancada_row['data_lancamento'].iloc[0])
+                    status_envio = folha_lancada_row['status'].iloc[0]
 
-                        mes_seguinte = pd.to_datetime(mes_selecionado_dt) + pd.DateOffset(months=1)
-                        data_limite = mes_seguinte.replace(day=23)
+                    mes_seguinte = pd.to_datetime(mes_selecionado_dt) + pd.DateOffset(months=1)
+                    data_limite = mes_seguinte.replace(day=23)
                     
-                        dias_atraso = 0
-                        if data_envio.date() > data_limite.date():
-                            dias_atraso = (data_envio.date() - data_limite.date()).days
+                    dias_atraso = 0
+                    if data_envio.date() > data_limite.date():
+                        dias_atraso = (data_envio.date() - data_limite.date()).days
 
-                        col1, col2, col3 = st.columns(3)
-                        col1.success(f"✔️ Folha Enviada!")
-                        col2.info(f"Data: {data_envio.strftime('%d/%m/%Y')}")
-                        if dias_atraso > 0:
-                            col3.error(f"Atraso: {dias_atraso} dia(s)")
-                        else:
-                            col3.success("Entrega no prazo")
+                    col1, col2, col3 = st.columns(3)
+                    col1.success(f"✔️ Folha Enviada!")
+                    col2.info(f"Data: {data_envio.strftime('%d/%m/%Y')}")
+                    if dias_atraso > 0:
+                        col3.error(f"Atraso: {dias_atraso} dia(s)")
                     else:
-                        st.warning("⚠️ Aguardando o envio da folha pela obra.")
+                        col3.success("Entrega no prazo")
+                else:
+                    st.warning("⚠️ Aguardando o envio da folha pela obra.")
                         
                 st.markdown("##### Aviso Geral da Obra")
                 aviso_atual = ""
