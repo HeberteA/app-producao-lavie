@@ -686,7 +686,7 @@ else:
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
-        else: 
+        else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obra_logada_nome = st.session_state['obra_logada']
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome].iloc[0]
@@ -694,7 +694,6 @@ else:
             aviso_obra = obra_info['aviso']
 
         st.markdown("---")
-        
         st.subheader("Mês de Referência")
         todos_lancamentos_df = lancamentos_df.copy()
         lancamentos_do_mes_df = pd.DataFrame()
@@ -707,9 +706,11 @@ else:
                 todos_lancamentos_df['Data'].dt.to_period('M') == mes_selecionado_periodo
             ].copy()
 
-        current_month_str = datetime.now().strftime('%Y-%m')
-        if current_month_str not in available_months:
-            available_months.append(current_month_str)
+        current_month_str = datetime.now().strftime('%Y%m')
+        if current_month_str not in [pd.Period(d).strftime('%Y-%m') for d in available_months]:
+            available_months.append(pd.to_datetime(current_month_str, format='%Y%m').strftime('%Y-%m'))
+            available_months = sorted(list(set(available_months)), reverse=True)
+
 
         if 'selected_month' not in st.session_state:
             st.session_state.selected_month = current_month_str
@@ -723,10 +724,10 @@ else:
         st.session_state.selected_month = selected_month
         
         st.markdown("---")
-        if aviso_obra and str(aviso_obra).strip():
-            st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
-        
+            if aviso_obra and str(aviso_obra).strip():
+                st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
         st.markdown("---")
+
         st.subheader("Menu")
         if 'page' not in st.session_state:
             st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
@@ -734,7 +735,7 @@ else:
         if st.session_state['role'] == 'user':
             if st.button("Lançamento Folha 📝", use_container_width=True):
                 st.session_state.page = "Lançamento Folha 📝"
-        else:
+        else: # Admin
             if st.button("Auditoria ✏️", use_container_width=True):
                 st.session_state.page = "Auditoria ✏️"
             if st.button("Gerenciar Funcionários 👥", use_container_width=True):
@@ -749,7 +750,8 @@ else:
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
 
-        st.markdown("---")
+        if st.session_state['role'] == 'user':
+            st.markdown("---")
             DIA_LIMITE = 23
             hoje = date.today()
             mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
@@ -763,9 +765,11 @@ else:
 
             if not folha_status_row.empty:
                 status_folha = folha_status_row['status'].iloc[0]
-                data_envio = pd.to_datetime(folha_status_row['data_lancamento'].iloc[0])
+                if 'data_lancamento' in folha_status_row and pd.notna(folha_status_row['data_lancamento'].iloc[0]):
+                    data_envio = pd.to_datetime(folha_status_row['data_lancamento'].iloc[0])
+                    st.info(f"Enviada em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
                 st.success(f"Status: {status_folha}")
-                st.info(f"Enviada em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
+
                 if st.button("Enviar para Auditoria", use_container_width=True, disabled=True):
                     pass
             else:
@@ -773,23 +777,24 @@ else:
                 
                 if dias_para_o_prazo < 0:
                     dias_de_atraso = abs(dias_para_o_prazo)
-                    st.error(f"Vencida há {dias_de_atraso} dia(s)")
+                    st.error(f"Vencida há {dias_de_atraso} dia(s)!")
                 elif dias_para_o_prazo <= 7:
-                    st.warning(f"Vence em {dias_para_o_prazo + 1} dia(s)")
+                    st.warning(f"Vence em {dias_para_o_prazo + 1} dia(s)!")
                 else:
                     st.info(f"Prazo: Dia {DIA_LIMITE}")
 
                 if st.button("Enviar Folha para Auditoria", use_container_width=True):
                     enviar_folha_para_auditoria(engine, obra_logada_id, mes_folha_referencia.strftime('%Y-%m'), obra_logada_nome)
                     st.rerun()
-        
+
         st.markdown("---")
         st.header("Ferramentas")
         st.subheader("Backup dos Dados")
         if st.button("📥 Baixar Backup em Excel", use_container_width=True):
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                pd.DataFrame(st.session_state.lancamentos).drop(columns=['id_lancamento'], errors='ignore').to_excel(writer, sheet_name='Lançamentos', index=False)
+                if not lancamentos_df.empty:
+                    lancamentos_df.to_excel(writer, sheet_name='Lançamentos', index=False)
                 funcionarios_df.to_excel(writer, sheet_name='Funcionários', index=False)
                 precos_df.to_excel(writer, sheet_name='Tabela de Preços', index=False)
                 valores_extras_df.to_excel(writer, sheet_name='Valores Extras', index=False)
