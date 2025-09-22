@@ -146,6 +146,29 @@ def salvar_dados(df_para_salvar, nome_tabela, _engine):
         st.error(f"Erro ao salvar em '{nome_tabela}': {e}")
         return False
 
+def enviar_folha_para_auditoria(engine, obra_id, mes_referencia, obra_nome):
+    """Insere um registro em folhas_mensais para marcar a submissão pela obra."""
+    mes_dt = pd.to_datetime(mes_referencia).date().replace(day=1)
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query_insert = text("""
+                    INSERT INTO folhas_mensais (obra_id, mes_referencia, status, data_lancamento)
+                    VALUES (:obra_id, :mes_ref, 'Enviada para Auditoria', NOW())
+                    ON CONFLICT (obra_id, mes_referencia) DO NOTHING; 
+                """)
+                connection.execute(query_insert, {'obra_id': obra_id, 'mes_ref': mes_dt})
+                transaction.commit()
+        detalhes = f"A folha da obra '{obra_nome}' para o mês {mes_referencia} foi enviada para auditoria."
+        registrar_log(engine, st.session_state.get('user_identifier', 'unknown'), "ENVIO_PARA_AUDITORIA", detalhes, tabela_afetada='folhas_mensais')
+        
+        st.toast("Folha enviada para auditoria com sucesso!", icon="✅")
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao enviar a folha: {e}")
+        return False
+
 def adicionar_funcionario(engine, nome, funcao_id, obra_id):
     """Insere um novo funcionário no banco de dados."""
     try:
@@ -327,30 +350,36 @@ def remover_lancamentos_por_id(ids_para_remover, engine, razao=""):
         return False
 
 def launch_monthly_sheet(obra_id, mes_dt, obra_nome):
+        """Finaliza a folha: arquiva os lançamentos e atualiza o status em folhas_mensais."""
         mes_inicio = mes_dt.strftime('%Y-%m-01')
         try:
             with engine.connect() as connection:
                 with connection.begin() as transaction:
-                    query_update = text("""
-                        UPDATE "Lancamentos"
+                    query_arquivar = text("""
+                        UPDATE lancamentos
                         SET arquivado = TRUE
-                        WHERE obra_id = :obra_id
+                        WHERE obra_id = :obra_id 
                         AND date_trunc('month', data_servico) = :mes_inicio;
                     """)
-                    connection.execute(query_update, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+                    connection.execute(query_arquivar, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
 
-                    query_insert = text("""
-                        INSERT INTO "Folhas_Mensais" (obra_id, mes_referencia, status)
-                        VALUES (:obra_id, :mes_inicio, 'Lançada')
-                        ON CONFLICT (obra_id, mes_referencia) DO NOTHING;
+                    query_update_status = text("""
+                        UPDATE folhas_mensais
+                        SET status = 'Finalizada'
+                        WHERE obra_id = :obra_id AND mes_referencia = :mes_inicio;
                     """)
-                    connection.execute(query_insert, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
-
+                    connection.execute(query_update_status, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+                    
                     transaction.commit()
-            detalhes = f"Folha da obra '{obra_nome}' (ID: {obra_id}) para o mês {mes_dt.strftime('%Y-%m')} foi lançada."
-            registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "LANCAMENTO_FOLHA", detalhes)
-            st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} lançada e arquivada!", icon="🚀")
+            detalhes = f"Folha da obra '{obra_nome}' (ID: {obra_id}) para {mes_dt.strftime('%Y-%m')} foi finalizada e arquivada."
+            registrar_log(engine, st.session_state.get('user_identifier', 'admin'), "FINALIZACAO_FOLHA", detalhes, tabela_afetada='folhas_mensais')
+            
+            st.toast(f"Folha de {mes_dt.strftime('%Y-%m')} finalizada e arquivada!", icon="🚀") 
             return True
+
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao finalizar a folha: {e}")
+            return False
 
         except Exception as e:
             st.error(f"Ocorreu um erro ao lançar a folha: {e}")
@@ -657,20 +686,48 @@ else:
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
-        else:
+        else: 
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            obra_logada = st.session_state['obra_logada']
             obra_logada_nome = st.session_state['obra_logada']
-            obra_logada_id = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'id'].iloc[0]
-            status_geral_obra_row = status_df[status_df['obra_id'] == obra_logada_id] 
-            status_atual = 'A Revisar'
-            display_status_box("Status da Obra", status_atual)
-            aviso_obra = ""
-            obra_logada_nome = st.session_state['obra_logada']
+            obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome].iloc[0]
+            obra_logada_id = obra_info['id']
+            aviso_obra = obra_info['aviso']
+            
+            st.markdown("---")
+            DIA_LIMITE = 23
+            hoje = date.today()
+            mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1))).replace(day=1)
+            
+            st.subheader(f"Folha de {mes_folha_referencia.strftime('%B/%Y')}")
 
-            if 'aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_logada_nome].empty:
-                aviso_obra = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome, 'aviso'].iloc[0]
+            folha_status_row = folhas_df[
+                (folhas_df['obra_id'] == obra_logada_id) &
+                (folhas_df['Mes'] == mes_folha_referencia)
+            ]
 
+            if not folha_status_row.empty:
+                status_folha = folha_status_row['status'].iloc[0]
+                data_envio = pd.to_datetime(folha_status_row['data_lancamento'].iloc[0])
+                st.success(f"Status: {status_folha}")
+                st.info(f"Enviada em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
+                if st.button("✅ Enviar para Auditoria", use_container_width=True, disabled=True):
+                    pass
+            else:
+                dias_para_o_prazo = DIA_LIMITE - hoje.day
+                
+                if dias_para_o_prazo < 0:
+                    dias_de_atraso = abs(dias_para_o_prazo)
+                    st.error(f"Vencida há {dias_de_atraso} dia(s)")
+                elif dias_para_o_prazo <= 7:
+                    st.warning(f"Vence em {dias_para_o_prazo + 1} dia(s)")
+                else:
+                    st.info(f"Prazo: Dia {DIA_LIMITE}")
+
+                if st.button("✅ Enviar Folha para Auditoria", use_container_width=True):
+                    enviar_folha_para_auditoria(engine, obra_logada_id, mes_folha_referencia.strftime('%Y-%m'), obra_logada_nome)
+                    st.rerun()
+
+            st.markdown("---")
             if aviso_obra and str(aviso_obra).strip():
                 st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
         
@@ -1535,6 +1592,29 @@ else:
                             st.info("A obra precisa estar com o status 'Aprovado' para que a folha possa ser lançada.")
 
             with col_aviso_geral:
+                st.markdown("##### Status de Envio da Obra")
+                with st.container(border=True):
+                    if not folha_lancada_row.empty:
+                        data_envio = pd.to_datetime(folha_lancada_row['data_lancamento'].iloc[0])
+                        status_envio = folha_lancada_row['status'].iloc[0]
+
+                        mes_seguinte = pd.to_datetime(mes_selecionado_dt) + pd.DateOffset(months=1)
+                        data_limite = mes_seguinte.replace(day=23)
+                    
+                        dias_atraso = 0
+                        if data_envio.date() > data_limite.date():
+                            dias_atraso = (data_envio.date() - data_limite.date()).days
+
+                        col1, col2, col3 = st.columns(3)
+                        col1.success(f"✔️ Folha Enviada!")
+                        col2.info(f"Data: {data_envio.strftime('%d/%m/%Y')}")
+                        if dias_atraso > 0:
+                            col3.error(f"Atraso: {dias_atraso} dia(s)")
+                        else:
+                            col3.success("Entrega no prazo")
+                    else:
+                        st.warning("⚠️ Aguardando o envio da folha pela obra.")
+                        
                 st.markdown("##### Aviso Geral da Obra")
                 aviso_atual = ""
                 if 'Aviso' in obras_df.columns and not obras_df[obras_df['NOME DA OBRA'] == obra_selecionada].empty:
