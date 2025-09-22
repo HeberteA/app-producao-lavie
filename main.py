@@ -1593,7 +1593,6 @@ else:
 
             with col_aviso_geral:
                 st.markdown("##### Status de Envio da Obra")
-                with st.container(border=True):
                     if not folha_lancada_row.empty:
                         data_envio = pd.to_datetime(folha_lancada_row['data_lancamento'].iloc[0])
                         status_envio = folha_lancada_row['status'].iloc[0]
