@@ -692,45 +692,7 @@ else:
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada_nome].iloc[0]
             obra_logada_id = obra_info['id']
             aviso_obra = obra_info['aviso']
-            
-            st.markdown("---")
-            DIA_LIMITE = 23
-            hoje = date.today()
-            mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
-            
-            st.subheader(f"Folha de {mes_folha_referencia.strftime('%B/%Y')}")
 
-            folha_status_row = folhas_df[
-                (folhas_df['obra_id'] == obra_logada_id) &
-                (folhas_df['Mes'] == mes_folha_referencia)
-            ]
-
-            if not folha_status_row.empty:
-                status_folha = folha_status_row['status'].iloc[0]
-                data_envio = pd.to_datetime(folha_status_row['data_lancamento'].iloc[0])
-                st.success(f"Status: {status_folha}")
-                st.info(f"Enviada em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
-                if st.button("✅ Enviar para Auditoria", use_container_width=True, disabled=True):
-                    pass
-            else:
-                dias_para_o_prazo = DIA_LIMITE - hoje.day
-                
-                if dias_para_o_prazo < 0:
-                    dias_de_atraso = abs(dias_para_o_prazo)
-                    st.error(f"Vencida há {dias_de_atraso} dia(s)")
-                elif dias_para_o_prazo <= 7:
-                    st.warning(f"Vence em {dias_para_o_prazo + 1} dia(s)")
-                else:
-                    st.info(f"Prazo: Dia {DIA_LIMITE}")
-
-                if st.button("✅ Enviar Folha para Auditoria", use_container_width=True):
-                    enviar_folha_para_auditoria(engine, obra_logada_id, mes_folha_referencia.strftime('%Y-%m'), obra_logada_nome)
-                    st.rerun()
-
-            st.markdown("---")
-            if aviso_obra and str(aviso_obra).strip():
-                st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
-        
         st.markdown("---")
         
         st.subheader("Mês de Referência")
@@ -760,6 +722,10 @@ else:
         )
         st.session_state.selected_month = selected_month
         
+            st.markdown("---")
+            if aviso_obra and str(aviso_obra).strip():
+                st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
+        
         st.markdown("---")
         st.subheader("Menu")
         if 'page' not in st.session_state:
@@ -782,6 +748,40 @@ else:
             st.session_state.page = "Remover Lançamentos 🗑️"
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
+
+        st.markdown("---")
+            DIA_LIMITE = 23
+            hoje = date.today()
+            mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
+            
+            st.subheader(f"Folha de {mes_folha_referencia.strftime('%B/%Y')}")
+
+            folha_status_row = folhas_df[
+                (folhas_df['obra_id'] == obra_logada_id) &
+                (folhas_df['Mes'] == mes_folha_referencia)
+            ]
+
+            if not folha_status_row.empty:
+                status_folha = folha_status_row['status'].iloc[0]
+                data_envio = pd.to_datetime(folha_status_row['data_lancamento'].iloc[0])
+                st.success(f"Status: {status_folha}")
+                st.info(f"Enviada em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
+                if st.button("Enviar para Auditoria", use_container_width=True, disabled=True):
+                    pass
+            else:
+                dias_para_o_prazo = DIA_LIMITE - hoje.day
+                
+                if dias_para_o_prazo < 0:
+                    dias_de_atraso = abs(dias_para_o_prazo)
+                    st.error(f"Vencida há {dias_de_atraso} dia(s)")
+                elif dias_para_o_prazo <= 7:
+                    st.warning(f"Vence em {dias_para_o_prazo + 1} dia(s)")
+                else:
+                    st.info(f"Prazo: Dia {DIA_LIMITE}")
+
+                if st.button("Enviar Folha para Auditoria", use_container_width=True):
+                    enviar_folha_para_auditoria(engine, obra_logada_id, mes_folha_referencia.strftime('%Y-%m'), obra_logada_nome)
+                    st.rerun()
         
         st.markdown("---")
         st.header("Ferramentas")
