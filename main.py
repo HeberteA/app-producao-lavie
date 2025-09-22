@@ -696,7 +696,7 @@ else:
             st.markdown("---")
             DIA_LIMITE = 23
             hoje = date.today()
-            mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1))).replace(day=1)
+            mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
             
             st.subheader(f"Folha de {mes_folha_referencia.strftime('%B/%Y')}")
 
