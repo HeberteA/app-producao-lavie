@@ -723,9 +723,11 @@ else:
         )
         st.session_state.selected_month = selected_month
         
-        st.markdown("---")
-            if aviso_obra and str(aviso_obra).strip():
-                st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
+        if st.session_state['role'] == 'user':
+            st.markdown("---")
+                if aviso_obra and str(aviso_obra).strip():
+                    st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
+                
         st.markdown("---")
 
         st.subheader("Menu")
