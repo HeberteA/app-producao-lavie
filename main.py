@@ -121,7 +121,7 @@ def load_data(_engine):
         status_df['Mes'] = pd.to_datetime(status_df['Mes']).dt.date
 
     query_folhas = """
-    SELECT f.obra_id, o.nome_obra AS "Obra", f.mes_referencia AS "Mes", f.status
+    SELECT f.obra_id, o.nome_obra AS "Obra", f.mes_referencia AS "Mes", f.status, f.data_lancamento
     FROM folhas_mensais f
     LEFT JOIN obras o ON f.obra_id = o.id;
     """
@@ -1450,6 +1450,32 @@ else:
                 cor_padrao = '#E37026'
 
                 if st.session_state['role'] == 'admin':
+                    st.markdown("---")
+                    st.subheader("Análise de Prazos de Entrega")
+                    folhas_enviadas_df = folhas_df[folhas_df['data_lancamento'].notna()].copy()
+                
+                    if not folhas_enviadas_df.empty:
+                        folhas_enviadas_df['data_lancamento'] = pd.to_datetime(folhas_enviadas_df['data_lancamento'])
+                        folhas_enviadas_df['Mes'] = pd.to_datetime(folhas_enviadas_df['Mes'])
+                        folhas_enviadas_df['data_limite'] = folhas_enviadas_df['Mes'] + pd.DateOffset(months=1)
+                        folhas_enviadas_df['data_limite'] = folhas_enviadas_df['data_limite'].apply(lambda dt: dt.replace(day=23))
+                        folhas_enviadas_df['dias_atraso'] = (folhas_enviadas_df['data_lancamento'].dt.date - folhas_enviadas_df['data_limite'].dt.date).dt.days
+                        folhas_enviadas_df['dias_atraso'] = folhas_enviadas_df['dias_atraso'].apply(lambda x: max(0, x))
+                        media_atraso_por_obra = folhas_enviadas_df.groupby('Obra')['dias_atraso'].mean().round(1).reset_index()
+                        fig_atraso = px.bar(
+                            media_atraso_por_obra.sort_values(by='dias_atraso', ascending=False), 
+                            x='Obra', 
+                            y='dias_atraso',
+                            title="Média de Dias de Atraso na Entrega da Folha",
+                            text_auto=True,
+                            labels={'dias_atraso': 'Média de Dias de Atraso', 'Obra': 'Obra'}
+                        )
+                        fig_atraso.update_traces(marker_color=cor_padrao , textposition='outside')
+                        st.plotly_chart(fig_atraso, use_container_width=True)
+                    else:
+                        st.info("Ainda não há dados de envio de folhas para analisar os prazos.")
+
+
                     st.subheader("Produção por Obra")
                     prod_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().sort_values(ascending=False).reset_index()
                     fig_bar_obra = px.bar(prod_obra, x='Obra', y='Valor Parcial', text_auto=True, title="Produção Total por Obra",template="plotly_dark")
