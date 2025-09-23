@@ -15,11 +15,6 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("""
-<style>
-    /* ... (seu CSS continua o mesmo) ... */
-</style>
-""", unsafe_allow_html=True)
 
 @st.cache_resource(ttl=60)
 def get_db_connection():
