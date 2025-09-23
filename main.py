@@ -724,12 +724,11 @@ else:
         st.session_state.selected_month = selected_month
         
         if st.session_state['role'] == 'user':
-            st.markdown("---")
-                if aviso_obra and str(aviso_obra).strip():
-                    st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
-                
-        st.markdown("---")
+            if aviso_obra and str(aviso_obra).strip():
+                st.markdown("---")
+                st.error(f"📢 Aviso da Auditoria: {aviso_obra}")
 
+        st.markdown("---")
         st.subheader("Menu")
         if 'page' not in st.session_state:
             st.session_state.page = "Auditoria ✏️" if st.session_state['role'] == 'admin' else "Lançamento Folha 📝"
@@ -737,7 +736,7 @@ else:
         if st.session_state['role'] == 'user':
             if st.button("Lançamento Folha 📝", use_container_width=True):
                 st.session_state.page = "Lançamento Folha 📝"
-        else: # Admin
+        else: 
             if st.button("Auditoria ✏️", use_container_width=True):
                 st.session_state.page = "Auditoria ✏️"
             if st.button("Gerenciar Funcionários 👥", use_container_width=True):
@@ -751,9 +750,9 @@ else:
             st.session_state.page = "Remover Lançamentos 🗑️"
         if st.button("Dashboard de Análise 📈", use_container_width=True):
             st.session_state.page = "Dashboard de Análise 📈"
-
         if st.session_state['role'] == 'user':
             st.markdown("---")
+            
             DIA_LIMITE = 23
             hoje = date.today()
             mes_folha_referencia = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
@@ -814,7 +813,7 @@ else:
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
-
+            
         if not lancamentos_df.empty:
             mes_selecionado_dt = pd.to_datetime(st.session_state.selected_month)
             lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
