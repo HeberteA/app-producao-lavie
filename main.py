@@ -75,9 +75,9 @@ def load_data(_engine):
     SELECT
         l.id, l.data_lancamento, l.data_servico, l.obra_id,
         o.nome_obra AS "Obra", f.nome AS "Funcionário", s.disciplina AS "Disciplina",
-        COALESCE(s.descricao, ve.descricao, l.servico_diverso_descricao) AS "Serviço",
+        COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
         CAST(l.quantidade AS INTEGER) AS "Quantidade",
-        COALESCE(s.unidade, ve.unidade, 'UN') AS "Unidade",
+        COALESCE(s.unidade, 'UN') AS "Unidade",
         l.valor_unitario AS "Valor Unitário",
         (l.quantidade * l.valor_unitario) AS "Valor Parcial",
         l.observacao AS "Observação"
@@ -85,7 +85,6 @@ def load_data(_engine):
     LEFT JOIN obras o ON l.obra_id = o.id
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
     LEFT JOIN servicos s ON l.servico_id = s.id
-    LEFT JOIN valores_extras ve ON l.valor_extra_id = ve.id
     WHERE l.arquivado = FALSE;
     """
     lancamentos_df = pd.read_sql(query_lancamentos, _engine)
@@ -124,11 +123,10 @@ def load_data(_engine):
 
     precos_df = pd.read_sql('SELECT id, disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', _engine)
     obras_df = pd.read_sql('SELECT id, nome_obra AS "NOME DA OBRA", status, aviso FROM obras', _engine)
-    valores_extras_df = pd.read_sql('SELECT id, descricao as "VALORES EXTRAS", unidade as "UNIDADE", valor as "VALOR" FROM valores_extras', _engine)
     funcoes_df = pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', _engine)
     acessos_df = pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', _engine)
 
-    return funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
+    return funcionarios_df, precos_df, obras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df
 
 
 def salvar_dados(df_para_salvar, nome_tabela, _engine):
@@ -309,11 +307,11 @@ def salvar_novos_lancamentos(df_para_salvar, engine):
                 query = text("""
                     INSERT INTO lancamentos (
                         data_servico, obra_id, funcionario_id, servico_id,
-                        valor_extra_id, servico_diverso_descricao, quantidade,
+                        servico_diverso_descricao, quantidade,
                         valor_unitario, observacao, data_lancamento
                     ) VALUES (
                         :data_servico, :obra_id, :funcionario_id, :servico_id,
-                        :valor_extra_id, :servico_diverso_descricao, :quantidade,
+                        :servico_diverso_descricao, :quantidade,
                         :valor_unitario, :observacao, :data_lancamento
                     )
                 """)
@@ -665,7 +663,7 @@ else:
     if 'selected_month' not in st.session_state:
         st.session_state.selected_month = datetime.now().strftime('%Y-%m')
     garantir_funcionario_geral(engine)
-    funcionarios_df, precos_df, obras_df, valores_extras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
+    funcionarios_df, precos_df, obras_df, lancamentos_df, status_df, funcoes_df, folhas_df, acessos_df = load_data(engine)
 
     if st.session_state.get('new_launch_received', False):
         st.toast("Novo lançamento recebido! Atualizando a lista...")
@@ -793,7 +791,6 @@ else:
                     lancamentos_df.to_excel(writer, sheet_name='Lançamentos', index=False)
                 funcionarios_df.to_excel(writer, sheet_name='Funcionários', index=False)
                 precos_df.to_excel(writer, sheet_name='Tabela de Preços', index=False)
-                valores_extras_df.to_excel(writer, sheet_name='Valores Extras', index=False)
                 obras_df.to_excel(writer, sheet_name='Obras', index=False)
             st.download_button(
                 label="Clique para baixar o backup",
@@ -893,12 +890,6 @@ else:
                             erros.append("Para o Serviço Principal, o campo 'Observação' é obrigatório.")
                         if descricao_diverso and quantidade_diverso > 0 and not obs_diverso.strip():
                             erros.append("Para o Item Diverso, o campo 'Observação' é obrigatório.")
-                        for extra in extras_selecionados:
-                            if quantidades_extras.get(extra, 0) > 0:
-                                if not datas_servico_extras.get(extra):
-                                    erros.append(f"Para o Item Extra '{extra}', a 'Data do Serviço' é obrigatória.")
-                                if not observacoes_extras.get(extra, "").strip():
-                                    erros.append(f"Para o Item Extra '{extra}', a 'Observação' é obrigatória.")
                         
                         if erros:
                             for erro in erros:
@@ -925,16 +916,6 @@ else:
                                     'quantidade': quantidade_diverso, 'valor_unitario': valor_diverso, 'observacao': obs_diverso, 'data_lancamento': agora, 'servico_nome': descricao_diverso
                                 })
 
-                            for extra in extras_selecionados:
-                                if quantidades_extras.get(extra, 0) > 0:
-                                    extra_info = valores_extras_df[valores_extras_df['VALORES EXTRAS'] == extra].iloc[0]
-                                    valor_unitario_extra = safe_float(extra_info.get('VALOR', 0))
-                                    novos_lancamentos_dicts.append({
-                                        'data_servico': datas_servico_extras[extra],
-                                        'obra_nome': obra_selecionada_nome, 'funcionario_nome': funcionario_selecionado,
-                                        'servico_id': None, 'valor_extra_id': extra_info['id'], 'servico_diverso_descricao': None,
-                                        'quantidade': quantidades_extras[extra], 'valor_unitario': valor_unitario_extra, 'observacao': observacoes_extras[extra], 'data_lancamento': agora, 'servico_nome': extra
-                                    })
        
                             if novos_lancamentos_dicts:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos_dicts)
