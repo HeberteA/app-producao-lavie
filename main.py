@@ -94,7 +94,7 @@ def load_data(_engine):
             'data_lancamento': 'Data',
             'data_servico': 'Data do Serviço'
         })
-        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
+        lancamentos_df['Data'] = lancamentos_df['Data'].dt.strftime('%Y-%m-%d %H:%M:%S')
         lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
 
     query_status = """
