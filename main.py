@@ -64,11 +64,10 @@ def login_page():
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
-# --- Lógica Principal ---
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+    st.set_page_config(page_title="Login") 
     login_page()
 else:
-    # A sidebar é construída aqui para aparecer em todas as páginas
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
@@ -81,6 +80,22 @@ else:
                 obra_logada_id = obra_logada_info.iloc[0]['id']
                 aviso_obra = obra_logada_info.iloc[0]['aviso']
 
+        st.markdown("---")
+
+        st.header("Navegação")
+        
+        if st.session_state['role'] == 'user':
+            st.page_link("pages/1_📝_Lançamento_Folha.py", label="Lançamento Folha", icon="📝")
+
+        if st.session_state['role'] == 'admin':
+            st.page_link("pages/2_✏️_Auditoria.py", label="Auditoria", icon="✏️")
+            st.page_link("pages/3_👥_Gerenciar_Funcionários.py", label="Gerenciar Funcionários", icon="👥")
+            st.page_link("pages/4_🏗️_Gerenciar_Obras.py", label="Gerenciar Obras", icon="🏗️")
+        
+        st.page_link("pages/5_📊_Resumo_da_Folha.py", label="Resumo da Folha", icon="📊")
+        st.page_link("pages/6_🗑️_Remover_Lançamentos.py", label="Remover Lançamentos", icon="🗑️")
+        st.page_link("pages/7_📈_Dashboard_de_Análise.py", label="Dashboard de Análise", icon="📈")
+        
         st.markdown("---")
         st.subheader("Mês de Referência")
         
@@ -173,7 +188,6 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-    # --- PÁGINA PRINCIPAL APÓS O LOGIN ---
     st.title("Bem-vindo ao Sistema de Produção Lavie!")
     st.markdown("---")
     st.header("Utilize o menu de navegação à esquerda para começar.")
@@ -183,3 +197,4 @@ else:
     else:
         st.info(f"Você está logado na obra **{st.session_state['obra_logada']}**. Use o menu para lançar a produção ou ver os resumos.")
 
+ 
