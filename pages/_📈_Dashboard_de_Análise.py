@@ -12,10 +12,9 @@ if engine is None:
     st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
     st.stop()
 
-# Carregamento otimizado de dados
 mes_selecionado = st.session_state.selected_month
 lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
-folhas_df = db_utils.get_folhas_todas(engine) # Pega todas as folhas para a análise histórica de atrasos
+folhas_df = db_utils.get_folhas_todas(engine) 
 
 st.header("Dashboard de Análise")
 
@@ -64,7 +63,6 @@ else:
         top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
         top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
         
-        # Formatação para evitar nomes muito longos nos KPIs
         top_funcionario_display = (top_funcionario[:22] + '...') if len(top_funcionario) > 22 else top_funcionario
         top_servico_display = (top_servico[:22] + '...') if len(top_servico) > 22 else top_servico
 
@@ -155,4 +153,5 @@ else:
             fig_disc_custo = px.bar(disc_custo, y='Disciplina', x='Valor Parcial', orientation='h', title="Top 10 Disciplinas de Maior Custo")
             fig_disc_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
             st.plotly_chart(fig_disc_custo, use_container_width=True)
+
 
