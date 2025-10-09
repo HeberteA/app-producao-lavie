@@ -197,3 +197,4 @@ else:
     st.success(f"Página Principal - Mês de Referência: {st.session_state.selected_month}")
     st.info("Selecione uma opção no menu à esquerda para começar.")
 
+
