@@ -6,4 +6,4 @@ textColor = "#000000ff"
 font = "sans serif"
 
 [ui]
-hideSidebarNav = false
+hideSidebarNav = true
