@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta, date
 import io
+import pandas as pd 
 import db_utils
 import utils
 
@@ -75,7 +76,7 @@ else:
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            obras_df = db_utils.get_obras() 
+            obras_df = db_utils.get_obras() # Carrega apenas quando necessário
             obra_logada_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
             if not obra_logada_info.empty:
                 obra_logada_id = obra_logada_info.iloc[0]['id']
@@ -130,7 +131,7 @@ else:
                     else:
                         st.success(f"Status: {status_folha}")
 
-                else: 
+                else:
                     dias_para_o_prazo = DIA_LIMITE - hoje.day
                     if dias_para_o_prazo < 0:
                         st.error(f"Vencida há {abs(dias_para_o_prazo)} dia(s)!")
@@ -148,6 +149,7 @@ else:
         st.subheader("Backup dos Dados")
         if st.button("📥 Baixar Backup em Excel", use_container_width=True):
             with st.spinner("Gerando backup..."):
+                # Carrega os dados apenas no momento do clique
                 lancamentos_backup = db_utils.get_lancamentos_do_mes(selected_month)
                 funcionarios_backup = db_utils.get_funcionarios()
                 precos_backup = db_utils.get_precos()
