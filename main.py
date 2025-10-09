@@ -64,12 +64,14 @@ def login_page():
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
-if 'logged_in' not in st.session_state or not st.session_state.logged_in:
-    st.set_page_config(page_title="Login") 
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
     login_page()
 else:
     with st.sidebar:
-        st.image("Lavie.png", use_container_width=True)
+        st.image("Lavie1.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
         else:
@@ -83,18 +85,42 @@ else:
         st.markdown("---")
 
         st.header("Navegação")
+    
+        if st.session_state.role == 'user':
+            if st.button("📝 Lançamento Folha", use_container_width=True):
+                st.session_state.page = 'lancamento_folha'
+        if st.session_state.role == 'admin':
+            if st.button("✏️ Auditoria", use_container_width=True):
+                st.session_state.page = 'auditoria'
+            if st.button("👥 Gerenciar Funcionários", use_container_width=True):
+                st.session_state.page = 'gerenciar_funcionarios'
+            if st.button("🏗️ Gerenciar Obras", use_container_width=True):
+                st.session_state.page = 'gerenciar_obras'
         
-        if st.session_state['role'] == 'user':
-            st.page_link("pages/01_Lancamento_Folha.py", label="📝 Lançamento Folha", use_container_width=True)
+        if st.button("📊 Resumo da Folha", use_container_width=True):
+            st.session_state.page = 'resumo_da_folha'
+        if st.button("🗑️ Remover Lançamentos", use_container_width=True):
+            st.session_state.page = 'remover_lancamentos'
+        if st.button("📈 Dashboard de Análise", use_container_width=True):
+            st.session_state.page = 'dashboard_de_analise'
 
-        if st.session_state['role'] == 'admin':
-            st.page_link("pages/02_Auditoria.py", label="✏️ Auditoria", use_container_width=True)
-            st.page_link("pages/03_Gerenciar_Funcionarios.py", label="👥 Gerenciar Funcionários", use_container_width=True)
-            st.page_link("pages/04_Gerenciar_Obras.py", label="🏗️ Gerenciar Obras", use_container_width=True)
-        
-        st.page_link("pages/05_Resumo_da_Folha.py", label="📊 Resumo da Folha", use_container_width=True)
-        st.page_link("pages/06_Remover_Lancamentos.py", label="🗑️ Remover Lançamentos", use_container_width=True)
-        st.page_link("pages/07_Dashboard_de_Analise.py", label="📈 Dashboard de Análise", use_container_width=True)
+    if 'page' not in st.session_state:
+        st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
+
+    if st.session_state.page == 'lancamento_folha':
+        lancamento_folha.render_page()
+    elif st.session_state.page == 'auditoria':
+        auditoria.render_page()
+    elif st.session_state.page == 'gerenciar_funcionarios':
+        gerenciar_funcionarios.render_page()
+    elif st.session_state.page == 'gerenciar_obras':
+        gerenciar_obras.render_page()
+    elif st.session_state.page == 'resumo_da_folha':
+        resumo_da_folha.render_page()
+    elif st.session_state.page == 'remover_lancamentos':
+        remover_lancamentos.render_page()
+    elif st.session_state.page == 'dashboard_de_analise':
+        dashboard_de_analise.render_page()
         
         st.markdown("---")
         st.subheader("Mês de Referência")
@@ -196,4 +222,5 @@ else:
         st.info("Você está logado como **Administrador**. Você tem acesso a todas as páginas de gerenciamento e auditoria.")
     else:
         st.info(f"Você está logado na obra **{st.session_state['obra_logada']}**. Use o menu para lançar a produção ou ver os resumos.")
+
 
