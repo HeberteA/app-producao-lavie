@@ -14,7 +14,7 @@ st.set_page_config(
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie1.png", width=1000)
+        st.image("Lavie.png", width=1000)
 
     st.header("Login")
 
@@ -69,7 +69,7 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     login_page()
 else:
     with st.sidebar:
-        st.image("Lavie1.png", use_container_width=True)
+        st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
         else:
@@ -198,3 +198,4 @@ else:
         st.info(f"Você está logado na obra **{st.session_state['obra_logada']}**. Use o menu para lançar a produção ou ver os resumos.")
 
    
+
