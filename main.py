@@ -14,7 +14,7 @@ st.set_page_config(
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=1000)
+        st.image("Lavie1.png", width=1000)
 
     st.header("Login")
 
@@ -69,7 +69,7 @@ if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     login_page()
 else:
     with st.sidebar:
-        st.image("Lavie.png", use_container_width=True)
+        st.image("Lavie1.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
         else:
@@ -85,16 +85,16 @@ else:
         st.header("Navegação")
         
         if st.session_state['role'] == 'user':
-            st.page_link("1_📝_Lançamento_Folha.py", label="Lançamento Folha", icon="📝")
+            st.page_link("pages/01_Lancamento_Folha.py", label="Lançamento Folha", icon="📝")
 
         if st.session_state['role'] == 'admin':
-            st.page_link("2_✏️_Auditoria.py", label="Auditoria", icon="✏️")
-            st.page_link("3_👥_Gerenciar_Funcionários.py", label="Gerenciar Funcionários", icon="👥")
-            st.page_link("4_🏗️_Gerenciar_Obras.py", label="Gerenciar Obras", icon="🏗️")
+            st.page_link("pages/02_Auditoria.py", label="Auditoria", icon="✏️")
+            st.page_link("pages/03_Gerenciar_Funcionarios.py", label="Gerenciar Funcionários", icon="👥")
+            st.page_link("pages/04_Gerenciar_Obras.py", label="Gerenciar Obras", icon="🏗️")
         
-        st.page_link("5_📊_Resumo_da_Folha.py", label="Resumo da Folha", icon="📊")
-        st.page_link("6_🗑️_Remover_Lançamentos.py", label="Remover Lançamentos", icon="🗑️")
-        st.page_link("7_📈_Dashboard_de_Análise.py", label="Dashboard de Análise", icon="📈")
+        st.page_link("pages/05_Resumo_da_Folha.py", label="Resumo da Folha", icon="📊")
+        st.page_link("pages/06_Remover_Lancamentos.py", label="Remover Lançamentos", icon="🗑️")
+        st.page_link("pages/07_Dashboard_de_Analise.py", label="Dashboard de Análise", icon="📈")
         
         st.markdown("---")
         st.subheader("Mês de Referência")
@@ -197,5 +197,4 @@ else:
     else:
         st.info(f"Você está logado na obra **{st.session_state['obra_logada']}**. Use o menu para lançar a produção ou ver os resumos.")
 
-   
 
