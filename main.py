@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta, date
 import io
-import pandas as pd 
+import pandas as pd
 import db_utils
 import utils
 
@@ -64,19 +64,18 @@ def login_page():
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
+# --- Lógica Principal ---
 if 'logged_in' not in st.session_state or not st.session_state.logged_in:
     login_page()
 else:
-    if 'selected_month' not in st.session_state:
-        st.session_state.selected_month = datetime.now().strftime('%Y-%m')
-
+    # A sidebar é construída aqui para aparecer em todas as páginas
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            obras_df = db_utils.get_obras() # Carrega apenas quando necessário
+            obras_df = db_utils.get_obras()
             obra_logada_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
             if not obra_logada_info.empty:
                 obra_logada_id = obra_logada_info.iloc[0]['id']
@@ -86,13 +85,13 @@ else:
         st.subheader("Mês de Referência")
         
         current_month_str = datetime.now().strftime('%Y-%m')
-        available_months = [current_month_str, (datetime.now() - timedelta(days=30)).strftime('%Y-%m')] 
+        available_months = [current_month_str, (datetime.now() - timedelta(days=30)).strftime('%Y-%m')]
         available_months = sorted(list(set(available_months)), reverse=True)
 
         selected_month = st.selectbox(
             "Selecione o Mês", 
             options=available_months, 
-            index=available_months.index(st.session_state.selected_month if st.session_state.selected_month in available_months else current_month_str),
+            index=available_months.index(st.session_state.get('selected_month', current_month_str)),
             label_visibility="collapsed"
         )
         st.session_state.selected_month = selected_month
@@ -130,7 +129,6 @@ else:
                             st.rerun()
                     else:
                         st.success(f"Status: {status_folha}")
-
                 else:
                     dias_para_o_prazo = DIA_LIMITE - hoje.day
                     if dias_para_o_prazo < 0:
@@ -149,7 +147,6 @@ else:
         st.subheader("Backup dos Dados")
         if st.button("📥 Baixar Backup em Excel", use_container_width=True):
             with st.spinner("Gerando backup..."):
-                # Carrega os dados apenas no momento do clique
                 lancamentos_backup = db_utils.get_lancamentos_do_mes(selected_month)
                 funcionarios_backup = db_utils.get_funcionarios()
                 precos_backup = db_utils.get_precos()
@@ -161,7 +158,6 @@ else:
                     'Tabela de Preços': precos_backup,
                     'Obras': obras_backup
                 })
-
                 st.download_button(
                     label="Clique para baixar o backup",
                     data=excel_data,
@@ -176,4 +172,14 @@ else:
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
+
+    # --- PÁGINA PRINCIPAL APÓS O LOGIN ---
+    st.title("Bem-vindo ao Sistema de Produção Lavie!")
+    st.markdown("---")
+    st.header("Utilize o menu de navegação à esquerda para começar.")
+
+    if st.session_state['role'] == 'admin':
+        st.info("Você está logado como **Administrador**. Você tem acesso a todas as páginas de gerenciamento e auditoria.")
+    else:
+        st.info(f"Você está logado na obra **{st.session_state['obra_logada']}**. Use o menu para lançar a produção ou ver os resumos.")
 
