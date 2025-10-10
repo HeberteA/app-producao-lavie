@@ -10,10 +10,11 @@ def render_page(engine):
         st.stop()
 
     mes_selecionado = st.session_state.selected_month
-    funcionarios_df = db_utils.get_funcionarios()
-    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
-    status_df = db_utils.get_status_do_mes(mes_selecionado)
-    obras_df = db_utils.get_obras() 
+    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
+    funcionarios_df = db_utils.get_funcionarios(engine)
+    obras_df = db_utils.get_obras(engine)
+    status_df = db_utils.get_status_do_mes(engine, mes_selecionado)
+    folhas_df = db_utils.get_folhas(engine, mes_selecionado)
 
     st.header("Resumo da Folha")
 
@@ -81,5 +82,6 @@ def render_page(engine):
             ),
             use_container_width=True
         )
+
 
 
