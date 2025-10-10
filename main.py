@@ -24,8 +24,8 @@ def login_page():
     with col2:
         st.image("Lavie.png", width=1000)
     st.header("Login")
-    obras_df_login = db_utils.get_obras(engine)
-    acessos_df_login = db_utils.get_acessos(engine)
+    obras_df_login = db_utils.get_obras()
+    acessos_df_login = db_utils.get_acessos()
     if obras_df_login.empty or acessos_df_login.empty:
         st.error("Não foi possível carregar os dados das obras para o login.")
         return
@@ -146,6 +146,7 @@ else:
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
         dashboard_de_analise.render_page()
+
 
 
 
