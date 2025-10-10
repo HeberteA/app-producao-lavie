@@ -68,10 +68,16 @@ if 'logged_in' not in st.session_state:
 if not st.session_state.logged_in:
     login_page()
 else:
+    engine = db_utils.get_db_connection()
+    if engine is None:
+        st.error("Falha crítica na conexão com o banco de dados. O aplicativo não pode continuar.")
+        st.stop()
+
     if 'selected_month' not in st.session_state:
         st.session_state.selected_month = datetime.now().strftime('%Y-%m')
     if 'page' not in st.session_state:
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
+
 
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
@@ -140,5 +146,6 @@ else:
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
         dashboard_de_analise.render_page()
+
 
 
