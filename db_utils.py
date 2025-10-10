@@ -106,6 +106,8 @@ def get_folhas(mes_referencia):
     if not df.empty and 'Mes' in df.columns:
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
+
+
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
     if engine is None: return
@@ -135,14 +137,9 @@ def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, com
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # CORREÇÃO: A cláusula SET agora usa EXCLUDED para referenciar os novos valores,
-                # o que é a sintaxe correta para ON CONFLICT.
                 if comentario is not None:
-                    # Se um novo comentário for fornecido, atualiza ambos.
                     set_clause = "SET status = EXCLUDED.status, comentario = EXCLUDED.comentario"
                 else:
-                    # Se nenhum comentário for fornecido, atualiza apenas o status,
-                    # preservando o comentário existente no banco de dados.
                     set_clause = "SET status = EXCLUDED.status"
                 
                 query_insert = text(f"""
@@ -152,8 +149,6 @@ def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, com
                     DO UPDATE {set_clause};
                 """)
                 
-                # Prepara os parâmetros para a inserção. Se o comentário for None,
-                # um texto vazio é usado para o caso de a linha ser nova.
                 insert_params = {
                     'obra_id': obra_id, 
                     'func_id': funcionario_id, 
@@ -297,5 +292,4 @@ def atualizar_observacoes(updates_list):
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
         return False
-
 
