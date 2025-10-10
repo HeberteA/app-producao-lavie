@@ -21,26 +21,18 @@ def render_page():
             filtro_col1, filtro_col2 = st.columns(2)
             with filtro_col1:
                 obras_disponiveis = sorted(df_filtrado_dash['Obra'].unique())
-                obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis)
+                obras_filtradas_dash = st.multiselect("Filtrar por Obra(s)", options=[], key="da_obras_admin")
                 if obras_filtradas_dash:
                     df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'].isin(obras_filtradas_dash)]
             with filtro_col2:
                 funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-                funcionarios_filtrados_dash = st.multiselect(
-                    "Filtrar por Funcionário(s)", 
-                    options=funcionarios_disponiveis, 
-                    key="dash_func_admin"
-                )
+                funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=[], key="da_func_admin")
                 if funcionarios_filtrados_dash:
                     df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
         else: 
             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'] == st.session_state['obra_logada']]
             funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
-            funcionarios_filtrados_dash = st.multiselect(
-                "Filtrar por Funcionário(s)", 
-                options=funcionarios_disponiveis, 
-                key="dash_func_user"
-            )
+            funcionarios_filtrados_dash = st.multiselect("Filtrar por Funcionário(s)", options=[], key="da_func_user")
             if funcionarios_filtrados_dash:
                 df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
 
