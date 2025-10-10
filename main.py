@@ -66,7 +66,7 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    login_page()
+    login_page(engine)
 else:
     engine = db_utils.get_db_connection()
     if engine is None:
@@ -146,6 +146,7 @@ else:
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
         dashboard_de_analise.render_page()
+
 
 
 
