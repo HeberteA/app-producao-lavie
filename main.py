@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide"
 )
 
-def login_page(engine):
+def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.image("Lavie.png", width=1000)
@@ -66,7 +66,7 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    login_page(engine)
+    login_page()
 else:
     engine = db_utils.get_db_connection()
     if engine is None:
@@ -146,6 +146,7 @@ else:
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
         dashboard_de_analise.render_page()
+
 
 
 
