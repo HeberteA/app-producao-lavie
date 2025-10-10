@@ -1,7 +1,7 @@
 import streamlit as st
 import db_utils
 
-def render_page():
+def render_page(engine):
     engine = db_utils.get_db_connection()
     if engine is None:
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
@@ -84,4 +84,5 @@ def render_page():
                     if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao):
                         st.cache_data.clear()
                         st.rerun()
+
 
