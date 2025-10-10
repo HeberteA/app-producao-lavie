@@ -76,7 +76,7 @@ else:
         st.error("Falha crítica na conexão com o banco de dados. O aplicativo não pode continuar.")
         st.stop()
 
-     if 'selected_month' not in st.session_state:
+    if 'selected_month' not in st.session_state:
         st.session_state.selected_month = datetime.now().strftime('%Y-%m')
     if 'page' not in st.session_state:
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
@@ -180,3 +180,4 @@ else:
     
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
