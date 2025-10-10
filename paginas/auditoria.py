@@ -52,7 +52,6 @@ def render_page():
                 resumo_df = resumo_df.drop(columns=['Funcionário'])
 
             resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
-            
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
 
             if funcionarios_filtrados:
@@ -89,47 +88,72 @@ def render_page():
                         utils.display_status_box("Status", status_atual_func)
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
-                    col_status, col_comment = st.columns(2)
-                    with col_status:
-                        st.markdown("##### Status do Funcionário")
-                        status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
-                        idx_func = status_options_func.index(status_atual_func)
-                        selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{funcionario_id}", disabled=edicao_bloqueada)
-                        if st.button("Salvar Status do Funcionário", key=f"btn_func_{funcionario_id}", disabled=edicao_bloqueada):
-                            if db_utils.upsert_status_auditoria(engine, obra_id_selecionada, funcionario_id, selected_status_func, mes_selecionado, funcionario, obra_selecionada, current_comment):
-                                st.cache_data.clear()
-                                st.rerun()
-                                
-                    with col_comment:
-                        st.markdown("##### Comentário de Auditoria")
-                        new_comment = st.text_area("Adicionar/Editar Comentário:", value=current_comment, key=f"comment_{funcionario_id}", label_visibility="collapsed", disabled=edicao_bloqueada)
-                        if st.button("Salvar Comentário", key=f"btn_comment_{funcionario_id}", disabled=edicao_bloqueada):
-                            if db_utils.upsert_status_auditoria(engine, obra_id_selecionada, funcionario_id, status_atual_func, mes_selecionado, funcionario, obra_selecionada, new_comment):
-                                st.toast("Comentário salvo!", icon="💬")
-                                st.cache_data.clear()
-                                st.rerun()
+                        col_status, col_comment = st.columns(2)
+                        with col_status:
+                            st.markdown("##### Status do Funcionário")
+                            status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
+                            idx_func = status_options_func.index(status_atual_func) if status_atual_func in status_options_func else 0
+                            selected_status_func = st.radio(
+                                "Definir Status:", options=status_options_func, index=idx_func, horizontal=True, 
+                                key=f"status_{obra_selecionada}_{funcionario}",
+                                disabled=edicao_bloqueada
+                            )
+                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
+                                if selected_status_func != status_atual_func:
+                                    db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, selected_status_func, mes_selecionado)
+                                    st.toast(f"Status de {funcionario} atualizado!", icon="✅")
+                                    st.cache_data.clear()
+                                    st.rerun()
                                     
-                    st.markdown("---")
-                    st.markdown("##### Lançamentos e Observações")
-                    lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
-                    if lancamentos_do_funcionario.empty:
-                        st.info("Nenhum lançamento para este funcionário.")
-                    else:
-                        edited_df = st.data_editor(
-                            lancamentos_do_funcionario,
-                            key=f"editor_{funcionario_id}",
-                            hide_index=True,
-                            disabled=['id', 'Data', 'Data do Serviço', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial'],
-                            column_config={ "id": None, "Observação": st.column_config.TextColumn(width="medium") }
-                        )
-                        if not edited_df.equals(lancamentos_do_funcionario):
-                            if st.button("Salvar Observações", key=f"save_obs_{funcionario_id}", type="primary", disabled=edicao_bloqueada):
+                        with col_comment:
+                            st.markdown("##### Comentário de Auditoria")
+                            comment_row = status_df[(status_df['funcionario_id'] == func_id)]
+                            current_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and 'Comentario' in comment_row.columns else ""
+                            new_comment = st.text_area(
+                                "Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario}",
+                                help="Este comentário será visível na tela de lançamento.", label_visibility="collapsed",
+                                disabled=edicao_bloqueada
+                            )
+                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
+                                db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, status_atual_func, mes_selecionado, comentario=new_comment)
+                                st.toast("Comentário salvo com sucesso!", icon="💬")
+                                st.cache_data.clear()
+                                st.rerun()
+                                        
+                        st.markdown("---")
+                        st.markdown("##### Lançamentos e Observações")
+                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
+                        if lancamentos_do_funcionario.empty:
+                            st.info("Nenhum lançamento de produção para este funcionário.")
+                        else:
+                            colunas_visiveis = [
+                                'id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade',
+                                'Valor Unitário', 'Valor Parcial', 'Observação'
+                            ]
+                            
+                            edited_df = st.data_editor(
+                                lancamentos_do_funcionario[colunas_visiveis],
+                                key=f"editor_{obra_selecionada}_{funcionario}",
+                                hide_index=True,
+                                column_config={
+                                    "id": None, 
+                                    "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
+                                    "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
+                                },
+                                disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
+                            )
+                            
+                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=edicao_bloqueada):
                                 original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
                                 edited_obs = edited_df.set_index('id')['Observação']
                                 alteracoes = edited_obs[original_obs != edited_obs]
+
                                 if not alteracoes.empty:
-                                    updates_list = [{'id': lanc_id, 'obs': nova_obs} for lanc_id, nova_obs in alteracoes.items()]
-                                    if db_utils.atualizar_observacoes(engine, updates_list):
-                                        st.toast("Observações salvas!", icon="✅")
+                                    updates_list = [{'id': int(lanc_id), 'obs': nova_obs} for lanc_id, nova_obs in alteracoes.items()]
+                                    if db_utils.atualizar_observacoes(updates_list):
+                                        st.toast("Observações salvas com sucesso!", icon="✅")
                                         st.cache_data.clear()
                                         st.rerun()
+                                else:
+                                    st.toast("Nenhuma alteração detectada.", icon="🤷")
+
