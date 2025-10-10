@@ -76,8 +76,8 @@ def render_page():
                 st.cache_data.clear()
                 st.rerun()
 
-        pode_devolver = status_folha == "Enviada para Auditoria"
-        if st.button("Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver):
+        pode_devolver = status_auditoria_interno == "Analisar" and status_folha == "Enviada para Auditoria"
+        if st.button("🔙 Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver, help="O status interno precisa ser 'Analisar' e a folha 'Enviada para Auditoria' para devolver."):
             if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado):
                 st.cache_data.clear()
                 st.rerun()
