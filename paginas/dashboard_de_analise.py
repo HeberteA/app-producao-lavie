@@ -5,14 +5,13 @@ import db_utils
 import utils
 
 def render_page(engine):
-    engine = db_utils.get_db_connection()
     if engine is None:
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
         st.stop()
 
     mes_selecionado = st.session_state.selected_month
-    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
-    folhas_df = db_utils.get_folhas(mes_selecionado)
+    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
+    folhas_df = db_utils.get_folhas(engine, mes_selecionado)
 
     st.header("Dashboard de Análise")
 
