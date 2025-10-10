@@ -4,13 +4,11 @@ import db_utils
 import utils
 
 def render_page():
-
     mes_selecionado = st.session_state.selected_month
-    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
     funcionarios_df = db_utils.get_funcionarios()
-    obras_df = db_utils.get_obras()
+    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
     status_df = db_utils.get_status_do_mes(mes_selecionado)
-    folhas_df = db_utils.get_folhas(mes_selecionado)
+    obras_df = db_utils.get_obras()
 
     st.header("Resumo da Folha")
 
@@ -19,20 +17,20 @@ def render_page():
     if st.session_state['role'] == 'user':
         base_para_resumo = base_para_resumo[base_para_resumo['OBRA'] == st.session_state['obra_logada']]
         funcionarios_disponiveis = base_para_resumo['NOME'].unique()
-        funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s) específico(s):", options=funcionarios_disponiveis, key="resumo_func_user")
+        funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s) específico(s):", options=[], key="rf_func_user")
         if funcionarios_filtrados:
             base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
     else: 
         filtro_col1, filtro_col2 = st.columns(2)
         with filtro_col1:
             obras_disponiveis = obras_df['NOME DA OBRA'].unique()
-            obras_filtradas = st.multiselect("Filtrar por Obra(s)", options=obras_disponiveis, key="resumo_obras_admin")
+            obras_filtradas = st.multiselect("Filtrar por Obra(s)", options=[], key="rf_obras_admin")
             if obras_filtradas:
                 base_para_resumo = base_para_resumo[base_para_resumo['OBRA'].isin(obras_filtradas)]
         
         with filtro_col2:
             funcionarios_disponiveis = base_para_resumo['NOME'].unique()
-            funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s):", options=funcionarios_disponiveis, key="resumo_func_admin")
+            funcionarios_filtrados = st.multiselect("Filtrar por Funcionário(s):", options=[], key="rf_func_admin")
             if funcionarios_filtrados:
                 base_para_resumo = base_para_resumo[base_para_resumo['NOME'].isin(funcionarios_filtrados)]
 
@@ -78,6 +76,7 @@ def render_page():
             ),
             use_container_width=True
         )
+
 
 
 
