@@ -10,13 +10,14 @@ def render_page():
         st.stop()
 
     mes_selecionado = st.session_state.selected_month
+    
     lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
     funcionarios_df = db_utils.get_funcionarios()
     obras_df = db_utils.get_obras()
     status_df = db_utils.get_status_do_mes(mes_selecionado)
     folhas_df = db_utils.get_folhas(mes_selecionado)
 
-    st.header(f"Auditoria de Lançamentos - {st.session_state.selected_month}")
+    st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
     
     col_filtro1, col_filtro2 = st.columns(2)
     nomes_obras_disponiveis = sorted(obras_df['NOME DA OBRA'].unique())
@@ -28,24 +29,31 @@ def render_page():
         funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
     
     if obra_selecionada:
-        obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
+        obra_id_selecionada_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id']
+        if obra_id_selecionada_info.empty:
+            st.error("Obra selecionada não encontrada no banco de dados.")
+            st.stop()
+        obra_id_selecionada = int(obra_id_selecionada_info.iloc[0])
+
         lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
         funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
         
         folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
         status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
 
-        edicao_bloqueada = status_folha in ["Finalizada", "Enviada para Auditoria"]
+        edicao_bloqueada = status_folha in ["Finalizada"]
+        pode_auditar = status_folha == "Enviada para Auditoria"
+        
         if status_folha == "Finalizada":
-            st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi finalizada e arquivada.")
-        elif status_folha == "Enviada para Auditoria":
-             st.info(f"ℹ️ A folha para {obra_selecionada} em {mes_selecionado} está aguardando auditoria. As edições estão bloqueadas.")
+            st.success(f"✅ A folha para {obra_selecionada} já foi finalizada e arquivada.")
+        elif pode_auditar:
+            st.info(f"ℹ️ A folha está aguardando auditoria. As edições estão bloqueadas para a obra.")
 
         st.markdown("---")
 
         st.subheader("Gerenciamento Geral da Obra")
         
-        status_geral_row = status_df[status_df['funcionario_id'] == 0] 
+        status_geral_row = status_df[(status_df['obra_id'] == obra_id_selecionada) & (status_df['funcionario_id'] == 0)]
         status_auditoria_interno = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
         
         col_status_geral, col_aviso_geral = st.columns(2)
@@ -55,7 +63,7 @@ def render_page():
             utils.display_status_box("Status Interno de Auditoria", status_auditoria_interno)
             st.info(f"Status de Envio da Obra: **{status_folha}**")
 
-            with st.popover("Alterar Status Interno", disabled=edicao_bloqueada):
+            with st.popover("Alterar Status Interno", disabled=not pode_auditar):
                 status_options = ['A Revisar', 'Analisar', 'Aprovado']
                 idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
                 selected_status_obra = st.radio("Defina o status interno:", options=status_options, index=idx, horizontal=True)
@@ -66,14 +74,14 @@ def render_page():
                         st.cache_data.clear()
                         st.rerun()
 
-            if status_folha == "Enviada para Auditoria":
+            if pode_auditar:
                 if st.button("🔙 Devolver Folha para Revisão", use_container_width=True):
                     if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado):
                         st.cache_data.clear()
                         st.rerun()
 
-            pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
-            if st.button("🚀 Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="O status interno da auditoria precisa ser 'Aprovado' para finalizar a folha."):
+            pode_finalizar = status_auditoria_interno == "Aprovado" and pode_auditar
+            if st.button("🚀 Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="O status interno da auditoria precisa ser 'Aprovado' para finalizar."):
                 mes_dt = pd.to_datetime(mes_selecionado)
                 if db_utils.launch_monthly_sheet(obra_id_selecionada, mes_dt, obra_selecionada):
                     st.cache_data.clear()
@@ -81,7 +89,8 @@ def render_page():
 
         with col_aviso_geral:
             st.markdown("##### Aviso Geral para a Obra")
-            aviso_atual = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso'].iloc[0]
+            aviso_atual_info = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso']
+            aviso_atual = aviso_atual_info.iloc[0] if not aviso_atual_info.empty else ""
             novo_aviso = st.text_area(
                 "Edite o aviso que aparecerá na tela da obra:", value=aviso_atual or "", 
                 key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
@@ -96,28 +105,18 @@ def render_page():
 
         if not funcionarios_obra_df.empty:
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            
             resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
             resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-            
-            if 'Funcionário' in resumo_df.columns:
-                resumo_df = resumo_df.drop(columns=['Funcionário'])
-
+            if 'Funcionário' in resumo_df.columns: resumo_df = resumo_df.drop(columns=['Funcionário'])
             resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
-            resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+            if 'SALÁRIO BASE (R$)' in resumo_df.columns and 'PRODUÇÃO (R$)' in resumo_df.columns:
+                 resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+            else:
+                 resumo_df['SALÁRIO A RECEBER (R$)'] = 0
 
             if funcionarios_filtrados:
                 resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
             
-            total_producao_obra = resumo_df['PRODUÇÃO (R$)'].sum()
-            num_funcionarios = len(resumo_df)
-
-            col1, col2 = st.columns(2)
-            col1.metric("Produção Total da Obra", f"R$ {total_producao_obra:,.2f}")
-            col2.metric("Nº de Funcionários", num_funcionarios)
-        
-            st.markdown("---")
             st.subheader("Análise por Funcionário")
 
             if resumo_df.empty:
