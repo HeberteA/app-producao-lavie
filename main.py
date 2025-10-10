@@ -147,7 +147,8 @@ else:
     elif page_to_render == 'remover_lancamentos':
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
-        dashboard_de_analise.render_page()try:
+        dashboard_de_analise.render_page()
+        try:
             current_index = available_months.index(st.session_state.selected_month)
         except ValueError:
             current_index = 0 
@@ -180,4 +181,5 @@ else:
     
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
