@@ -3,17 +3,11 @@ import pandas as pd
 import db_utils
 import utils
 
-def render_page(engine):
+def render_page():
     if st.session_state['role'] != 'admin':
-        st.error("Você não tem permissão para acessar esta página.")
         st.stop()
-
-    if engine is None:
-        st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
-        st.stop()
-
     
-    obras_df = db_utils.get_obras(engine)
+    obras_df = db_utils.get_obras()
     status_df = db_utils.get_status_do_mes(st.session_state.selected_month)
     
     st.header("Gerenciar Obras 🏗️")
@@ -102,6 +96,7 @@ def render_page(engine):
                         st.rerun()
                 else:
                     st.warning("Por favor, selecione uma obra e digite o novo código.")
+
 
 
 
