@@ -3,7 +3,7 @@ import pandas as pd
 import db_utils
 import utils
 
-def render_page():
+def render_page(engine):
     if st.session_state['role'] != 'admin':
         st.error("Você não tem permissão para acessar esta página.")
         st.stop()
@@ -102,4 +102,5 @@ def render_page():
                         st.rerun()
                 else:
                     st.warning("Por favor, selecione uma obra e digite o novo código.")
+
 
