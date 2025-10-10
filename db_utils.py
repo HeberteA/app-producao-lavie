@@ -3,7 +3,6 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
 
-# --- CONEXÃO ---
 @st.cache_resource(ttl=60)
 def get_db_connection():
     try:
@@ -13,7 +12,6 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
-# --- FUNÇÕES DE LEITURA (com cache e autossuficientes) ---
 
 @st.cache_data(ttl=300)
 def get_funcionarios():
@@ -108,9 +106,6 @@ def get_folhas(mes_referencia):
     if not df.empty and 'Mes' in df.columns:
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
-
-# --- FUNÇÕES DE ESCRITA (sem cache) ---
-
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
     if engine is None: return
@@ -302,4 +297,5 @@ def atualizar_observacoes(updates_list):
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
         return False
+
 
