@@ -5,13 +5,13 @@ import pandas as pd
 import db_utils
 import utils
 
-from pages import lancamento_folha
-from pages import auditoria
-from pages import gerenciar_funcionarios
-from pages import gerenciar_obras
-from pages import resumo_da_folha
-from pages import remover_lancamentos
-from pages import dashboard_de_analise
+from paginas import lancamento_folha
+from paginas import auditoria
+from paginas import gerenciar_funcionarios
+from paginas import gerenciar_obras
+from paginas import resumo_da_folha
+from paginas import remover_lancamentos
+from paginas import dashboard_de_analise
 
 st.set_page_config(
     page_title="Cadastro de Produção",
@@ -140,4 +140,5 @@ else:
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
         dashboard_de_analise.render_page()
+
 
