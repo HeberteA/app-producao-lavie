@@ -2,7 +2,7 @@ import streamlit as st
 import db_utils
 import utils
 
-def render_page():
+def render_page(engine):
     if st.session_state['role'] != 'admin':
         st.error("Você não tem permissão para acessar esta página.")
         st.stop()
@@ -139,4 +139,5 @@ def render_page():
                         st.rerun()
                 else:
                     st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
+
 
