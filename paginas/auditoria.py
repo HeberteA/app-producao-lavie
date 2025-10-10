@@ -4,22 +4,19 @@ import db_utils
 import utils
 
 def render_page():
-    if st.session_state['role'] != 'admin':
-        st.error("Você não tem permissão para acessar esta página.")
-        st.stop()
-
     engine = db_utils.get_db_connection()
     if engine is None:
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
         st.stop()
+
+    st.header(f"Auditoria de Lançamentos - {st.session_state.selected_month}")
     
     mes_selecionado = st.session_state.selected_month
-    
-    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
-    funcionarios_df = db_utils.get_funcionarios(engine)
-    obras_df = db_utils.get_obras(engine)
-    status_df = db_utils.get_status_do_mes(engine, mes_selecionado)
-    folhas_df = db_utils.get_folhas(engine, mes_selecionado)
+    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
+    funcionarios_df = db_utils.get_funcionarios()
+    obras_df = db_utils.get_obras()
+    status_df = db_utils.get_status_do_mes(mes_selecionado)
+    folhas_df = db_utils.get_folhas(mes_selecionado)
     
     st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
 
