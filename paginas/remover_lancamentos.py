@@ -8,8 +8,8 @@ def render_page(engine):
         st.stop()
     
     mes_selecionado = st.session_state.selected_month
-    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
-    obras_df = db_utils.get_obras()
+    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
+    obras_df = db_utils.get_obras(engine)
 
     st.header("Gerenciar Lançamentos")
     
@@ -84,5 +84,6 @@ def render_page(engine):
                     if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao):
                         st.cache_data.clear()
                         st.rerun()
+
 
 
