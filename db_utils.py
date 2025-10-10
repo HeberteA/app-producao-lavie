@@ -13,16 +13,13 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
         
-@st.cache_data
+@st.cache_data(ttl=300)
 def get_funcionarios():
-    """Busca todos os funcionários ativos."""
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
-    
     query = """
-    SELECT
-        f.id, f.obra_id, f.nome as "NOME", o.nome_obra as "OBRA",
-        fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
+    SELECT f.id, f.obra_id, f.nome as "NOME", o.nome_obra as "OBRA", 
+           fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
     FROM funcionarios f
     JOIN obras o ON f.obra_id = o.id
     JOIN funcoes fn ON f.funcao_id = fn.id
@@ -48,36 +45,29 @@ def get_obras():
     query = 'SELECT id, nome_obra AS "NOME DA OBRA", status, aviso FROM obras'
     return pd.read_sql(query, engine)
 
-@st.cache_data
-def get_lancamentos_do_mes(mes_referencia_str):
-    """Busca os lançamentos não arquivados para um mês de referência específico."""
+@st.cache_data(ttl=60)
+def get_lancamentos_do_mes(mes_referencia):
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
-
-    mes_inicio = pd.to_datetime(mes_referencia_str).strftime('%Y-%m-01')
-    
     query = text("""
-    SELECT
-        l.id, l.data_lancamento AS "Data", l.data_servico AS "Data do Serviço", 
-        l.obra_id, o.nome_obra AS "Obra", f.nome AS "Funcionário", 
-        s.disciplina AS "Disciplina",
-        COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
-        CAST(l.quantidade AS INTEGER) AS "Quantidade",
-        COALESCE(s.unidade, 'UN') AS "Unidade",
-        l.valor_unitario AS "Valor Unitário",
-        (l.quantidade * l.valor_unitario) AS "Valor Parcial",
-        l.observacao AS "Observação"
+    SELECT l.id, l.data_lancamento, l.data_servico, l.obra_id, o.nome_obra AS "Obra", 
+           f.nome AS "Funcionário", s.disciplina AS "Disciplina",
+           COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
+           CAST(l.quantidade AS INTEGER) AS "Quantidade",
+           COALESCE(s.unidade, 'UN') AS "Unidade", l.valor_unitario AS "Valor Unitário",
+           (l.quantidade * l.valor_unitario) AS "Valor Parcial", l.observacao AS "Observação"
     FROM lancamentos l
     LEFT JOIN obras o ON l.obra_id = o.id
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
     LEFT JOIN servicos s ON l.servico_id = s.id
-    WHERE l.arquivado = FALSE AND date_trunc('month', l.data_servico) = :mes_inicio;
+    WHERE l.arquivado = FALSE AND to_char(l.data_servico, 'YYYY-MM') = :mes;
     """)
-    lancamentos_df = pd.read_sql(query, engine, params={'mes_inicio': mes_inicio})
-    if not lancamentos_df.empty:
-        lancamentos_df['Data'] = pd.to_datetime(lancamentos_df['Data'])
-        lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
-    return lancamentos_df
+    df = pd.read_sql(query, engine, params={'mes': mes_referencia})
+    if not df.empty:
+        df = df.rename(columns={'data_lancamento': 'Data', 'data_servico': 'Data do Serviço'})
+        df['Data'] = pd.to_datetime(df['Data'])
+        df['Data do Serviço'] = pd.to_datetime(df['Data do Serviço'])
+    return df
 
 @st.cache_data
 def get_status_do_mes(mes_referencia_str):
@@ -151,11 +141,8 @@ def get_acessos():
 
 
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
-    """Registra uma ação no log de auditoria."""
     engine = get_db_connection()
-    if engine is None: 
-        st.toast("Falha na conexão, log não registrado.", icon="⚠️")
-        return
+    if engine is None: return
 
     try:
         if id_registro_afetado is not None:
@@ -366,7 +353,7 @@ def upsert_status_auditoria(obra_id, funcionario_id, mes_referencia, status=None
         update_clauses.append("comentario = :comentario")
         params['comentario'] = comentario
     
-    if not update_clauses: # Nada para fazer
+    if not update_clauses: 
         return True
 
     try:
@@ -378,7 +365,6 @@ def upsert_status_auditoria(obra_id, funcionario_id, mes_referencia, status=None
                     ON CONFLICT (obra_id, funcionario_id, mes_referencia)
                     DO UPDATE SET {', '.join(update_clauses)};
                 """)
-                # Valores padrão para o INSERT
                 params.setdefault('status', 'A Revisar')
                 params.setdefault('comentario', '')
 
@@ -456,4 +442,5 @@ def atualizar_observacoes(updates_list):
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
         return False
+
 
