@@ -5,6 +5,14 @@ import pandas as pd
 import db_utils
 import utils
 
+from pages import lancamento_folha
+from pages import auditoria
+from pages import gerenciar_funcionarios
+from pages import gerenciar_obras
+from pages import resumo_da_folha
+from pages import remover_lancamentos
+from pages import dashboard_de_analise
+
 st.set_page_config(
     page_title="Cadastro de Produção",
     page_icon="Lavie1.png",
@@ -222,5 +230,6 @@ else:
         st.info("Você está logado como **Administrador**. Você tem acesso a todas as páginas de gerenciamento e auditoria.")
     else:
         st.info(f"Você está logado na obra **{st.session_state['obra_logada']}**. Use o menu para lançar a produção ou ver os resumos.")
+
 
 
