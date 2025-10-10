@@ -4,22 +4,18 @@ from datetime import datetime, date
 import db_utils
 import utils
 
-def render_page(engine):
+def render_page():
     if st.session_state['role'] != 'user':
         st.stop()
-
-    if engine is None:
-        st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
-        st.stop()
-    
+   
     mes_selecionado = st.session_state.selected_month
     
-    funcionarios_df = db_utils.get_funcionarios(engine)
-    precos_df = db_utils.get_precos(engine)
-    obras_df = db_utils.get_obras(engine)
-    lancamentos_do_mes_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
-    status_df = db_utils.get_status_do_mes(engine, mes_selecionado)
-    folhas_df = db_utils.get_folhas(engine, mes_selecionado)
+    funcionarios_df = db_utils.get_funcionarios()
+    precos_df = db_utils.get_precos()
+    obras_df = db_utils.get_obras()
+    lancamentos_do_mes_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
+    status_df = db_utils.get_status_do_mes(mes_selecionado)
+    folhas_df = db_utils.get_folhas(mes_selecionado)
 
     st.header("Adicionar Novo Lançamento de Produção")
     
@@ -182,6 +178,7 @@ def render_page(engine):
                 }), use_container_width=True)
             else:
                 st.info("Nenhum lançamento adicionado ainda neste mês.")
+
 
 
 
