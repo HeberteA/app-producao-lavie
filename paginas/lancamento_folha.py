@@ -6,10 +6,8 @@ import utils
 
 def render_page(engine):
     if st.session_state['role'] != 'user':
-        st.error("Você não tem permissão para acessar esta página.")
         st.stop()
 
-    engine = db_utils.get_db_connection()
     if engine is None:
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
         st.stop()
@@ -184,5 +182,6 @@ def render_page(engine):
                 }), use_container_width=True)
             else:
                 st.info("Nenhum lançamento adicionado ainda neste mês.")
+
 
 
