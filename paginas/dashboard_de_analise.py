@@ -7,8 +7,8 @@ import utils
 def render_page():
     
     mes_selecionado = st.session_state.selected_month
-    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
-    folhas_df = db_utils.get_folhas(engine, mes_selecionado)
+    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
+    folhas_df = db_utils.get_folhas(mes_selecionado)
 
     st.header("Dashboard de Análise")
 
