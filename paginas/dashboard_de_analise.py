@@ -17,7 +17,7 @@ def render_page():
     st.header("Dashboard de Análise")
 
     if lancamentos_df.empty:
-        st.info("Ainda não há lançamentos para analisar neste mês ou para a obra selecionada.")
+        st.info("Ainda não há lançamentos para analisar neste mês.")
     else:
         df_filtrado_dash = lancamentos_df.copy()
         if st.session_state['role'] == 'admin':
@@ -37,7 +37,7 @@ def render_page():
                 )
                 if funcionarios_filtrados_dash:
                     df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-        else: # User
+        else: 
             df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'] == st.session_state['obra_logada']]
             funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
             funcionarios_filtrados_dash = st.multiselect(
@@ -53,8 +53,14 @@ def render_page():
         else:
             st.markdown("---")
             total_produzido = df_filtrado_dash['Valor Parcial'].sum()
-            top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
-            top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
+            
+            if not df_filtrado_dash.empty:
+                top_funcionario = df_filtrado_dash.groupby('Funcionário')['Valor Parcial'].sum().idxmax()
+                top_servico = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().idxmax()
+                if st.session_state['role'] == 'admin':
+                    top_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().idxmax()
+            else:
+                top_funcionario, top_servico, top_obra = "N/A", "N/A", "N/A"
             
             cor_padrao = '#E37026'
 
