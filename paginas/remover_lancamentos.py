@@ -1,14 +1,11 @@
 import streamlit as st
 import db_utils
 
-def render_page(engine):
-    if engine is None:
-        st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
-        st.stop()
+def render_page():
     
     mes_selecionado = st.session_state.selected_month
-    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
-    obras_df = db_utils.get_obras(engine)
+    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
+    obras_df = db_utils.get_obras()
 
     st.header("Gerenciar Lançamentos")
     
@@ -83,6 +80,7 @@ def render_page(engine):
                     if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao):
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
