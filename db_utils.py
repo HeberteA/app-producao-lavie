@@ -1,226 +1,289 @@
 import streamlit as st
 import pandas as pd
-import db_utils
-import utils
+from sqlalchemy import create_engine, text
+from datetime import datetime
 
-def render_page(engine):
-    if engine is None:
-        st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
-        st.stop()
+@st.cache_resource(ttl=60)
+def get_db_connection():
+    try:
+        engine = create_engine(st.secrets["database"]["url"])
+        return engine
+    except Exception as e:
+        st.error(f"Erro ao conectar com o banco de dados: {e}")
+        return None
 
-    mes_selecionado = st.session_state.selected_month
+
+@st.cache_data(ttl=300)
+def get_funcionarios():
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    query = """
+    SELECT f.id, f.obra_id, f.nome as "NOME", o.nome_obra as "OBRA", 
+           fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
+    FROM funcionarios f
+    JOIN obras o ON f.obra_id = o.id
+    JOIN funcoes fn ON f.funcao_id = fn.id
+    WHERE f.ativo = TRUE;
+    """
+    return pd.read_sql(query, engine)
+
+@st.cache_data(ttl=60)
+def get_lancamentos_do_mes(mes_referencia):
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    query = text("""
+    SELECT l.id, l.data_lancamento, l.data_servico, l.obra_id, o.nome_obra AS "Obra", 
+           f.nome AS "Funcionário", s.disciplina AS "Disciplina",
+           COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
+           CAST(l.quantidade AS INTEGER) AS "Quantidade",
+           COALESCE(s.unidade, 'UN') AS "Unidade", l.valor_unitario AS "Valor Unitário",
+           (l.quantidade * l.valor_unitario) AS "Valor Parcial", l.observacao AS "Observação"
+    FROM lancamentos l
+    LEFT JOIN obras o ON l.obra_id = o.id
+    LEFT JOIN funcionarios f ON l.funcionario_id = f.id
+    LEFT JOIN servicos s ON l.servico_id = s.id
+    WHERE l.arquivado = FALSE AND to_char(l.data_servico, 'YYYY-MM') = :mes;
+    """)
+    df = pd.read_sql(query, engine, params={'mes': mes_referencia})
+    if not df.empty:
+        df = df.rename(columns={'data_lancamento': 'Data', 'data_servico': 'Data do Serviço'})
+        df['Data'] = pd.to_datetime(df['Data'])
+        df['Data do Serviço'] = pd.to_datetime(df['Data do Serviço'])
+    return df
+
+@st.cache_data(ttl=300)
+def get_obras():
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    return pd.read_sql('SELECT id, nome_obra AS "NOME DA OBRA", status, aviso FROM obras', engine)
+
+@st.cache_data(ttl=300)
+def get_acessos():
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    return pd.read_sql('SELECT obra_id, codigo_acesso FROM acessos_obras', engine)
+
+@st.cache_data(ttl=300)
+def get_precos():
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    return pd.read_sql('SELECT id, disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', engine)
     
-    lancamentos_df = db_utils.get_lancamentos_do_mes(engine, mes_selecionado)
-    funcionarios_df = db_utils.get_funcionarios(engine)
-    obras_df = db_utils.get_obras(engine)
-    status_df = db_utils.get_status_do_mes(engine, mes_selecionado)
-    folhas_df = db_utils.get_folhas(engine, mes_selecionado)
+@st.cache_data(ttl=300)
+def get_funcoes():
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    return pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE" FROM funcoes', engine)
 
-    st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
+@st.cache_data(ttl=60)
+def get_status_do_mes(mes_referencia):
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    query = text("""
+    SELECT sa.obra_id, o.nome_obra AS "Obra", sa.funcionario_id, f.nome AS "Funcionario",
+           sa.mes_referencia AS "Mes", sa.status AS "Status", sa.comentario AS "Comentario"
+    FROM status_auditoria sa
+    LEFT JOIN obras o ON sa.obra_id = o.id
+    LEFT JOIN funcionarios f ON sa.funcionario_id = f.id
+    WHERE to_char(sa.mes_referencia, 'YYYY-MM') = :mes;
+    """)
+    df = pd.read_sql(query, engine, params={'mes': mes_referencia})
+    if not df.empty and 'Mes' in df.columns:
+        df['Mes'] = pd.to_datetime(df['Mes']).dt.date
+    return df
+
+@st.cache_data(ttl=60)
+def get_folhas(mes_referencia):
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    query = text("""
+    SELECT f.obra_id, o.nome_obra AS "Obra", f.mes_referencia AS "Mes", f.status, f.data_lancamento, f.contador_envios
+    FROM folhas_mensais f
+    LEFT JOIN obras o ON f.obra_id = o.id
+    WHERE to_char(f.mes_referencia, 'YYYY-MM') = :mes;
+    """)
+    df = pd.read_sql(query, engine, params={'mes': mes_referencia})
+    if not df.empty and 'Mes' in df.columns:
+        df['Mes'] = pd.to_datetime(df['Mes']).dt.date
+    return df
+
+
+def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
+    engine = get_db_connection()
+    if engine is None: return
+    try:
+        if id_registro_afetado is not None:
+            id_registro_afetado = int(id_registro_afetado)
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO log_auditoria (usuario, acao, detalhes, tabela_afetada, id_registro_afetado)
+                    VALUES (:usuario, :acao, :detalhes, :tabela_afetada, :id_registro_afetado)
+                """)
+                connection.execute(query, {
+                    'usuario': usuario, 'acao': acao, 'detalhes': detalhes,
+                    'tabela_afetada': tabela_afetada, 'id_registro_afetado': id_registro_afetado
+                })
+                transaction.commit()
+    except Exception as e:
+        st.toast(f"Falha ao registrar log: {e}", icon="⚠️")
+
+def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, comentario=None):
+    engine = get_db_connection()
+    if engine is None: return False
     
-    col_filtro1, col_filtro2 = st.columns(2)
-    nomes_obras_disponiveis = sorted(obras_df['NOME DA OBRA'].unique())
-    obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=nomes_obras_disponiveis, index=None, placeholder="Selecione uma obra...")
+    mes_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
+
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                if comentario is not None:
+                    set_clause = "SET status = :status, comentario = :comentario"
+                else:
+                    set_clause = "SET status = :status"
+                
+                query_insert = text(f"""
+                    INSERT INTO status_auditoria (obra_id, funcionario_id, mes_referencia, status, comentario)
+                    VALUES (:obra_id, :func_id, :mes_ref, :status, :comentario)
+                    ON CONFLICT (obra_id, funcionario_id, mes_referencia)
+                    DO UPDATE {set_clause};
+                """)
+                
+                insert_params = {'obra_id': obra_id, 'func_id': funcionario_id, 'mes_ref': mes_dt, 'status': status, 'comentario': comentario or ""}
+                
+                connection.execute(query_insert, insert_params)
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "UPSERT_STATUS", f"Status/comentário para func_id {funcionario_id} na obra_id {obra_id} atualizado.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar o status: {e}")
+        return False
+
+def launch_monthly_sheet(obra_id, mes_referencia_dt, obra_nome):
+    engine = get_db_connection()
+    if engine is None: return False
+    mes_inicio = mes_referencia_dt.strftime('%Y-%m-01')
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query_arquivar = text("UPDATE lancamentos SET arquivado = TRUE WHERE obra_id = :obra_id AND date_trunc('month', data_servico) = :mes_inicio;")
+                connection.execute(query_arquivar, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+
+                query_update_status = text("UPDATE folhas_mensais SET status = 'Finalizada' WHERE obra_id = :obra_id AND mes_referencia = :mes_inicio;")
+                connection.execute(query_update_status, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "FINALIZAR_FOLHA", f"Folha para {obra_nome} ({mes_referencia_dt.strftime('%Y-%m')}) finalizada.")
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao finalizar a folha: {e}")
+        return False
+
+def devolver_folha_para_revisao(obra_id, mes_referencia):
+    engine = get_db_connection()
+    if engine is None: return False
     
-    funcionarios_filtrados = []
-    if obra_selecionada:
-        funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
-        funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
+    mes_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
+
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE folhas_mensais SET status = 'Devolvida para Revisão' WHERE obra_id = :obra_id AND mes_referencia = :mes_ref")
+                connection.execute(query, {'obra_id': obra_id, 'mes_ref': mes_dt})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "DEVOLVER_FOLHA", f"Folha da obra_id {obra_id} devolvida para revisão.")
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao devolver a folha: {e}")
+        return False
+
+def enviar_folha_para_auditoria(obra_id, mes_referencia, obra_nome):
+    engine = get_db_connection()
+    if engine is None: return False
+    mes_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
     
-    if obra_selecionada:
-        obra_id_selecionada_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id']
-        if obra_id_selecionada_info.empty:
-            st.error("Obra selecionada não encontrada no banco de dados.")
-            st.stop()
-        obra_id_selecionada = int(obra_id_selecionada_info.iloc[0])
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query_insert = text("""
+                    INSERT INTO folhas_mensais (obra_id, mes_referencia, status, data_lancamento, contador_envios)
+                    VALUES (:obra_id, :mes_ref, 'Enviada para Auditoria', NOW(), 1)
+                    ON CONFLICT (obra_id, mes_referencia) 
+                    DO UPDATE SET status = 'Enviada para Auditoria', data_lancamento = NOW(), contador_envios = folhas_mensais.contador_envios + 1;
+                """)
+                connection.execute(query_insert, {'obra_id': obra_id, 'mes_ref': mes_dt})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "ENVIAR_FOLHA_AUDITORIA", f"Folha de {obra_nome} enviada.")
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao enviar a folha: {e}")
+        return False
 
-        lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
-        funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
+def salvar_novos_lancamentos(df_para_salvar):
+    engine = get_db_connection()
+    if engine is None: return False
+    lancamentos_dict = df_para_salvar.to_dict(orient='records')
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO lancamentos (data_servico, obra_id, funcionario_id, servico_id,
+                                           servico_diverso_descricao, quantidade, valor_unitario, observacao, data_lancamento)
+                    VALUES (:data_servico, :obra_id, :funcionario_id, :servico_id,
+                            :servico_diverso_descricao, :quantidade, :valor_unitario, :observacao, :data_lancamento)
+                """)
+                connection.execute(query, lancamentos_dict)
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "SALVAR_LANCAMENTOS", f"{len(lancamentos_dict)} lançamentos salvos.")
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
+        return False
         
-        folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
-        status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
-
-        pode_auditar = status_folha == "Enviada para Auditoria"
+def remover_lancamentos_por_id(ids_para_remover, razao=""):
+    engine = get_db_connection()
+    if engine is None: return False
+    if not ids_para_remover: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("DELETE FROM lancamentos WHERE id = ANY(:ids)")
+                connection.execute(query, {'ids': ids_para_remover})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_LANCAMENTOS", f"IDs: {ids_para_remover}. Razão: {razao}")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao remover lançamentos: {e}")
+        return False
         
-        if status_folha == "Finalizada":
-            st.success(f"✅ A folha para {obra_selecionada} já foi finalizada e arquivada.")
-        elif pode_auditar:
-            st.info(f"ℹ️ A folha está aguardando auditoria.")
-
-        st.markdown("---")
-
-        st.subheader("Gerenciamento Geral da Obra")
+def save_aviso_data(obra_id, novo_aviso):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE obras SET aviso = :aviso WHERE id = :id")
+                connection.execute(query, {'aviso': novo_aviso, 'id': obra_id})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "SALVAR_AVISO", f"Aviso para obra_id {obra_id} atualizado.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar o aviso: {e}")
+        return False
         
-        status_geral_row = status_df[(status_df['obra_id'] == obra_id_selecionada) & (status_df['funcionario_id'] == 0)]
-        status_auditoria_interno = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
-        
-        col_status_geral, col_aviso_geral = st.columns(2)
-
-        with col_status_geral:
-            st.markdown("##### Status Interno e Ações")
-            utils.display_status_box("Status Interno de Auditoria", status_auditoria_interno)
-
-            with st.popover("Alterar Status Interno", disabled=not pode_auditar):
-                status_options = ['A Revisar', 'Analisar', 'Aprovado']
-                idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
-                selected_status_obra = st.radio("Defina o status interno:", options=status_options, index=idx, horizontal=True)
-                if st.button("Salvar Status Interno"):
-                    if selected_status_obra != status_auditoria_interno:
-                        db_utils.upsert_status_auditoria(obra_id_selecionada, 0, selected_status_obra, mes_selecionado)
-                        st.toast("Status interno atualizado!", icon="✅")
-                        st.cache_data.clear()
-                        st.rerun()
-            
-            pode_finalizar = status_auditoria_interno == "Aprovado" and pode_auditar
-            if st.button("🚀 Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="O status interno precisa ser 'Aprovado' para finalizar."):
-                mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
-                if db_utils.launch_monthly_sheet(obra_id_selecionada, mes_dt, obra_selecionada):
-                    st.cache_data.clear()
-                    st.rerun()
-
-            if st.button("🔙 Devolver Folha para Revisão", use_container_width=True, disabled=not pode_auditar):
-                if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado):
-                    st.cache_data.clear()
-                    st.rerun()
-        
-        with col_aviso_geral:
-            st.markdown("##### Status de Envio e Aviso")
-            if not folha_do_mes.empty:
-                data_envio = pd.to_datetime(folha_do_mes['data_lancamento'].iloc[0])
-                contador = folha_do_mes['contador_envios'].iloc[0]
-                st.info(f"Status: **{status_folha}** | Envios: **{contador}**")
-                st.caption(f"Último envio em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
-            else:
-                st.warning("⚠️ Aguardando o primeiro envio da folha pela obra.")
-
-            aviso_atual_info = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso']
-            aviso_atual = aviso_atual_info.iloc[0] if not aviso_atual_info.empty else ""
-            novo_aviso = st.text_area(
-                "Aviso para a Obra:", value=aviso_atual or "", 
-                key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
-            )
-            if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
-                if db_utils.save_aviso_data(obra_id_selecionada, novo_aviso):
-                    st.toast("Aviso salvo com sucesso!", icon="✅")
-                    st.cache_data.clear()
-                    st.rerun()
-        
-        st.markdown("---")
-
-        if not funcionarios_obra_df.empty:
-            producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-            
-            if 'Valor Parcial' in resumo_df.columns:
-                resumo_df.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-            else:
-                resumo_df['PRODUÇÃO (R$)'] = 0.0
-
-            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-            
-            if 'Funcionário' in resumo_df.columns: 
-                resumo_df = resumo_df.drop(columns=['Funcionário'])
-
-            resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
-            if 'SALÁRIO BASE (R$)' in resumo_df.columns and 'PRODUÇÃO (R$)' in resumo_df.columns:
-                 resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-            else:
-                 resumo_df['SALÁRIO A RECEBER (R$)'] = 0
-
-            if funcionarios_filtrados:
-                resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
-            
-            st.subheader("Análise por Funcionário")
-
-            if resumo_df.empty:
-                st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
-            else:
-                for index, row in resumo_df.iterrows():
-                    with st.container(border=True):
-                        funcionario = row['Funcionário']
-                        func_id = row['id']
-                        
-                        header_cols = st.columns([3, 2, 2, 2, 2])
-                        header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
-                        header_cols[1].metric("Salário Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
-                        header_cols[2].metric("Produção", utils.format_currency(row['PRODUÇÃO (R$)']))
-                        header_cols[3].metric("Salário a Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
-                        
-                        status_func_row = status_df[status_df['funcionario_id'] == func_id]
-                        status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                    
-                        with header_cols[4]:
-                            utils.display_status_box("Status", status_atual_func)
-
-                        with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
-                            col_status, col_comment = st.columns(2)
-                            with col_status:
-                                st.markdown("##### Status do Funcionário")
-                                status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
-                                idx_func = status_options_func.index(status_atual_func) if status_atual_func in status_options_func else 0
-                                selected_status_func = st.radio(
-                                    "Definir Status:", options=status_options_func, index=idx_func, horizontal=True, 
-                                    key=f"status_{obra_selecionada}_{funcionario}",
-                                    disabled=not pode_auditar
-                                )
-                                if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=not pode_auditar):
-                                    if selected_status_func != status_atual_func:
-                                        db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, selected_status_func, mes_selecionado)
-                                        st.toast(f"Status de {funcionario} atualizado!", icon="✅")
-                                        st.cache_data.clear()
-                                        st.rerun()
-                                        
-                            with col_comment:
-                                st.markdown("##### Comentário de Auditoria")
-                                comment_row = status_df[status_df['funcionario_id'] == func_id]
-                                current_comment_info = comment_row['Comentario'] if not comment_row.empty else None
-                                current_comment = current_comment_info.iloc[0] if current_comment_info is not None and not current_comment_info.empty else ""
-                                new_comment = st.text_area(
-                                    "Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario}",
-                                    help="Este comentário será visível na tela de lançamento.", label_visibility="collapsed",
-                                    disabled=not pode_auditar
-                                )
-                                if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=not pode_auditar):
-                                    db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, status_atual_func, mes_selecionado, comentario=new_comment)
-                                    st.toast("Comentário salvo com sucesso!", icon="💬")
-                                    st.cache_data.clear()
-                                    st.rerun()
-                                            
-                            st.markdown("---")
-                            st.markdown("##### Lançamentos e Observações")
-                            lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
-                            if lancamentos_do_funcionario.empty:
-                                st.info("Nenhum lançamento de produção para este funcionário.")
-                            else:
-                                colunas_visiveis = [
-                                    'id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade',
-                                    'Valor Unitário', 'Valor Parcial', 'Observação'
-                                ]
-                                
-                                edited_df = st.data_editor(
-                                    lancamentos_do_funcionario[colunas_visiveis],
-                                    key=f"editor_{obra_selecionada}_{funcionario}",
-                                    hide_index=True,
-                                    column_config={
-                                        "id": None, 
-                                        "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
-                                        "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
-                                    },
-                                    disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
-                                )
-                                
-                                if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=not pode_auditar):
-                                    original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
-                                    edited_obs = edited_df.set_index('id')['Observação']
-                                    alteracoes = edited_obs[original_obs != edited_obs]
-
-                                    if not alteracoes.empty:
-                                        updates_list = [{'id': int(lanc_id), 'obs': nova_obs} for lanc_id, nova_obs in alteracoes.items()]
-                                        if db_utils.atualizar_observacoes(updates_list):
-                                            st.toast("Observações salvas com sucesso!", icon="✅")
-                                            st.cache_data.clear()
-                                            st.rerun()
-                                    else:
-                                        st.toast("Nenhuma alteração detectada.", icon="🤷")
-
+def atualizar_observacoes(updates_list):
+    engine = get_db_connection()
+    if engine is None: return False
+    if not updates_list: return True
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE lancamentos SET observacao = :obs WHERE id = :id")
+                connection.execute(query, updates_list)
+                transaction.commit()
+        ids_str = ", ".join([str(item['id']) for item in updates_list])
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "ATUALIZAR_OBSERVACOES", f"Observações atualizadas para IDs: {ids_str}")
+        return True
+    except Exception as e:
+        st.error(f"Ocorreu um erro ao salvar as observações: {e}")
+        return False
 
