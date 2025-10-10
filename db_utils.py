@@ -131,7 +131,6 @@ def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, com
                     DO UPDATE {set_clause};
                 """)
                 
-                # Garante que o comentário tenha um valor padrão para o INSERT
                 insert_params = {'obra_id': obra_id, 'func_id': funcionario_id, 'mes_ref': mes_dt, 'status': status, 'comentario': comentario or ""}
                 
                 connection.execute(query_insert, insert_params)
