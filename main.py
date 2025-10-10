@@ -24,11 +24,14 @@ def login_page():
     with col2:
         st.image("Lavie.png", width=1000)
     st.header("Login")
+
     obras_df_login = db_utils.get_obras()
     acessos_df_login = db_utils.get_acessos()
+
     if obras_df_login.empty or acessos_df_login.empty:
         st.error("Não foi possível carregar os dados das obras para o login.")
         return
+        
     admin_login = st.checkbox("Entrar como Administrador")
     if admin_login:
         admin_password = st.text_input("Senha de Administrador", type="password")
@@ -73,11 +76,10 @@ else:
         st.error("Falha crítica na conexão com o banco de dados. O aplicativo não pode continuar.")
         st.stop()
 
-    if 'selected_month' not in st.session_state:
+     if 'selected_month' not in st.session_state:
         st.session_state.selected_month = datetime.now().strftime('%Y-%m')
     if 'page' not in st.session_state:
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
-
 
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
@@ -145,11 +147,36 @@ else:
     elif page_to_render == 'remover_lancamentos':
         remover_lancamentos.render_page()
     elif page_to_render == 'dashboard_de_analise':
-        dashboard_de_analise.render_page()
+        dashboard_de_analise.render_page()try:
+            current_index = available_months.index(st.session_state.selected_month)
+        except ValueError:
+            current_index = 0 
+
+        selected_month = st.selectbox(
+            "Selecione o Mês", 
+            options=available_months, 
+            index=current_index,
+            label_visibility="collapsed"
+        )
+        st.session_state.selected_month = selected_month
+        st.markdown("---")
+        if st.button("Sair 🚪", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
 
 
-
-
-
-
-
+    page_to_render = st.session_state.page
+    
+    page_map = {
+        'lancamento_folha': lancamento_folha,
+        'auditoria': auditoria,
+        'gerenciar_funcionarios': gerenciar_funcionarios,
+        'gerenciar_obras': gerenciar_obras,
+        'resumo_da_folha': resumo_da_folha,
+        'remover_lancamentos': remover_lancamentos,
+        'dashboard_de_analise': dashboard_de_analise
+    }
+    
+    if page_to_render in page_map:
+        page_map[page_to_render].render_page()
