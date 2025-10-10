@@ -22,11 +22,11 @@ def render_page():
     if obra_selecionada:
         funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
         funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
-     
+    
     if not obra_selecionada:
         st.info("Por favor, selecione uma obra no menu acima para iniciar a auditoria.")
         st.stop()
- 
+
     obra_id_selecionada_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id']
     if obra_id_selecionada_info.empty:
         st.error("Obra selecionada não encontrada no banco de dados.")
@@ -38,12 +38,12 @@ def render_page():
     
     folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
     status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
-
-    pode_auditar = status_folha == "Enviada para Auditoria"
+ 
+    edicao_bloqueada = status_folha == "Finalizada"
     
-    if status_folha == "Finalizada":
-        st.success(f"✅ A folha para {obra_selecionada} já foi finalizada e arquivada.")
-    elif pode_auditar:
+    if edicao_bloqueada:
+        st.success(f"✅ A folha para {obra_selecionada} já foi finalizada e arquivada. Nenhuma edição é permitida.")
+    elif status_folha == "Enviada para Auditoria":
         st.info(f"ℹ️ A folha está aguardando auditoria.")
 
     st.markdown("---")
@@ -58,7 +58,7 @@ def render_page():
         st.markdown("##### Status Interno e Ações")
         utils.display_status_box("Status Interno de Auditoria", status_auditoria_interno)
 
-        with st.popover("Alterar Status Interno", disabled=not pode_auditar):
+        with st.popover("Alterar Status Interno", disabled=edicao_bloqueada):
             status_options = ['A Revisar', 'Analisar', 'Aprovado']
             idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
             selected_status_obra = st.radio("Defina o status interno:", options=status_options, index=idx, horizontal=True)
@@ -69,14 +69,15 @@ def render_page():
                     st.cache_data.clear()
                     st.rerun()
         
-        pode_finalizar = status_auditoria_interno == "Aprovado" and pode_auditar
-        if st.button("🚀 Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="O status interno precisa ser 'Aprovado' para finalizar."):
+        pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
+        if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="O status interno precisa ser 'Aprovado' e a folha 'Enviada para Auditoria' para finalizar."):
             mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
             if db_utils.launch_monthly_sheet(obra_id_selecionada, mes_dt, obra_selecionada):
                 st.cache_data.clear()
                 st.rerun()
 
-        if st.button("🔙 Devolver Folha para Revisão", use_container_width=True, disabled=not pode_auditar):
+        pode_devolver = status_folha == "Enviada para Auditoria"
+        if st.button("Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver):
             if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado):
                 st.cache_data.clear()
                 st.rerun()
@@ -97,7 +98,7 @@ def render_page():
             "Aviso para a Obra:", value=aviso_atual or "", 
             key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
         )
-        if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
+        if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=edicao_bloqueada):
             if db_utils.save_aviso_data(obra_id_selecionada, novo_aviso):
                 st.toast("Aviso salvo com sucesso!", icon="✅")
                 st.cache_data.clear()
@@ -159,9 +160,9 @@ def render_page():
                             selected_status_func = st.radio(
                                 "Definir Status:", options=status_options_func, index=idx_func, horizontal=True, 
                                 key=f"status_{obra_selecionada}_{funcionario}",
-                                disabled=not pode_auditar
+                                disabled=edicao_bloqueada
                             )
-                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=not pode_auditar):
+                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 if selected_status_func != status_atual_func:
                                     db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, selected_status_func, mes_selecionado)
                                     st.toast(f"Status de {funcionario} atualizado!", icon="✅")
@@ -176,9 +177,9 @@ def render_page():
                             new_comment = st.text_area(
                                 "Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario}",
                                 help="Este comentário será visível na tela de lançamento.", label_visibility="collapsed",
-                                disabled=not pode_auditar
+                                disabled=edicao_bloqueada
                             )
-                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=not pode_auditar):
+                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, status_atual_func, mes_selecionado, comentario=new_comment)
                                 st.toast("Comentário salvo com sucesso!", icon="💬")
                                 st.cache_data.clear()
@@ -207,7 +208,7 @@ def render_page():
                                 disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
                             )
                             
-                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=not pode_auditar):
+                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=edicao_bloqueada):
                                 original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
                                 edited_obs = edited_df.set_index('id')['Observação']
                                 alteracoes = edited_obs[original_obs != edited_obs]
