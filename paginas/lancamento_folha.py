@@ -42,7 +42,7 @@ def render_page():
             st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
             with st.container(border=True):
                 opcoes_funcionario = funcionarios_df[funcionarios_df['OBRA'] == obra_logada]['NOME'].unique()
-                funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=opcoes_funcionario, index=None, placeholder="Selecione um funcionário...")
+                funcionario_selecionado = st.selectbox("Selecione o Funcionário", options=[], key="lf_func_select")
                 if funcionario_selecionado:
                     funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
                     st.metric(label="Função do Colaborador", value=funcao_selecionada)
@@ -50,11 +50,11 @@ def render_page():
             st.markdown("##### 🛠️ Selecione o Serviço Principal")
             with st.container(border=True):
                 disciplinas = precos_df['DISCIPLINA'].unique()
-                disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...")
+                disciplina_selecionada = st.selectbox("Disciplina", options=[], key="lf_disciplina_select")
                 opcoes_servico = []
                 if disciplina_selecionada:
                     opcoes_servico = precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()
-                servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina...", disabled=(not disciplina_selecionada))
+                servico_selecionado = st.selectbox("Descrição do Serviço", options=[], key="lf_servico_select")
                 
                 quantidade_principal = 0 
                 if servico_selecionado:
@@ -65,7 +65,7 @@ def render_page():
                     
                     col_qtd, col_parcial = st.columns(2)
                     with col_qtd:
-                        quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="qty_principal")
+                        quantidade_principal = st.number_input("Quantidade", min_value=0, step=1, key="lf_qty_principal")
                     with col_parcial:
                         valor_unitario = utils.safe_float(servico_info.get('VALOR'))
                         valor_parcial_servico = quantidade_principal * valor_unitario
@@ -73,23 +73,23 @@ def render_page():
                     
                     col_data_princ, col_obs_princ = st.columns(2)
                     with col_data_princ:
-                        data_servico_principal = st.date_input("Data do Serviço", value=date.today(), key="data_principal", format="DD/MM/YYYY")
+                        data_servico_principal = st.date_input("Data do Serviço", value=None, key="lf_data_principal", format="DD/MM/YYYY")
                     with col_obs_princ:
-                        obs_principal = st.text_area("Observação (Obrigatório)", key="obs_principal")
+                        obs_principal = st.text_area("Observação (Obrigatório)", key="lf_obs_principal")
             
             st.markdown("##### Adicione Itens Extras")
             with st.expander("📝 Lançar Item Diverso"):
-                descricao_diverso = st.text_input("Descrição do Item Diverso")
-                valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="valor_diverso")
-                quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="qty_diverso")
+                descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
+                valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="lf_valor_diverso")
+                quantidade_diverso = st.number_input("Quantidade", min_value=0, step=1, key="lf_qty_diverso")
                 
                 col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
-                    data_servico_diverso = st.date_input("Data do Serviço", value=date.today(), key="data_diverso", format="DD/MM/YYYY")
+                    data_servico_diverso = st.date_input("Data do Serviço", value=None, key="lf_data_diverso", format="DD/MM/YYYY")
                 with col_obs_div:
-                    obs_diverso = st.text_area("Observação (Obrigatório)", key="obs_diverso")
+                    obs_diverso = st.text_area("Observação (Obrigatório)", key="lf_obs_diverso")
 
-            if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary"):
+            if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary", key="lf_add_btn"):
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
                 else:
@@ -178,6 +178,7 @@ def render_page():
                 }), use_container_width=True)
             else:
                 st.info("Nenhum lançamento adicionado ainda neste mês.")
+
 
 
 
