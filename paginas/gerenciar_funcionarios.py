@@ -2,18 +2,14 @@ import streamlit as st
 import db_utils
 import utils
 
-def render_page(engine):
+def render_page():
     if st.session_state['role'] != 'admin':
         st.stop()
 
-    if engine is None:
-        st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
-        st.stop()
 
-
-    funcionarios_df = db_utils.get_funcionarios(engine)
-    obras_df = db_utils.get_obras(engine)
-    funcoes_df = db_utils.get_funcoes(engine)
+    funcionarios_df = db_utils.get_funcionarios()
+    obras_df = db_utils.get_obras()
+    funcoes_df = db_utils.get_funcoes()
     
     st.header("Gerenciar Funcionários 👥")
     tab_adicionar, tab_gerenciar, tab_mudar_obra = st.tabs(["➕ Adicionar Novo", "📋 Gerenciar Existentes", "🔄 Mudar de Obra"])
@@ -138,6 +134,7 @@ def render_page(engine):
                         st.rerun()
                 else:
                     st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
+
 
 
 
