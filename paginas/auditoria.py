@@ -18,7 +18,7 @@ def render_page():
     status_df = db_utils.get_status_do_mes(mes_selecionado)
     folhas_df = db_utils.get_folhas(mes_selecionado)
     
-    st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
+ 
 
     col_filtro1, col_filtro2 = st.columns(2)
     nomes_obras_disponiveis = sorted(obras_df['NOME DA OBRA'].unique())
