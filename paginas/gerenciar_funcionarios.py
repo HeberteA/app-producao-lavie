@@ -3,17 +3,14 @@ import db_utils
 import utils
 
 def render_page():
-    if st.session_state['role'] != 'admin':
-        st.stop()
-
-
     funcionarios_df = db_utils.get_funcionarios()
     obras_df = db_utils.get_obras()
     funcoes_df = db_utils.get_funcoes()
-    
+
     st.header("Gerenciar Funcionários 👥")
-    tab_adicionar, tab_gerenciar, tab_mudar_obra = st.tabs(["➕ Adicionar Novo", "📋 Gerenciar Existentes", "🔄 Mudar de Obra"])
     
+    tab_adicionar, tab_gerenciar, tab_mudar_obra = st.tabs(["➕ Adicionar Novo", "📋 Gerenciar Existentes", "🔄 Mudar de Obra"])
+
     with tab_adicionar:
         st.subheader("Adicionar Novo Funcionário")
         with st.container(border=True):
@@ -22,20 +19,18 @@ def render_page():
                 "1. Selecione a Função",
                 options=lista_funcoes,
                 index=0,
-                help="A escolha da função preencherá o tipo e o salário automaticamente."
+                help="A escolha da função preencherá o tipo e o salário automaticamente.",
+                key="gf_funcao_select"
             )
-            tipo = ""
-            salario = 0.0
             if funcao_selecionada:
                 info_funcao = funcoes_df[funcoes_df['FUNÇÃO'] == funcao_selecionada].iloc[0]
-                tipo = info_funcao['TIPO']
-                salario = info_funcao['SALARIO_BASE']
                 col_tipo, col_salario = st.columns(2)
-                col_tipo.text_input("Tipo de Contrato", value=tipo, disabled=True)
-                col_salario.text_input("Salário Base", value=utils.format_currency(salario), disabled=True)
+                col_tipo.text_input("Tipo de Contrato", value=info_funcao['TIPO'], disabled=True, key="gf_tipo_input")
+                col_salario.text_input("Salário Base", value=utils.format_currency(info_funcao['SALARIO_BASE']), disabled=True, key="gf_salario_input")
+            
             with st.form("add_funcionario_form", clear_on_submit=True):
-                nome = st.text_input("2. Nome do Funcionário")
-                obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique())
+                nome = st.text_input("2. Nome do Funcionário", key="gf_nome_input")
+                obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique(), key="gf_obra_select")
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
                     if nome and funcao_selecionada and obra:
@@ -50,15 +45,12 @@ def render_page():
 
     with tab_gerenciar:
         st.subheader("Inativar Funcionário Existente")
-        if funcionarios_df.empty:
-            st.info("Nenhum funcionário cadastrado.")
-        else:
-            obra_filtro_remover = st.selectbox(
-                "Filtre por Obra para ver os funcionários",
-                options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
-                index=0,
-                key="filtro_obra_remover"
-            )
+        obra_filtro_remover = st.selectbox(
+            "Filtre por Obra para ver os funcionários",
+            options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()),
+            index=0,
+            key="gf_filtro_obra_remover"
+        )
 
             df_filtrado = funcionarios_df
             if obra_filtro_remover and obra_filtro_remover != "Todas":
@@ -86,14 +78,10 @@ def render_page():
         st.subheader("Mudar Funcionário de Obra")
         with st.container(border=True):
             col1, col2, col3 = st.columns(3)
-
             with col1:
                 obra_origem = st.selectbox(
-                    "1. Obra de Origem",
-                    options=sorted(obras_df['NOME DA OBRA'].unique()),
-                    index=None,
-                    placeholder="Selecione..."
-                )
+                    "1. Obra de Origem", options=sorted(obras_df['NOME DA OBRA'].unique()),
+                    index=None, placeholder="Selecione...", key="gf_obra_origem_select"
             with col2:
                 opcoes_funcionarios = []
                 if obra_origem:
@@ -134,6 +122,7 @@ def render_page():
                         st.rerun()
                 else:
                     st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
+
 
 
 
