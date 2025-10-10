@@ -3,6 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
 
+# --- CONEXÃO ---
 @st.cache_resource(ttl=60)
 def get_db_connection():
     try:
@@ -12,6 +13,7 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
+# --- FUNÇÕES DE LEITURA (com cache e autossuficientes) ---
 
 @st.cache_data(ttl=300)
 def get_funcionarios():
@@ -107,6 +109,7 @@ def get_folhas(mes_referencia):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
+# --- FUNÇÕES DE ESCRITA (sem cache) ---
 
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
@@ -137,10 +140,15 @@ def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, com
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
+                # CORREÇÃO: A cláusula SET agora usa EXCLUDED para referenciar os novos valores,
+                # o que é a sintaxe correta para ON CONFLICT.
                 if comentario is not None:
-                    set_clause = "SET status = :status, comentario = :comentario"
+                    # Se um novo comentário for fornecido, atualiza ambos.
+                    set_clause = "SET status = EXCLUDED.status, comentario = EXCLUDED.comentario"
                 else:
-                    set_clause = "SET status = :status"
+                    # Se nenhum comentário for fornecido, atualiza apenas o status,
+                    # preservando o comentário existente no banco de dados.
+                    set_clause = "SET status = EXCLUDED.status"
                 
                 query_insert = text(f"""
                     INSERT INTO status_auditoria (obra_id, funcionario_id, mes_referencia, status, comentario)
@@ -149,7 +157,15 @@ def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, com
                     DO UPDATE {set_clause};
                 """)
                 
-                insert_params = {'obra_id': obra_id, 'func_id': funcionario_id, 'mes_ref': mes_dt, 'status': status, 'comentario': comentario or ""}
+                # Prepara os parâmetros para a inserção. Se o comentário for None,
+                # um texto vazio é usado para o caso de a linha ser nova.
+                insert_params = {
+                    'obra_id': obra_id, 
+                    'func_id': funcionario_id, 
+                    'mes_ref': mes_dt, 
+                    'status': status, 
+                    'comentario': comentario if comentario is not None else ""
+                }
                 
                 connection.execute(query_insert, insert_params)
                 transaction.commit()
