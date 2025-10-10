@@ -9,17 +9,15 @@ def render_page():
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
         st.stop()
 
-    st.header(f"Auditoria de Lançamentos - {st.session_state.selected_month}")
-    
     mes_selecionado = st.session_state.selected_month
     lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
     funcionarios_df = db_utils.get_funcionarios()
     obras_df = db_utils.get_obras()
     status_df = db_utils.get_status_do_mes(mes_selecionado)
     folhas_df = db_utils.get_folhas(mes_selecionado)
-    
- 
 
+    st.header(f"Auditoria de Lançamentos - {st.session_state.selected_month}")
+    
     col_filtro1, col_filtro2 = st.columns(2)
     nomes_obras_disponiveis = sorted(obras_df['NOME DA OBRA'].unique())
     obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=nomes_obras_disponiveis, index=None, placeholder="Selecione uma obra...")
@@ -31,111 +29,66 @@ def render_page():
     
     if obra_selecionada:
         obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
-        mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
-        
         lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
         funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
         
-        status_geral_row = status_df[
-            (status_df['obra_id'] == obra_id_selecionada) & 
-            (status_df['funcionario_id'] == 0)
-        ]
-        status_atual_obra = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
-        
-        folha_row = folhas_df[(folhas_df['obra_id'] == obra_id_selecionada) & (pd.to_datetime(folhas_df['Mes']).dt.date == mes_selecionado_dt)] 
-        status_folha = folha_row['status'].iloc[0] if not folha_row.empty else "Não Enviada"
-        
-        edicao_bloqueada = status_folha in ['Finalizada']
+        folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
+        status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
 
-        if status_folha == "Finalizada":
-            st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi finalizada. Nenhuma edição é permitida.")
-        
+        edicao_bloqueada = status_folha in ["Finalizada", "Enviada para Auditoria"]
+        if edicao_bloqueada:
+            st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} está com status '{status_folha}'. Nenhuma edição é permitida.")
+
         st.markdown("---")
-        col_status_geral, col_aviso_geral = st.columns(2)
-
-        with col_status_geral:
-            st.markdown("##### Status e Finalização do Mês")
-            utils.display_status_box("Status Geral da Folha", status_atual_obra)
+        
+        if not funcionarios_obra_df.empty:
+            producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
+            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
             
-            with st.popover("Alterar Status", disabled=edicao_bloqueada):
-                status_options = ['A Revisar', 'Analisar', 'Aprovado']
-                idx = status_options.index(status_atual_obra) if status_atual_obra in status_options else 0
-                selected_status_obra = st.radio("Defina um novo status", options=status_options, index=idx, horizontal=True)
-                if st.button("Salvar Status da Obra"):
-                    if selected_status_obra != status_atual_obra:
-                        if db_utils.upsert_status_auditoria(obra_id_selecionada, 0, selected_status_obra, mes_selecionado, ""):
-                            st.cache_data.clear()
-                            st.rerun()
+            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
+            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
+            
+            if 'Funcionário' in resumo_df.columns:
+                resumo_df = resumo_df.drop(columns=['Funcionário'])
 
-            if status_folha == 'Devolvida para Revisão':
-                st.info("A obra está com a folha para correção. Aguardando reenvio.")
+            resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
+            
+            resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+
+            if funcionarios_filtrados:
+                resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
+            
+            total_producao_obra = resumo_df['PRODUÇÃO (R$)'].sum()
+            num_funcionarios = len(resumo_df)
 
             col1, col2 = st.columns(2)
-            with col1:
-                is_launch_disabled = (status_atual_obra != 'Aprovado') or (status_folha != 'Enviada para Auditoria')
-                if col1.button("Finalizar e Arquivar Folha", type="primary", use_container_width=True, disabled=is_launch_disabled):
-                    if db_utils.launch_monthly_sheet(obra_id_selecionada, mes_selecionado_dt, obra_selecionada):
-                        st.rerun()
-            
-            with col2:
-                is_devolver_disabled = status_folha != 'Enviada para Auditoria'
-                if col2.button("Devolver para Correção", use_container_width=True, disabled=is_devolver_disabled):
-                    if db_utils.devolver_folha_para_obra(obra_id_selecionada, mes_selecionado_dt, obra_selecionada):
-                        st.rerun()
-
-        with col_aviso_geral:
-            st.markdown("##### Status de Envio da Obra")
-            if not folha_row.empty:
-                data_envio = pd.to_datetime(folha_row['data_lancamento'].iloc[0])
-                contador_envios = folha_row['contador_envios'].iloc[0]
-                st.info(f"Status: {status_folha} | Enviada em: {data_envio.strftime('%d/%m/%Y')} | Envios: {contador_envios}")
-            else:
-                st.warning("⚠️ Aguardando o envio da folha pela obra.")
-                    
-            st.markdown("##### Aviso Geral da Obra")
-            aviso_atual = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso'].iloc[0]
-            novo_aviso = st.text_area("Aviso para a Obra:", value=aviso_atual, label_visibility="collapsed", disabled=edicao_bloqueada)
-            if st.button("Salvar Aviso", disabled=edicao_bloqueada):
-                if db_utils.save_aviso_data(obra_selecionada, novo_aviso):
-                    st.toast("Aviso salvo com sucesso!", icon="✅")
-                    st.cache_data.clear()
-                    st.rerun()
+            col1.metric("Produção Total da Obra", f"R$ {total_producao_obra:,.2f}")
+            col2.metric("Nº de Funcionários", num_funcionarios)
         
-        producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-        producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-        resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-        if 'PRODUÇÃO (R$)' in resumo_df.columns:
-            resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-        else:
-            resumo_df['PRODUÇÃO (R$)'] = 0
+            st.markdown("---")
+            st.subheader("Análise por Funcionário")
 
-        if funcionarios_filtrados:
-            resumo_df = resumo_df[resumo_df['NOME'].isin(funcionarios_filtrados)]
+            if resumo_df.empty:
+                st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
+            else:
+                for index, row in resumo_df.iterrows():
+                    with st.container(border=True):
+                        funcionario = row['Funcionário']
+                        func_id = row['id']
+                        
+                        header_cols = st.columns([3, 2, 2, 2, 2])
+                        header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
+                        header_cols[1].metric("Salário Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
+                        header_cols[2].metric("Produção", utils.format_currency(row['PRODUÇÃO (R$)']))
+                        header_cols[3].metric("Salário a Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
+                        
+                        status_func_row = status_df[(status_df['funcionario_id'] == func_id)]
+                        status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+                    
+                    with header_cols[4]:
+                        utils.display_status_box("Status", status_atual_func)
 
-        st.markdown("---")
-        st.subheader("Análise por Funcionário")
-
-        if resumo_df.empty:
-            st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
-        else:
-            for index, row in resumo_df.iterrows():
-                with st.container(border=True):
-                    funcionario = row['Funcionário']
-                    funcionario_id = int(row['id'])
-                    header_cols = st.columns([3, 2, 2, 2, 2])
-                    header_cols[0].markdown(f"**Funcionário:** {funcionario} ({row['FUNÇÃO']})")
-                    header_cols[1].metric("Salário Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
-                    header_cols[2].metric("Produção", utils.format_currency(row['PRODUÇÃO (R$)']))
-                    header_cols[3].metric("Salário a Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
-                
-                    status_func_row = status_df[(status_df['Obra'] == obra_selecionada) & (status_df['Funcionario'] == funcionario)]
-                    status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                    current_comment = status_func_row['Comentario'].iloc[0] if not status_func_row.empty and pd.notna(status_func_row['Comentario'].iloc[0]) else ""
-            
-                with header_cols[4]:
-                    utils.display_status_box("Status", status_atual_func)
-
-                with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
+                    with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
                     col_status, col_comment = st.columns(2)
                     with col_status:
                         st.markdown("##### Status do Funcionário")
