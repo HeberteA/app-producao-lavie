@@ -36,11 +36,64 @@ def render_page():
         status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
 
         edicao_bloqueada = status_folha in ["Finalizada", "Enviada para Auditoria"]
-        if edicao_bloqueada:
-            st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} está com status '{status_folha}'. Nenhuma edição é permitida.")
+        if status_folha == "Finalizada":
+            st.success(f"✅ A folha para {obra_selecionada} em {mes_selecionado} já foi finalizada e arquivada.")
+        elif status_folha == "Enviada para Auditoria":
+             st.info(f"ℹ️ A folha para {obra_selecionada} em {mes_selecionado} está aguardando auditoria. As edições estão bloqueadas.")
 
         st.markdown("---")
+
+        st.subheader("Gerenciamento Geral da Obra")
         
+        status_geral_row = status_df[status_df['funcionario_id'] == 0] 
+        status_auditoria_interno = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
+        
+        col_status_geral, col_aviso_geral = st.columns(2)
+
+        with col_status_geral:
+            st.markdown("##### Status da Folha e Ações")
+            utils.display_status_box("Status Interno de Auditoria", status_auditoria_interno)
+            st.info(f"Status de Envio da Obra: **{status_folha}**")
+
+            with st.popover("Alterar Status Interno", disabled=edicao_bloqueada):
+                status_options = ['A Revisar', 'Analisar', 'Aprovado']
+                idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
+                selected_status_obra = st.radio("Defina o status interno:", options=status_options, index=idx, horizontal=True)
+                if st.button("Salvar Status Interno"):
+                    if selected_status_obra != status_auditoria_interno:
+                        db_utils.upsert_status_auditoria(obra_id_selecionada, 0, selected_status_obra, mes_selecionado)
+                        st.toast("Status interno da obra atualizado!", icon="✅")
+                        st.cache_data.clear()
+                        st.rerun()
+
+            if status_folha == "Enviada para Auditoria":
+                if st.button("🔙 Devolver Folha para Revisão", use_container_width=True):
+                    if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado):
+                        st.cache_data.clear()
+                        st.rerun()
+
+            pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
+            if st.button("🚀 Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="O status interno da auditoria precisa ser 'Aprovado' para finalizar a folha."):
+                mes_dt = pd.to_datetime(mes_selecionado)
+                if db_utils.launch_monthly_sheet(obra_id_selecionada, mes_dt, obra_selecionada):
+                    st.cache_data.clear()
+                    st.rerun()
+
+        with col_aviso_geral:
+            st.markdown("##### Aviso Geral para a Obra")
+            aviso_atual = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso'].iloc[0]
+            novo_aviso = st.text_area(
+                "Edite o aviso que aparecerá na tela da obra:", value=aviso_atual or "", 
+                key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
+            )
+            if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}"):
+                if db_utils.save_aviso_data(obra_id_selecionada, novo_aviso):
+                    st.toast("Aviso salvo com sucesso!", icon="✅")
+                    st.cache_data.clear()
+                    st.rerun()
+        
+        st.markdown("---")
+
         if not funcionarios_obra_df.empty:
             producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
             producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
