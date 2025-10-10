@@ -8,12 +8,12 @@ def render_page(engine):
         st.error("Você não tem permissão para acessar esta página.")
         st.stop()
 
-    engine = db_utils.get_db_connection()
     if engine is None:
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
         st.stop()
+
     
-    obras_df = db_utils.get_obras()
+    obras_df = db_utils.get_obras(engine)
     status_df = db_utils.get_status_do_mes(st.session_state.selected_month)
     
     st.header("Gerenciar Obras 🏗️")
@@ -102,5 +102,6 @@ def render_page(engine):
                         st.rerun()
                 else:
                     st.warning("Por favor, selecione uma obra e digite o novo código.")
+
 
 
