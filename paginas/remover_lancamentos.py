@@ -17,20 +17,20 @@ def render_page():
         if st.session_state['role'] == 'user':
             df_filtrado = df_filtrado[df_filtrado['Obra'] == st.session_state['obra_logada']]
             funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
-            funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_user")
+            funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=[], key="rl_func_user")
             if funcionario_filtrado:
                 df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
         else: 
             filtro_col1, filtro_col2 = st.columns(2)
             with filtro_col1:
                 nomes_obras_disponiveis = sorted(df_filtrado['Obra'].unique())
-                obras_filtradas_nomes = st.multiselect("Filtrar por Obra(s):", options=nomes_obras_disponiveis, key="editar_obras_admin")
+                obras_filtradas_nomes = st.multiselect("Filtrar por Obra(s):", options=[], key="rl_obras_admin")
                 if obras_filtradas_nomes:
                     df_filtrado = df_filtrado[df_filtrado['Obra'].isin(obras_filtradas_nomes)]
                 
             with filtro_col2:
                 funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
-                funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="editar_func_admin")
+                funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=[], key="rl_func_admin")
                 if funcionario_filtrado:
                     df_filtrado = df_filtrado[df_filtrado['Funcionário'].isin(funcionario_filtrado)]
       
@@ -67,19 +67,20 @@ def render_page():
             
                 razao_remocao = ""
                 if st.session_state['role'] == 'admin':
-                    razao_remocao = st.text_area("Justificativa para a remoção (obrigatório para admin):", key="razao_remocao_admin")
+                    razao_remocao = st.text_area("Justificativa para a remoção (obrigatório para admin):", key="rl_razao_remocao")
 
-                confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.")
+                confirmacao_remocao = st.checkbox("Sim, confirmo que desejo remover os itens selecionados.", key="rl_confirmacao_remocao")
             
                 is_disabled = not confirmacao_remocao
                 if st.session_state['role'] == 'admin':
                    is_disabled = not confirmacao_remocao or not razao_remocao.strip()
 
-                if st.button("Remover Itens Selecionados", disabled=is_disabled, type="primary"):
+                if st.button("Remover Itens Selecionados", type="primary", key="rl_remover_btn"):
                     ids_a_remover = linhas_para_remover['id'].tolist()
                     if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao):
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
