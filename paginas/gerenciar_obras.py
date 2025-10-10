@@ -20,10 +20,10 @@ def render_page():
             col1, col2 = st.columns(2)
     
             with col1:
-                nome_obra = st.text_input("Nome da Nova Obra")
+                nome_obra = st.text_input("Nome da Nova Obra", key="go_nome_obra")
     
             with col2:
-                codigo_acesso = st.text_input("Código de Acesso para a Obra")
+                codigo_acesso = st.text_input("Código de Acesso para a Obra", key="go_codigo_acesso")
             submitted = st.form_submit_button("Adicionar Obra")
             if submitted:
                 if nome_obra and codigo_acesso: 
@@ -58,14 +58,12 @@ def render_page():
                 use_container_width=True
             )  
             obra_para_remover = st.selectbox(
-                "Selecione a obra para remover", 
-                options=obras_df['NOME DA OBRA'].unique(), 
-                index=None, 
-                placeholder="Selecione..."
+                "Selecione a obra para remover", options=obras_df['NOME DA OBRA'].unique(), 
+                index=None, placeholder="Selecione...", key="go_obra_remover"
             )
             if obra_para_remover:
                 st.warning(f"Atenção: Remover uma obra não remove ou realoca os funcionários associados a ela. Certifique-se de que nenhum funcionário esteja alocado em '{obra_para_remover}' antes de continuar.")
-                if st.button(f"Remover Obra '{obra_para_remover}'", type="primary"):
+                if st.button("Remover Obra Selecionada", type="primary", key="go_remover_btn"):
                     obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover, 'id'].iloc[0])
 
                     if db_utils.remover_obra(obra_id, obra_para_remover):
@@ -79,15 +77,13 @@ def render_page():
             col1, col2 = st.columns(2)
             with col1:
                 obra_para_alterar_codigo = st.selectbox(
-                    "1. Selecione a Obra",
-                    options=obras_df['NOME DA OBRA'].unique(),
-                    index=None,
-                    placeholder="Selecione..."
-                )
+                    "1. Selecione a Obra", options=obras_df['NOME DA OBRA'].unique(),
+                    index=None, placeholder="Selecione...", key="go_obra_alterar"
+            )
             with col2:
-                novo_codigo = st.text_input("2. Digite o Novo Código de Acesso", type="password")
+                novo_codigo = st.text_input("2. Digite o Novo Código de Acesso", type="password", key="go_novo_codigo")
 
-            if st.button("Alterar Código", use_container_width=True):
+            if st.button("Alterar Código", use_container_width=True, key="go_alterar_btn"):
                 if obra_para_alterar_codigo and novo_codigo:
                     obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo, 'id'].iloc[0])
                     if db_utils.mudar_codigo_acesso_obra(obra_id, novo_codigo, obra_para_alterar_codigo):
@@ -96,6 +92,7 @@ def render_page():
                         st.rerun()
                 else:
                     st.warning("Por favor, selecione uma obra e digite o novo código.")
+
 
 
 
