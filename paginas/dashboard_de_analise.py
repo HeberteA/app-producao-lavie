@@ -4,7 +4,7 @@ import plotly.express as px
 import db_utils
 import utils
 
-def render_page():
+def render_page(engine):
     engine = db_utils.get_db_connection()
     if engine is None:
         st.error("Falha na conexão com o banco de dados. A página não pode ser carregada.")
