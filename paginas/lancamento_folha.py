@@ -88,7 +88,7 @@ def render_page():
                     with col_obs_princ:
                         obs_principal = st.text_area("Observação (Opcional)", key="lf_obs_principal")
             
-            st.markdown("##### Adicione Itens Diversos")
+            st.markdown("##### Adicione Itens Extras (Diversos)")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
                 
@@ -100,6 +100,7 @@ def render_page():
 
                 valor_parcial_diverso = quantidade_diverso * valor_diverso
                 st.metric(label="Subtotal do Item Diverso", value=utils.format_currency(valor_parcial_diverso))
+
                 
                 col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
@@ -126,4 +127,73 @@ def render_page():
                                 'data_servico': data_servico_principal, 'obra_id': obra_logada_id,
                                 'funcionario_id': func_id, 'servico_id': int(servico_info['id']),
                                 'servico_diverso_descricao': None, 'quantidade': quantidade_principal,
-                                'valor
+                                'valor_unitario': utils.safe_float(servico_info['VALOR']),
+                                'observacao': obs_principal, 'data_lancamento': agora
+                            })
+
+                        if descricao_diverso.strip() and quantidade_diverso > 0 and valor_diverso > 0:
+                            novos_lancamentos.append({
+                                'data_servico': data_servico_diverso, 'obra_id': obra_logada_id,
+                                'funcionario_id': func_id, 'servico_id': None,
+                                'servico_diverso_descricao': descricao_diverso, 'quantidade': quantidade_diverso,
+                                'valor_unitario': valor_diverso, 'observacao': obs_diverso,
+                                'data_lancamento': agora
+                            })
+
+                        if novos_lancamentos:
+                            df_para_salvar = pd.DataFrame(novos_lancamentos)
+                            
+                            df_para_salvar = df_para_salvar.where(pd.notna(df_para_salvar), None)
+           
+                            
+                            if db_utils.salvar_novos_lancamentos(df_para_salvar):
+                                st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s) com sucesso!")
+                                st.cache_data.clear()
+                                st.rerun()
+                        else:
+                            st.info("Nenhum serviço ou item com quantidade maior que zero foi adicionado para salvar.")
+                                
+        with col_view:
+            if funcionario_selecionado:
+                st.subheader("Status de Auditoria")
+                func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
+                if not func_id_info.empty:
+                    func_id = int(func_id_info.iloc[0])
+                    status_do_funcionario_row = status_df[
+                        (status_df['obra_id'] == obra_logada_id) &
+                        (status_df['funcionario_id'] == func_id)
+                    ]
+
+                    status_atual = 'A Revisar'
+                    comentario_auditoria = ""
+                    if not status_do_funcionario_row.empty:
+                        status_atual = status_do_funcionario_row['Status'].iloc[0]
+                        comentario_auditoria = status_do_funcionario_row['Comentario'].iloc[0]
+
+                    utils.display_status_box(f"Status de {funcionario_selecionado}", status_atual)
+                    
+                    st.markdown("---")
+                    st.subheader("Comentário da Auditoria")
+                    if comentario_auditoria and str(comentario_auditoria).strip():
+                        st.warning(f"{comentario_auditoria}")
+                    else:
+                        st.info("Nenhum comentário da auditoria para este funcionário.")
+                    st.markdown("---")
+
+            st.subheader("Histórico Recente na Obra")
+            if not lancamentos_do_mes_df.empty:
+                lancamentos_da_obra = lancamentos_do_mes_df[lancamentos_do_mes_df['Obra'] == st.session_state['obra_logada']]
+                if not lancamentos_da_obra.empty:
+                    colunas_display = ['Data', 'Funcionário','Disciplina', 'Serviço','Unidade', 'Quantidade','Valor Unitário', 'Valor Parcial', 'Data do Serviço', 'Observação']
+                    colunas_existentes = [col for col in colunas_display if col in lancamentos_da_obra.columns]
+
+                    st.dataframe(lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[colunas_existentes].style.format({
+                        'Data': '{:%d/%m/%Y %H:%M}',
+                        'Data do Serviço': '{:%d/%m/%Y}',
+                        'Valor Unitário': 'R$ {:,.2f}', 
+                        'Valor Parcial': 'R$ {:,.2f}'
+                    }), use_container_width=True, hide_index=True)
+                else:
+                    st.info("Nenhum lançamento adicionado ainda para esta obra no mês selecionado.")
+            else:
+                st.info("Nenhum lançamento adicionado ainda neste mês.")
