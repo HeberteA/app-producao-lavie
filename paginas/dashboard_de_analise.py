@@ -32,7 +32,7 @@ def render_page():
             )
             if funcionarios_filtrados_dash:
                 df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Funcionário'].isin(funcionarios_filtrados_dash)]
-    else: # User
+    else:
         df_filtrado_dash = df_filtrado_dash[df_filtrado_dash['Obra'] == st.session_state['obra_logada']]
         funcionarios_disponiveis = sorted(df_filtrado_dash['Funcionário'].unique())
         funcionarios_filtrados_dash = st.multiselect(
@@ -119,23 +119,47 @@ def render_page():
     st.markdown("---")
     st.subheader("Produção ao Longo do Tempo")
     df_filtrado_dash['Data'] = pd.to_datetime(df_filtrado_dash['Data'])
-    prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
-    fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
-    fig_line.update_traces(line_color=cor_padrao, marker=dict(color=cor_padrao))
-    st.plotly_chart(fig_line, use_container_width=True)
+    
+    col_diag, col_mes = st.columns(2)
+    with col_diag:
+        prod_dia = df_filtrado_dash.set_index('Data').resample('D')['Valor Parcial'].sum().reset_index()
+        fig_line = px.line(prod_dia, x='Data', y='Valor Parcial', markers=True, title="Evolução Diária da Produção")
+        fig_line.update_traces(line_color=cor_padrao, marker=dict(color=cor_padrao))
+        st.plotly_chart(fig_line, use_container_width=True)
+    with col_mes:
+        prod_mes = df_filtrado_dash.set_index('Data').resample('ME')['Valor Parcial'].sum().reset_index()
+        prod_mes['Mês'] = prod_mes['Data'].dt.strftime('%Y-%m')
+        fig_bar_mes = px.bar(prod_mes, x='Mês', y='Valor Parcial', text_auto=True, title="Produção Total Mensal")
+        fig_bar_mes.update_traces(texttemplate='R$ %{y:,.2f}', textposition='outside', marker_color=cor_padrao)
+        st.plotly_chart(fig_bar_mes, use_container_width=True)
 
     if st.session_state['role'] == 'admin':
         st.markdown("---")
-        st.subheader("Análise de Serviços e Disciplinas")
-        col_serv, col_disc = st.columns(2)
-        with col_serv:
+        st.subheader("Análise de Serviços")
+        col_freq, col_custo = st.columns(2)
+        with col_freq:
+            serv_freq = df_filtrado_dash['Serviço'].value_counts().nlargest(10).sort_values(ascending=True).reset_index()
+            serv_freq.columns = ['Serviço', 'Contagem']
+            fig_freq = px.bar(serv_freq, y='Serviço', x='Contagem', orientation='h', title="Top 10 Serviços Mais Realizados (Frequência)")
+            fig_freq.update_traces(marker_color=cor_padrao, texttemplate='%{x}', textposition='outside')
+            st.plotly_chart(fig_freq, use_container_width=True)
+        with col_custo:
             serv_custo = df_filtrado_dash.groupby('Serviço')['Valor Parcial'].sum().nlargest(10).sort_values(ascending=True).reset_index()
             fig_custo = px.bar(serv_custo, y='Serviço', x='Valor Parcial', orientation='h', title="Top 10 Serviços de Maior Custo", text_auto=True)
             fig_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
             st.plotly_chart(fig_custo, use_container_width=True)
-        with col_disc:
+
+        st.markdown("---")
+        st.subheader("Análise de Disciplinas")
+        col_disc_freq, col_disc_custo = st.columns(2)
+        with col_disc_freq:
+            disc_freq = df_filtrado_dash['Disciplina'].value_counts().nlargest(10).sort_values(ascending=True).reset_index()
+            disc_freq.columns = ['Disciplina', 'Contagem']
+            fig_disc_freq = px.bar(disc_freq, y='Disciplina', x='Contagem', orientation='h', title="Top 10 Disciplinas Mais Realizadas (Frequência)")
+            fig_disc_freq.update_traces(marker_color=cor_padrao, texttemplate='%{x}', textposition='outside')
+            st.plotly_chart(fig_disc_freq, use_container_width=True)
+        with col_disc_custo:
             disc_custo = df_filtrado_dash.groupby('Disciplina')['Valor Parcial'].sum().nlargest(10).sort_values(ascending=True).reset_index()
             fig_disc_custo = px.bar(disc_custo, y='Disciplina', x='Valor Parcial', orientation='h', title="Top 10 Disciplinas de Maior Custo")
             fig_disc_custo.update_traces(marker_color=cor_padrao, texttemplate='R$ %{x:,.2f}', textposition='outside')
             st.plotly_chart(fig_disc_custo, use_container_width=True)
-
