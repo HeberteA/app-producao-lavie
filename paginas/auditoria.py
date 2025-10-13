@@ -16,12 +16,22 @@ def render_page():
     
     col_filtro1, col_filtro2 = st.columns(2)
     nomes_obras_disponiveis = sorted(obras_df['NOME DA OBRA'].unique())
-    obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra para auditar", options=nomes_obras_disponiveis, index=None, placeholder="Selecione uma obra...")
+    obra_selecionada = col_filtro1.selectbox(
+        "1. Selecione a Obra para auditar", 
+        options=nomes_obras_disponiveis, 
+        index=None, 
+        placeholder="Selecione uma obra...",
+        key="auditoria_obra_select"
+    )
     
     funcionarios_filtrados = []
     if obra_selecionada:
         funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
-        funcionarios_filtrados = col_filtro2.multiselect("2. Filtre por Funcionário (Opcional)", options=funcionarios_da_obra)
+        funcionarios_filtrados = col_filtro2.multiselect(
+            "2. Filtre por Funcionário (Opcional)", 
+            options=funcionarios_da_obra,
+            key="auditoria_func_multiselect"
+        )
     
     if not obra_selecionada:
         st.info("Por favor, selecione uma obra no menu acima para iniciar a auditoria.")
