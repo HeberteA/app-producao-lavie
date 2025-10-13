@@ -107,7 +107,6 @@ def get_folhas(mes_referencia):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
-
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
     if engine is None: return
