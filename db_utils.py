@@ -3,6 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
 
+# --- CONEXÃO ---
 @st.cache_resource(ttl=60)
 def get_db_connection():
     try:
@@ -12,6 +13,7 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
+# --- FUNÇÕES DE LEITURA (com cache e autossuficientes) ---
 
 @st.cache_data(ttl=300)
 def get_funcionarios():
@@ -106,6 +108,8 @@ def get_folhas(mes_referencia):
     if not df.empty and 'Mes' in df.columns:
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
+
+# --- FUNÇÕES DE ESCRITA (sem cache) ---
 
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
@@ -291,4 +295,56 @@ def atualizar_observacoes(updates_list):
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
         return False
+
+def adicionar_obra(nome_obra, codigo_acesso):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query_obra = text("INSERT INTO obras (nome_obra, status) VALUES (:nome, 'Ativa') RETURNING id")
+                result = connection.execute(query_obra, {'nome': nome_obra})
+                new_obra_id = result.scalar_one()
+
+                query_acesso = text("INSERT INTO acessos_obras (obra_id, codigo_acesso) VALUES (:obra_id, :codigo)")
+                connection.execute(query_acesso, {'obra_id': new_obra_id, 'codigo': codigo_acesso})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "ADICIONAR_OBRA", f"Obra '{nome_obra}' adicionada.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao adicionar obra no banco de dados: {e}")
+        return False
+
+def remover_obra(obra_id):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                # Remove primeiro da tabela de acessos para evitar erro de chave estrangeira
+                connection.execute(text("DELETE FROM acessos_obras WHERE obra_id = :id"), {'id': obra_id})
+                # Depois remove da tabela de obras
+                connection.execute(text("DELETE FROM obras WHERE id = :id"), {'id': obra_id})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_OBRA", f"Obra ID {obra_id} removida.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao remover obra: {e}. Verifique se há funcionários alocados nesta obra antes de removê-la.")
+        return False
+
+def mudar_codigo_acesso_obra(obra_id, novo_codigo):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE acessos_obras SET codigo_acesso = :novo_codigo WHERE obra_id = :obra_id")
+                connection.execute(query, {'novo_codigo': novo_codigo, 'obra_id': obra_id})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "MUDAR_CODIGO_ACESSO", f"Código de acesso da obra ID {obra_id} alterado.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao alterar o código de acesso: {e}")
+        return False
+
 
