@@ -20,10 +20,11 @@ def render_page():
         
         if st.form_submit_button("Adicionar Obra"):
             if nome_obra.strip() and codigo_acesso.strip():
-                if db_utils.adicionar_obra(nome_obra, codigo_acesso):
-                    st.success(f"Obra '{nome_obra}' adicionada com sucesso!")
-                    st.cache_data.clear()
-                    st.rerun()
+                with st.spinner("Adicionando nova obra, aguarde..."):
+                    if db_utils.adicionar_obra(nome_obra, codigo_acesso):
+                        st.success(f"Obra '{nome_obra}' adicionada com sucesso!")
+                        st.cache_data.clear()
+                        st.rerun()
             else:
                 st.warning("O nome da obra e o código de acesso não podem estar em branco.")
 
@@ -61,15 +62,16 @@ def render_page():
             confirmacao = st.checkbox(f"Sim, confirmo a remoção da obra '{obra_para_remover_nome}'.", key="go_confirm_delete")
             
             if st.button(f"Remover Obra", type="primary", key="go_remover_btn", disabled=not confirmacao):
-                obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover_nome, 'id']
-                if not obra_info.empty:
-                    obra_id_para_remover = int(obra_info.iloc[0])
-                    if db_utils.remover_obra(obra_id_para_remover):
-                        st.success(f"Obra '{obra_para_remover_nome}' removida com sucesso!")
-                        st.cache_data.clear()
-                        st.rerun()
-                else:
-                    st.error(f"Erro: Obra '{obra_para_remover_nome}' não encontrada. A página pode estar desatualizada.")
+                with st.spinner("Removendo a obra..."):
+                    obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover_nome, 'id']
+                    if not obra_info.empty:
+                        obra_id_para_remover = int(obra_info.iloc[0])
+                        if db_utils.remover_obra(obra_id_para_remover):
+                            st.success(f"Obra '{obra_para_remover_nome}' removida com sucesso!")
+                            st.cache_data.clear()
+                            st.rerun()
+                    else:
+                        st.error(f"Erro: Obra '{obra_para_remover_nome}' não encontrada. A página pode estar desatualizada.")
 
     st.markdown("---")
     st.subheader("Alterar Código de Acesso")
@@ -85,14 +87,15 @@ def render_page():
         
         if st.button("Alterar Código", use_container_width=True, key="go_alterar_btn"):
             if obra_para_alterar_codigo_nome and novo_codigo.strip():
-                obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo_nome, 'id']
-                if not obra_info.empty:
-                    obra_id_para_alterar = int(obra_info.iloc[0])
-                    if db_utils.mudar_codigo_acesso_obra(obra_id_para_alterar, novo_codigo):
-                        st.success(f"Código de acesso da obra '{obra_para_alterar_codigo_nome}' alterado com sucesso!")
-                        st.cache_data.clear()
-                        st.rerun()
-                else:
-                    st.error(f"Erro: Obra '{obra_para_alterar_codigo_nome}' não encontrada. A página pode estar desatualizada.")
+                with st.spinner("Alterando o código..."):
+                    obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo_nome, 'id']
+                    if not obra_info.empty:
+                        obra_id_para_alterar = int(obra_info.iloc[0])
+                        if db_utils.mudar_codigo_acesso_obra(obra_id_para_alterar, novo_codigo):
+                            st.success(f"Código de acesso da obra '{obra_para_alterar_codigo_nome}' alterado com sucesso!")
+                            st.cache_data.clear()
+                            st.rerun()
+                    else:
+                        st.error(f"Erro: Obra '{obra_para_alterar_codigo_nome}' não encontrada. A página pode estar desatualizada.")
             else:
                 st.warning("Por favor, selecione uma obra e digite o novo código.")
