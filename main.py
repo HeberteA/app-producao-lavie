@@ -5,13 +5,11 @@ import pandas as pd
 import db_utils
 import utils
 
-from paginas import lancamento_folha
-from paginas import auditoria
-from paginas import gerenciar_funcionarios
-from paginas import gerenciar_obras
-from paginas import resumo_da_folha
-from paginas import remover_lancamentos
-from paginas import dashboard_de_analise
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+import db_utils
+import utils
+from pages import lancamento_folha, auditoria, gerenciar_funcionarios, gerenciar_obras, resumo_da_folha, remover_lancamentos, dashboard_de_analise
 
 st.set_page_config(
     page_title="Cadastro de Produção",
@@ -181,5 +179,6 @@ else:
     
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
