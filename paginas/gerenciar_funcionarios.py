@@ -27,13 +27,12 @@ def render_page():
                 col_tipo.text_input("Tipo de Contrato", value=info_funcao['TIPO'], disabled=True, key="gf_tipo_input")
                 col_salario.text_input("Salário Base", value=utils.format_currency(info_funcao['SALARIO_BASE']), disabled=True, key="gf_salario_input")
             
-            with st.form("gf_add_funcionario_form"):
+            with st.form("gf_add_funcionario_form", clear_on_submit=True):
                 nome = st.text_input("2. Nome do Funcionário", key="gf_nome_input")
                 obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique(), key="gf_obra_select")
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
-                    if nome and funcao_selecionada and obra:
-                        # --- INÍCIO DA CORREÇÃO ---
+                    if nome.strip() and funcao_selecionada and obra:
                         obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id']
                         funcao_info = funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id']
 
@@ -42,13 +41,14 @@ def render_page():
                         elif funcao_info.empty:
                             st.error(f"A função '{funcao_selecionada}' não foi encontrada. Por favor, atualize a página.")
                         else:
-                            obra_id = obra_info.iloc[0]
-                            funcao_id = funcao_info.iloc[0]
-                            # A função para adicionar ao DB ainda não existe em db_utils.py, esta é uma simulação
-                            # db_utils.adicionar_funcionario(nome, funcao_id, obra_id) 
-                            st.success(f"Funcionário '{nome}' adicionado com sucesso (simulação).")
-                            st.cache_data.clear()
-                        # --- FIM DA CORREÇÃO ---
+                            obra_id = int(obra_info.iloc[0])
+                            funcao_id = int(funcao_info.iloc[0])
+                            
+                            with st.spinner("Adicionando funcionário..."):
+                                if db_utils.adicionar_funcionario(nome, funcao_id, obra_id):
+                                    st.success(f"Funcionário '{nome}' adicionado com sucesso ao banco de dados!")
+                                    st.cache_data.clear()
+                                    st.rerun()
                     else:
                         st.warning("Por favor, preencha nome, função e obra.")
 
@@ -71,8 +71,16 @@ def render_page():
         )
         if func_para_remover:
             if st.button(f"Inativar {func_para_remover}", type="primary", key="gf_inativar_btn"):
-                st.success(f"Funcionário '{func_para_remover}' inativado com sucesso (simulação).")
-                st.cache_data.clear()
+                with st.spinner(f"Inativando {func_para_remover}..."):
+                    funcionario_info = funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id']
+                    if not funcionario_info.empty:
+                        funcionario_id = int(funcionario_info.iloc[0])
+                        if db_utils.inativar_funcionario(funcionario_id):
+                            st.success(f"Funcionário '{func_para_remover}' inativado com sucesso!")
+                            st.cache_data.clear()
+                            st.rerun()
+                    else:
+                        st.error(f"Erro: Funcionário '{func_para_remover}' não encontrado.")
 
     with tab_mudar_obra:
         st.subheader("Mudar Funcionário de Obra")
@@ -104,7 +112,21 @@ def render_page():
 
             if st.button("Mudar Funcionário de Obra", use_container_width=True, key="gf_mudar_obra_btn"):
                 if obra_origem and func_para_mudar and obra_destino:
-                    st.success(f"Funcionário '{func_para_mudar}' movido para '{obra_destino}' com sucesso (simulação).")
-                    st.cache_data.clear()
+                    with st.spinner(f"Movendo {func_para_mudar} para a obra {obra_destino}..."):
+                        funcionario_info = funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id']
+                        obra_destino_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id']
+
+                        if funcionario_info.empty:
+                            st.error(f"Erro: Funcionário '{func_para_mudar}' não encontrado.")
+                        elif obra_destino_info.empty:
+                            st.error(f"Erro: Obra de destino '{obra_destino}' não encontrada.")
+                        else:
+                            funcionario_id = int(funcionario_info.iloc[0])
+                            nova_obra_id = int(obra_destino_info.iloc[0])
+                            
+                            if db_utils.mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
+                                st.success(f"Funcionário '{func_para_mudar}' movido para '{obra_destino}' com sucesso!")
+                                st.cache_data.clear()
+                                st.rerun()
                 else:
                     st.warning("Por favor, preencha todos os três campos.")
