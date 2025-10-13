@@ -26,6 +26,7 @@ def render_page():
                     st.rerun()
             else:
                 st.warning("O nome da obra e o código de acesso não podem estar em branco.")
+
     st.markdown("---")
     st.subheader("Remover Obra Existente")
     if obras_df.empty:
@@ -55,11 +56,14 @@ def render_page():
             index=None, placeholder="Selecione na lista acima...", key="go_obra_remover"
         )
         if obra_para_remover_nome:
-            st.warning(f"Atenção: A remoção de uma obra é permanente...")
-            if st.button(f"Remover Obra '{obra_para_remover_nome}'", type="primary", key="go_remover_btn"):
+            st.warning(f"Atenção: A remoção da obra '{obra_para_remover_nome}' é permanente e não pode ser desfeita.")
+            
+            confirmacao = st.checkbox(f"Sim, confirmo a remoção da obra '{obra_para_remover_nome}'.", key="go_confirm_delete")
+            
+            if st.button(f"Remover Obra", type="primary", key="go_remover_btn", disabled=not confirmacao):
                 obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_remover_nome, 'id']
                 if not obra_info.empty:
-                    obra_id_para_remover = obra_info.iloc[0]
+                    obra_id_para_remover = int(obra_info.iloc[0])
                     if db_utils.remover_obra(obra_id_para_remover):
                         st.success(f"Obra '{obra_para_remover_nome}' removida com sucesso!")
                         st.cache_data.clear()
@@ -83,7 +87,7 @@ def render_page():
             if obra_para_alterar_codigo_nome and novo_codigo.strip():
                 obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_para_alterar_codigo_nome, 'id']
                 if not obra_info.empty:
-                    obra_id_para_alterar = obra_info.iloc[0]
+                    obra_id_para_alterar = int(obra_info.iloc[0])
                     if db_utils.mudar_codigo_acesso_obra(obra_id_para_alterar, novo_codigo):
                         st.success(f"Código de acesso da obra '{obra_para_alterar_codigo_nome}' alterado com sucesso!")
                         st.cache_data.clear()
