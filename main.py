@@ -129,42 +129,6 @@ else:
                 del st.session_state[key]
             st.rerun()
 
-
-    page_to_render = st.session_state.page
-
-    if page_to_render == 'lancamento_folha':
-        lancamento_folha.render_page()
-    elif page_to_render == 'auditoria':
-        auditoria.render_page()
-    elif page_to_render == 'gerenciar_funcionarios':
-        gerenciar_funcionarios.render_page()
-    elif page_to_render == 'gerenciar_obras':
-        gerenciar_obras.render_page()
-    elif page_to_render == 'resumo_da_folha':
-        resumo_da_folha.render_page()
-    elif page_to_render == 'remover_lancamentos':
-        remover_lancamentos.render_page()
-    elif page_to_render == 'dashboard_de_analise':
-        dashboard_de_analise.render_page()
-        try:
-            current_index = available_months.index(st.session_state.selected_month)
-        except ValueError:
-            current_index = 0 
-
-        selected_month = st.selectbox(
-            "Selecione o Mês", 
-            options=available_months, 
-            index=current_index,
-            label_visibility="collapsed"
-        )
-        st.session_state.selected_month = selected_month
-        st.markdown("---")
-        if st.button("Sair 🚪", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
-
-
     page_to_render = st.session_state.page
     
     page_map = {
@@ -179,10 +143,3 @@ else:
     
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
-
-
-
-
-
-
-
