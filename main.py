@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import db_utils
 import utils
-from pages import lancamento_folha, auditoria, gerenciar_funcionarios, gerenciar_obras, resumo_da_folha, remover_lancamentos, dashboard_de_analise
+from paginas import lancamento_folha, auditoria, gerenciar_funcionarios, gerenciar_obras, resumo_da_folha, remover_lancamentos, dashboard_de_analise
 
 st.set_page_config(
     page_title="Cadastro de Produção",
@@ -179,6 +179,7 @@ else:
     
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
