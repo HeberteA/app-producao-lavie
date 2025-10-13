@@ -27,12 +27,13 @@ def render_page():
                 col_tipo.text_input("Tipo de Contrato", value=info_funcao['TIPO'], disabled=True, key="gf_tipo_input")
                 col_salario.text_input("Salário Base", value=utils.format_currency(info_funcao['SALARIO_BASE']), disabled=True, key="gf_salario_input")
             
-            with st.form("add_funcionario_form"):
+            with st.form("gf_add_funcionario_form"):
                 nome = st.text_input("2. Nome do Funcionário", key="gf_nome_input")
                 obra = st.selectbox("3. Alocar na Obra", options=obras_df['NOME DA OBRA'].unique(), key="gf_obra_select")
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
                     if nome and funcao_selecionada and obra:
+                        # db_utils.adicionar_funcionario(...)
                         st.success(f"Funcionário '{nome}' adicionado com sucesso (simulação).")
                         st.cache_data.clear()
                     else:
@@ -41,9 +42,8 @@ def render_page():
     with tab_gerenciar:
         st.subheader("Inativar Funcionário Existente")
         obra_filtro_remover = st.selectbox(
-            "Filtre por Obra para ver os funcionários",
-            options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), index=0,
-            key="gf_filtro_obra_remover"
+            "Filtre por Obra", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
+            index=0, key="gf_filtro_obra_remover"
         )
         df_filtrado = funcionarios_df
         if obra_filtro_remover != "Todas":
@@ -54,8 +54,7 @@ def render_page():
         func_para_remover = st.selectbox(
             "Selecione o funcionário para inativar", 
             options=sorted(df_filtrado['NOME'].unique()), index=None, 
-            placeholder="Selecione um funcionário da lista acima...",
-            key="gf_func_remover_select"
+            placeholder="Selecione um funcionário...", key="gf_func_remover_select"
         )
         if func_para_remover:
             if st.button(f"Inativar {func_para_remover}", type="primary", key="gf_inativar_btn"):
