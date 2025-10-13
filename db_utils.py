@@ -109,7 +109,6 @@ def get_folhas(mes_referencia):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
-# --- FUNÇÕES DE ESCRITA (sem cache) ---
 
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
@@ -321,9 +320,7 @@ def remover_obra(obra_id):
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                # Remove primeiro da tabela de acessos para evitar erro de chave estrangeira
                 connection.execute(text("DELETE FROM acessos_obras WHERE obra_id = :id"), {'id': obra_id})
-                # Depois remove da tabela de obras
                 connection.execute(text("DELETE FROM obras WHERE id = :id"), {'id': obra_id})
                 transaction.commit()
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_OBRA", f"Obra ID {obra_id} removida.")
@@ -347,4 +344,86 @@ def mudar_codigo_acesso_obra(obra_id, novo_codigo):
         st.error(f"Erro ao alterar o código de acesso: {e}")
         return False
 
+def adicionar_funcionario(nome, funcao_id, obra_id):
+    """
+    Insere um novo funcionário ativo no banco de dados.
+    """
+    engine = get_db_connection()
+    if engine is None: return False
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO funcionarios (nome, funcao_id, obra_id, ativo)
+                    VALUES (:nome, :funcao_id, :obra_id, TRUE)
+                """)
+                connection.execute(query, {
+                    'nome': nome, 
+                    'funcao_id': funcao_id, 
+                    'obra_id': obra_id
+                })
+                transaction.commit()
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "ADICIONAR_FUNCIONARIO", 
+                      f"Funcionário '{nome}' adicionado.")
+        return True
+    except Exception as e:
+        if 'unique constraint' in str(e).lower():
+            st.error(f"Erro: Já existe um funcionário com o nome '{nome}'. Por favor, escolha um nome diferente.")
+        else:
+            st.error(f"Erro ao adicionar funcionário no banco de dados: {e}")
+        return False
+
+def inativar_funcionario(funcionario_id):
+    """
+    Marca um funcionário como inativo no banco de dados (ativo = FALSE).
+    """
+    engine = get_db_connection()
+    if engine is None: return False
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE funcionarios SET ativo = FALSE WHERE id = :id
+                """)
+                connection.execute(query, {'id': funcionario_id})
+                transaction.commit()
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "INATIVAR_FUNCIONARIO", 
+                      f"Funcionário ID {funcionario_id} foi inativado.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao inativar funcionário no banco de dados: {e}")
+        return False
+
+def mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
+    """
+    Atualiza a obra_id de um funcionário, movendo-o para uma nova obra.
+    """
+    engine = get_db_connection()
+    if engine is None: return False
+    
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE funcionarios SET obra_id = :nova_obra_id WHERE id = :funcionario_id
+                """)
+                connection.execute(query, {
+                    'nova_obra_id': nova_obra_id,
+                    'funcionario_id': funcionario_id
+                })
+                transaction.commit()
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "MUDAR_OBRA_FUNCIONARIO", 
+                      f"Funcionário ID {funcionario_id} movido para a obra ID {nova_obra_id}.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao mudar funcionário de obra no banco de dados: {e}")
+        return False
 
