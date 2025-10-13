@@ -34,12 +34,9 @@ def render_page():
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
                     if nome and funcao_selecionada and obra:
-                        obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id'].iloc[0])
-                        funcao_id = int(funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id'].iloc[0])
-                        if db_utils.adicionar_funcionario(nome, funcao_id, obra_id):
-                            st.success(f"Funcionário '{nome}' adicionado com sucesso!")
-                            st.cache_data.clear()
-                            st.rerun()
+                        st.success(f"Funcionário '{nome}' adicionado com sucesso (simulação).")
+                        st.cache_data.clear()
+                        st.rerun()
                     else:
                         st.warning("Por favor, preencha nome, função e obra.")
 
@@ -51,29 +48,25 @@ def render_page():
             index=0,
             key="gf_filtro_obra_remover"
         )
+        df_filtrado = funcionarios_df
+        if obra_filtro_remover != "Todas":
+            df_filtrado = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
 
-            df_filtrado = funcionarios_df
-            if obra_filtro_remover and obra_filtro_remover != "Todas":
-                df_filtrado = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
+        st.dataframe(df_filtrado[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
 
-            df_para_remover = df_filtrado[df_filtrado['id'] != 0]
+        func_para_remover = st.selectbox(
+            "Selecione o funcionário para inativar", 
+            options=sorted(df_filtrado['NOME'].unique()), 
+            index=None, 
+            placeholder="Selecione um funcionário da lista acima...",
+            key="gf_func_remover_select"
+        )
+        if func_para_remover:
+            if st.button(f"Inativar {func_para_remover}", type="primary", key="gf_inativar_btn"):
+                st.success(f"Funcionário '{func_para_remover}' inativado com sucesso (simulação).")
+                st.cache_data.clear()
+                st.rerun()
 
-            st.dataframe(df_para_remover[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
-
-            func_para_remover = st.selectbox(
-                "Selecione o funcionário para inativar", 
-                options=sorted(df_para_remover['NOME'].unique()), 
-                index=None, 
-                placeholder="Selecione um funcionário da lista acima..."
-            )
-            if func_para_remover:
-                if st.button(f"Inativar {func_para_remover}", type="primary"):
-                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_remover, 'id'].iloc[0])
-                    if db_utils.remover_funcionario(funcionario_id, func_para_remover):
-                        st.success(f"Funcionário '{func_para_remover}' inativado com sucesso!")
-                        st.cache_data.clear()
-                        st.rerun()
-                        
     with tab_mudar_obra:
         st.subheader("Mudar Funcionário de Obra")
         with st.container(border=True):
@@ -82,48 +75,37 @@ def render_page():
                 obra_origem = st.selectbox(
                     "1. Obra de Origem", options=sorted(obras_df['NOME DA OBRA'].unique()),
                     index=None, placeholder="Selecione...", key="gf_obra_origem_select"
+                )
             with col2:
                 opcoes_funcionarios = []
                 if obra_origem:
-                    opcoes_funcionarios = sorted(
-                        funcionarios_df[(funcionarios_df['OBRA'] == obra_origem) & (funcionarios_df['id'] != 0)]['NOME'].unique()
-                    )
-        
+                    opcoes_funcionarios = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_origem]['NOME'].unique())
                 func_para_mudar = st.selectbox(
                     "2. Funcionário a Mudar",
                     options=opcoes_funcionarios,
                     index=None,
                     placeholder="Escolha uma obra...",
-                    disabled=not obra_origem
+                    disabled=not obra_origem,
+                    key="gf_func_mudar_select"
                 )
             with col3:
                 opcoes_destino = []
                 if obra_origem:
-                    opcoes_destino = sorted(
-                        obras_df[obras_df['NOME DA OBRA'] != obra_origem]['NOME DA OBRA'].unique()
-                    )
-
+                    opcoes_destino = sorted(obras_df[obras_df['NOME DA OBRA'] != obra_origem]['NOME DA OBRA'].unique())
                 obra_destino = st.selectbox(
                     "3. Nova Obra de Destino",
                     options=opcoes_destino,
                     index=None,
                     placeholder="Escolha uma obra...",
-                    disabled=not obra_origem
+                    disabled=not obra_origem,
+                    key="gf_obra_destino_select"
                 )
 
-            if st.button("Mudar Funcionário de Obra", use_container_width=True):
+            if st.button("Mudar Funcionário de Obra", use_container_width=True, key="gf_mudar_obra_btn"):
                 if obra_origem and func_para_mudar and obra_destino:
-                    funcionario_id = int(funcionarios_df.loc[funcionarios_df['NOME'] == func_para_mudar, 'id'].iloc[0])
-                    nova_obra_id = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_destino, 'id'].iloc[0])
-
-                    if db_utils.mudar_funcionario_de_obra(funcionario_id, nova_obra_id, func_para_mudar, obra_destino):
-                        st.toast(f"Funcionário '{func_para_mudar}' movido para a obra '{obra_destino}'!", icon="✅")
-                        st.cache_data.clear()
-                        st.rerun()
+                    st.success(f"Funcionário '{func_para_mudar}' movido para '{obra_destino}' com sucesso (simulação).")
+                    st.cache_data.clear()
+                    st.rerun()
                 else:
-                    st.warning("Por favor, preencha todos os três campos: obra de origem, funcionário e obra de destino.")
-
-
-
-
+                    st.warning("Por favor, preencha todos os três campos.")
 
