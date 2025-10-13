@@ -33,9 +33,22 @@ def render_page():
                 submitted = st.form_submit_button("Adicionar Funcionário")
                 if submitted:
                     if nome and funcao_selecionada and obra:
-                        # db_utils.adicionar_funcionario(...)
-                        st.success(f"Funcionário '{nome}' adicionado com sucesso (simulação).")
-                        st.cache_data.clear()
+                        # --- INÍCIO DA CORREÇÃO ---
+                        obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra, 'id']
+                        funcao_info = funcoes_df.loc[funcoes_df['FUNÇÃO'] == funcao_selecionada, 'id']
+
+                        if obra_info.empty:
+                            st.error(f"A obra '{obra}' não foi encontrada. Por favor, atualize a página.")
+                        elif funcao_info.empty:
+                            st.error(f"A função '{funcao_selecionada}' não foi encontrada. Por favor, atualize a página.")
+                        else:
+                            obra_id = obra_info.iloc[0]
+                            funcao_id = funcao_info.iloc[0]
+                            # A função para adicionar ao DB ainda não existe em db_utils.py, esta é uma simulação
+                            # db_utils.adicionar_funcionario(nome, funcao_id, obra_id) 
+                            st.success(f"Funcionário '{nome}' adicionado com sucesso (simulação).")
+                            st.cache_data.clear()
+                        # --- FIM DA CORREÇÃO ---
                     else:
                         st.warning("Por favor, preencha nome, função e obra.")
 
@@ -95,4 +108,3 @@ def render_page():
                     st.cache_data.clear()
                 else:
                     st.warning("Por favor, preencha todos os três campos.")
-
