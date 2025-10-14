@@ -77,18 +77,42 @@ else:
 
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
+        
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
-        else:
+        else: 
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
+            
             obras_df = db_utils.get_obras()
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
-            if not obra_info.empty and 'aviso' in obra_info.columns:
-                aviso_obra = obra_info['aviso'].iloc[0]
-                if aviso_obra and str(aviso_obra).strip():
-                    st.error(f"Aviso da Auditoria: {aviso_obra}")
+            
+            if not obra_info.empty:
+                obra_id = int(obra_info.iloc[0]['id'])
+                
+                hoje = date.today()
+                mes_referencia_envio = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
+                mes_ref_str = mes_referencia_envio.strftime('%Y-%m')
+
+                status_df = db_utils.get_status_do_mes(mes_ref_str)
+                status_geral_obra_row = status_df[
+                    (status_df['obra_id'] == obra_id) & (status_df['funcionario_id'] == 0)
+                ]
+                status_auditoria = status_geral_obra_row['Status'].iloc[0] if not status_geral_obra_row.empty else "A Revisar"
+                
+                if status_auditoria == 'Aprovado':
+                    st.success(f"Status da Auditoria: {status_auditoria}")
+                elif status_auditoria == 'Analisar':
+                    st.error(f"Status da Auditoria: {status_auditoria}")
+                else:
+                    st.info(f"Status da Auditoria: {status_auditoria}")
+
+                if 'aviso' in obra_info.columns:
+                    aviso_obra = obra_info['aviso'].iloc[0]
+                    if aviso_obra and str(aviso_obra).strip():
+                        st.warning(f"Aviso: {aviso_obra}")
+        
         st.markdown("---")
-        st.subheader("Mês de Referência")
+        st.subheader("Mês de Referência (Visualização)")
         current_month_str = datetime.now().strftime('%Y-%m')
         last_month_str = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         available_months = sorted(list(set([current_month_str, last_month_str])), reverse=True)
@@ -117,26 +141,35 @@ else:
         if st.button("📈 Dashboard de Análise", use_container_width=True):
             st.session_state.page = 'dashboard_de_analise'
         st.markdown("---")
+        
         if st.session_state.role == 'user':
-            st.subheader(f"Envio da Folha")
+            folhas_df = db_utils.get_folhas()
             obras_df = db_utils.get_obras()
-            folhas_df = db_utils.get_folhas(st.session_state.selected_month)
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
+            
             if not obra_info.empty:
                 obra_id = int(obra_info.iloc[0]['id'])
-                folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id]
+                hoje = date.today()
+                mes_referencia_envio = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
+                mes_ref_str = mes_referencia_envio.strftime('%Y-%m')
+                
+                st.subheader(f"Envio da Folha ({mes_referencia_envio.strftime('%m/%Y')})")
+
+                folha_do_mes = folhas_df[
+                    (folhas_df['obra_id'] == obra_id) &
+                    (folhas_df['Mes'] == mes_referencia_envio)
+                ]
                 status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
-                if not folha_do_mes.empty:
-                    st.success(f"Status: {status_folha}")
-                    if 'data_lancamento' in folha_do_mes.columns and pd.notna(folha_do_mes['data_lancamento'].iloc[0]):
-                        data_envio = pd.to_datetime(folha_do_mes['data_lancamento'].iloc[0])
-                        st.info(f"Último envio: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
-                else:
-                    st.info("Status: Pendente de Envio")
+
+                st.info(f"Status do Envio: {status_folha}")
+                if not folha_do_mes.empty and 'data_lancamento' in folha_do_mes.columns and pd.notna(folha_do_mes.iloc[0]['data_lancamento']):
+                    data_envio = pd.to_datetime(folha_do_mes.iloc[0]['data_lancamento'])
+                    st.caption(f"Último envio em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
+
                 btn_enviar_desabilitado = status_folha in ['Enviada para Auditoria', 'Finalizada']
                 if st.button("Enviar para Auditoria", use_container_width=True, disabled=btn_enviar_desabilitado):
                     with st.spinner("Enviando folha..."):
-                        if db_utils.enviar_folha_para_auditoria(obra_id, st.session_state.selected_month, st.session_state['obra_logada']):
+                        if db_utils.enviar_folha_para_auditoria(obra_id, mes_ref_str, st.session_state['obra_logada']):
                             st.success("Folha enviada com sucesso!")
                             st.cache_data.clear()
                             st.rerun()
@@ -148,7 +181,6 @@ else:
                 funcionarios_df = db_utils.get_funcionarios()
                 lancamentos_df = db_utils.get_lancamentos_do_mes(st.session_state.selected_month)
                 status_df = db_utils.get_status_do_mes(st.session_state.selected_month)
-
                 base_para_resumo = funcionarios_df.copy()
                 producao_df = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
                 resumo_df = pd.merge(base_para_resumo, producao_df, left_on='NOME', right_on='Funcionário', how='left')
@@ -156,21 +188,17 @@ else:
                 resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
                 resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
                 resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-
                 obra_relatorio = None
                 if st.session_state['role'] == 'user':
                     obra_relatorio = st.session_state['obra_logada']
                     resumo_df = resumo_df[resumo_df['OBRA'] == obra_relatorio]
                     lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == obra_relatorio]
-                
                 colunas_resumo = ['Funcionário', 'OBRA', 'FUNÇÃO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
                 if st.session_state['role'] == 'user':
                     colunas_resumo.remove('OBRA')
-
                 colunas_lancamentos = ['Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
                 if st.session_state['role'] == 'user':
                     colunas_lancamentos.remove('Obra')
-
                 pdf_data = utils.gerar_relatorio_pdf(
                     resumo_df=resumo_df[colunas_resumo], 
                     lancamentos_df=lancamentos_df[colunas_lancamentos],
@@ -178,7 +206,6 @@ else:
                     mes_referencia=st.session_state.selected_month,
                     obra_nome=obra_relatorio
                 )
-
                 st.download_button(
                     label="Clique aqui para baixar o Relatório",
                     data=pdf_data,
@@ -186,7 +213,6 @@ else:
                     mime="application/pdf",
                     use_container_width=True
                 )
-        
         st.markdown("---")
         if st.button("Sair 🚪", use_container_width=True):
             for key in list(st.session_state.keys()):
