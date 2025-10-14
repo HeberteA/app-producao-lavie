@@ -152,7 +152,7 @@ def render_page():
 
                             if novos_lancamentos:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos)
-                                df_para_salvar = df_para_salvar.where(pd.notna(df_para_salvar), None)
+                
                                 
                                 if db_utils.salvar_novos_lancamentos(df_para_salvar):
                                     st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s) com sucesso!")
