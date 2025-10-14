@@ -36,7 +36,7 @@ def get_lancamentos_do_mes(mes_referencia):
     query = text("""
     SELECT l.id, l.data_lancamento, l.data_servico, l.obra_id, o.nome_obra AS "Obra", 
            f.nome AS "Funcionário", 
-           COALESCE(s.disciplina, 'Diverso') AS "Disciplina",
+           COALESCE(s.disciplina, 'DIVERSO') AS "Disciplina",
            COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
            CAST(l.quantidade AS INTEGER) AS "Quantidade",
            COALESCE(s.unidade, 'UN') AS "Unidade", l.valor_unitario AS "Valor Unitário",
@@ -488,6 +488,7 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     </html>
     """
     return HTML(string=html_string).write_pdf()
+
 
 
 
