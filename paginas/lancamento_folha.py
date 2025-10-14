@@ -88,7 +88,7 @@ def render_page():
                     with col_obs_princ:
                         obs_principal = st.text_area("Observação", key="lf_obs_principal")
             
-            st.markdown("##### Adicione Itens Diversos")
+            st.markdown("##### Adicione Itens Extras (Diversos)")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
                 
@@ -100,7 +100,6 @@ def render_page():
 
                 valor_parcial_diverso = quantidade_diverso * valor_diverso
                 st.metric(label="Subtotal do Item Diverso", value=utils.format_currency(valor_parcial_diverso))
-
                 
                 col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
@@ -112,46 +111,55 @@ def render_page():
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
                 else:
-                    novos_lancamentos = []
-                    agora = datetime.now()
-
-                    func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
-                    if func_id_info.empty:
-                        st.error("Funcionário não encontrado no banco de dados.")
+                    erros = []
+                    if servico_selecionado and quantidade_principal > 0 and not obs_principal.strip():
+                        erros.append("Para o Serviço Principal, o campo 'Observação' é obrigatório.")
+                    
+                    if descricao_diverso.strip() and quantidade_diverso > 0 and not obs_diverso.strip():
+                        erros.append("Para o Item Diverso, o campo 'Observação' é obrigatório.")
+                    
+                    if erros:
+                        for erro in erros:
+                            st.warning(erro)
                     else:
-                        func_id = int(func_id_info.iloc[0])
+                        novos_lancamentos = []
+                        agora = datetime.now()
 
-                        if servico_selecionado and quantidade_principal > 0:
-                            servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
-                            novos_lancamentos.append({
-                                'data_servico': data_servico_principal, 'obra_id': obra_logada_id,
-                                'funcionario_id': func_id, 'servico_id': int(servico_info['id']),
-                                'servico_diverso_descricao': None, 'quantidade': quantidade_principal,
-                                'valor_unitario': utils.safe_float(servico_info['VALOR']),
-                                'observacao': obs_principal, 'data_lancamento': agora
-                            })
-
-                        if descricao_diverso.strip() and quantidade_diverso > 0 and valor_diverso > 0:
-                            novos_lancamentos.append({
-                                'data_servico': data_servico_diverso, 'obra_id': obra_logada_id,
-                                'funcionario_id': func_id, 'servico_id': None,
-                                'servico_diverso_descricao': descricao_diverso, 'quantidade': quantidade_diverso,
-                                'valor_unitario': valor_diverso, 'observacao': obs_diverso,
-                                'data_lancamento': agora
-                            })
-
-                        if novos_lancamentos:
-                            df_para_salvar = pd.DataFrame(novos_lancamentos)
-                            
-                            df_para_salvar = df_para_salvar.where(pd.notna(df_para_salvar), None)
-           
-                            
-                            if db_utils.salvar_novos_lancamentos(df_para_salvar):
-                                st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s) com sucesso!")
-                                st.cache_data.clear()
-                                st.rerun()
+                        func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
+                        if func_id_info.empty:
+                            st.error("Funcionário não encontrado no banco de dados.")
                         else:
-                            st.info("Nenhum serviço ou item com quantidade maior que zero foi adicionado para salvar.")
+                            func_id = int(func_id_info.iloc[0])
+
+                            if servico_selecionado and quantidade_principal > 0:
+                                servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
+                                novos_lancamentos.append({
+                                    'data_servico': data_servico_principal, 'obra_id': obra_logada_id,
+                                    'funcionario_id': func_id, 'servico_id': int(servico_info['id']),
+                                    'servico_diverso_descricao': None, 'quantidade': quantidade_principal,
+                                    'valor_unitario': utils.safe_float(servico_info['VALOR']),
+                                    'observacao': obs_principal, 'data_lancamento': agora
+                                })
+
+                            if descricao_diverso.strip() and quantidade_diverso > 0 and valor_diverso > 0:
+                                novos_lancamentos.append({
+                                    'data_servico': data_servico_diverso, 'obra_id': obra_logada_id,
+                                    'funcionario_id': func_id, 'servico_id': None,
+                                    'servico_diverso_descricao': descricao_diverso, 'quantidade': quantidade_diverso,
+                                    'valor_unitario': valor_diverso, 'observacao': obs_diverso,
+                                    'data_lancamento': agora
+                                })
+
+                            if novos_lancamentos:
+                                df_para_salvar = pd.DataFrame(novos_lancamentos)
+                                df_para_salvar = df_para_salvar.where(pd.notna(df_para_salvar), None)
+                                
+                                if db_utils.salvar_novos_lancamentos(df_para_salvar):
+                                    st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s) com sucesso!")
+                                    st.cache_data.clear()
+                                    st.rerun()
+                            else:
+                                st.info("Nenhum serviço ou item com quantidade maior que zero foi adicionado para salvar.")
                                 
         with col_view:
             if funcionario_selecionado:
@@ -197,6 +205,3 @@ def render_page():
                     st.info("Nenhum lançamento adicionado ainda para esta obra no mês selecionado.")
             else:
                 st.info("Nenhum lançamento adicionado ainda neste mês.")
-
-
-
