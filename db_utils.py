@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
+import base64
+from weasyprint import HTML
 
-# --- CONEXÃO ---
 @st.cache_resource(ttl=60)
 def get_db_connection():
     try:
@@ -13,7 +14,6 @@ def get_db_connection():
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
 
-# --- FUNÇÕES DE LEITURA (com cache e autossuficientes) ---
 
 @st.cache_data(ttl=300)
 def get_funcionarios():
@@ -420,10 +420,61 @@ def mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
                 transaction.commit()
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
-                      "MUDAR_OBRA_FUNCIONARIO", 
+                      "MUDAR_OBRA_FUNCIONARIO",
                       f"Funcionário ID {funcionario_id} movido para a obra ID {nova_obra_id}.")
         return True
     except Exception as e:
         st.error(f"Erro ao mudar funcionário de obra no banco de dados: {e}")
         return False
 
+def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
+ 
+    try:
+        with open(logo_path, "rb") as image_file:
+            logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        logo_base64 = None 
+
+    style = """
+    @page { size: A4 landscape; margin: 1.5cm; }
+    body { font-family: 'Helvetica', sans-serif; font-size: 10px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .logo { width: 200px; height: auto; }
+    h1 { font-size: 20px; color: #333; }
+    h2 { font-size: 16px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .currency { text-align: right; }
+    """
+
+    html_string = f"""
+    <html>
+    <head>
+        <style>{style}</style>
+    </head>
+    <body>
+        <div class="header">
+            {f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ''}
+            <h1>Relatório de Produção - {mes_referencia}</h1>
+            {f'<h2>Obra: {obra_nome}</h2>' if obra_nome else ''}
+        </div>
+
+        <h2>Resumo da Folha</h2>
+        {resumo_df.to_html(index=False, na_rep='', classes='table', formatters={
+            'SALÁRIO BASE (R$)': lambda x: f'R$ {x:,.2f}',
+            'PRODUÇÃO (R$)': lambda x: f'R$ {x:,.2f}',
+            'SALÁRIO A RECEBER (R$)': lambda x: f'R$ {x:,.2f}'
+        })}
+
+        <h2>Histórico de Lançamentos do Mês</h2>
+        {lancamentos_df.to_html(index=False, na_rep='', classes='table', formatters={
+            'Valor Unitário': lambda x: f'R$ {x:,.2f}',
+            'Valor Parcial': lambda x: f'R$ {x:,.2f}'
+        })}
+    </body>
+    </html>
+    """
+
+    return HTML(string=html_string).write_pdf()
