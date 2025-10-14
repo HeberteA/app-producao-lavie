@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
 import base64
-from weasyprint import HTML
+import io
 
 @st.cache_resource(ttl=60)
 def get_db_connection():
@@ -428,7 +428,9 @@ def mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
         return False
 
 def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
- 
+
+    from weasyprint import HTML
+  
     try:
         with open(logo_path, "rb") as image_file:
             logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
@@ -448,7 +450,6 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     tr:nth-child(even) { background-color: #f9f9f9; }
     .currency { text-align: right; }
     """
-
     html_string = f"""
     <html>
     <head>
@@ -460,14 +461,12 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
             <h1>Relatório de Produção - {mes_referencia}</h1>
             {f'<h2>Obra: {obra_nome}</h2>' if obra_nome else ''}
         </div>
-
         <h2>Resumo da Folha</h2>
         {resumo_df.to_html(index=False, na_rep='', classes='table', formatters={
             'SALÁRIO BASE (R$)': lambda x: f'R$ {x:,.2f}',
             'PRODUÇÃO (R$)': lambda x: f'R$ {x:,.2f}',
             'SALÁRIO A RECEBER (R$)': lambda x: f'R$ {x:,.2f}'
         })}
-
         <h2>Histórico de Lançamentos do Mês</h2>
         {lancamentos_df.to_html(index=False, na_rep='', classes='table', formatters={
             'Valor Unitário': lambda x: f'R$ {x:,.2f}',
@@ -476,5 +475,4 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     </body>
     </html>
     """
-
     return HTML(string=html_string).write_pdf()
