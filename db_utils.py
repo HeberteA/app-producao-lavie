@@ -95,16 +95,23 @@ def get_status_do_mes(mes_referencia):
     return df
 
 @st.cache_data(ttl=60)
-def get_folhas(mes_referencia):
+def get_folhas_mensais(mes_referencia=None):
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
-    query = text("""
+
+    base_query = """
     SELECT f.obra_id, o.nome_obra AS "Obra", f.mes_referencia AS "Mes", f.status, f.data_lancamento, f.contador_envios
     FROM folhas_mensais f
     LEFT JOIN obras o ON f.obra_id = o.id
-    WHERE to_char(f.mes_referencia, 'YYYY-MM') = :mes;
-    """)
-    df = pd.read_sql(query, engine, params={'mes': mes_referencia})
+    """
+    params = {}
+    if mes_referencia:
+        base_query += " WHERE to_char(f.mes_referencia, 'YYYY-MM') = :mes"
+        params['mes'] = mes_referencia
+
+    query = text(base_query)
+    df = pd.read_sql(query, engine, params=params)
+
     if not df.empty and 'Mes' in df.columns:
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
@@ -476,3 +483,4 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     </html>
     """
     return HTML(string=html_string).write_pdf()
+
