@@ -102,7 +102,7 @@ else:
                     if aviso_obra and str(aviso_obra).strip():
                         st.warning(f"Aviso: {aviso_obra}")
         st.markdown("---")
-        st.subheader("Mês de Referência (Visualização)")
+        st.subheader("Mês de Referência")
         current_month_str = datetime.now().strftime('%Y-%m')
         last_month_str = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
         available_months = sorted(list(set([current_month_str, last_month_str])), reverse=True)
@@ -161,7 +161,7 @@ else:
                     elif dias_para_o_prazo <= 7:
                         st.warning(f"Atenção: O prazo de envio vence em {dias_para_o_prazo} dia(s).")
                     else:
-                        st.info(f"Prazo de envio: Dia {DIA_LIMITE} do mês.")
+                        st.info(f"Prazo de envio: Dia {DIA_LIMITE}.")
                 
                 st.info(f"Status do Envio: {status_folha}")
                 if not folha_do_mes.empty and pd.notna(folha_do_mes.iloc[0]['data_lancamento']):
@@ -233,6 +233,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
