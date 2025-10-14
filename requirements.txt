@@ -7,3 +7,4 @@ plotly-express
 psycopg2-binary
 xlsxwriter
 matplotlib
+weasyprint
