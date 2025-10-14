@@ -63,13 +63,34 @@ def render_page():
 
     with col_status_geral:
         st.markdown("##### Status Interno e Ações")
-        utils.display_status_box("Status Interno de Auditoria", status_auditoria_interno)
+        utils.display_status_box("Status da Obra", status_auditoria_interno)
 
-        with st.popover("Alterar Status Interno", disabled=edicao_bloqueada):
-            status_options = ['A Revisar', 'Analisar', 'Aprovado']
+         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
+            todos_aprovados = True
+            
+            funcionarios_com_producao = lancamentos_obra_df['Funcionário'].unique()
+            
+            if len(funcionarios_com_producao) > 0:
+                for func_nome in funcionarios_com_producao:
+                    func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == func_nome, 'id']
+                    if not func_id_info.empty:
+                        func_id = int(func_id_info.iloc[0])
+                        status_func_row = status_df[status_df['funcionario_id'] == func_id]
+                        status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+                        
+                        if status_atual_func != 'Aprovado':
+                            todos_aprovados = False
+                            break 
+            status_options = ['A Revisar', 'Analisar']
+            if todos_aprovados:
+                status_options.append('Aprovado')
+            else:
+                st.info("A opção 'Aprovado' só fica disponível quando todos os funcionários com produção no mês estiverem com status 'Aprovado'.")
+
             idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
-            selected_status_obra = st.radio("Defina o status interno:", options=status_options, index=idx, horizontal=True)
-            if st.button("Salvar Status Interno"):
+            selected_status_obra = st.radio("Defina o status da obra:", options=status_options, index=idx, horizontal=True)
+            
+            if st.button("Salvar Status da Obra"):
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, selected_status_obra, mes_selecionado)
                     st.toast("Status interno atualizado!", icon="✅")
@@ -84,7 +105,7 @@ def render_page():
                 st.rerun()
 
         pode_devolver = status_auditoria_interno == "Analisar" and status_folha == "Enviada para Auditoria"
-        if st.button("🔙 Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver, help="O status interno precisa ser 'Analisar' e a folha 'Enviada para Auditoria' para devolver."):
+        if st.button("Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver, help="O status interno precisa ser 'Analisar' e a folha 'Enviada para Auditoria' para devolver."):
             if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado):
                 st.cache_data.clear()
                 st.rerun()
