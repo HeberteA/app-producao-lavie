@@ -65,7 +65,7 @@ def render_page():
         st.markdown("##### Status Interno e Ações")
         utils.display_status_box("Status da Obra", status_auditoria_interno)
 
-         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
+        with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_aprovados = True
             
             funcionarios_com_producao = lancamentos_obra_df['Funcionário'].unique()
