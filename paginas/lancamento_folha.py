@@ -16,7 +16,7 @@ def render_page():
     obras_df = db_utils.get_obras()
     lancamentos_do_mes_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
     status_df = db_utils.get_status_do_mes(mes_selecionado)
-    folhas_df = db_utils.get_folhas(mes_selecionado)
+    folhas_df = db_utils.get_folhas_mensais(mes_selecionado)
 
     st.header("Adicionar Novo Lançamento de Produção")
     
@@ -86,7 +86,7 @@ def render_page():
                     with col_data_princ:
                         data_servico_principal = st.date_input("Data do Serviço", value=datetime.now(), key="lf_data_principal", format="DD/MM/YYYY")
                     with col_obs_princ:
-                        obs_principal = st.text_area("Observação (Opcional)", key="lf_obs_principal")
+                        obs_principal = st.text_area("Observação", key="lf_obs_principal")
             
             st.markdown("##### Adicione Itens Diversos")
             with st.expander("📝 Lançar Item Diverso"):
@@ -106,7 +106,7 @@ def render_page():
                 with col_data_div:
                     data_servico_diverso = st.date_input("Data do Serviço", value=datetime.now(), key="lf_data_diverso", format="DD/MM/YYYY")
                 with col_obs_div:
-                    obs_diverso = st.text_area("Observação (Opcional)", key="lf_obs_diverso")
+                    obs_diverso = st.text_area("Observação", key="lf_obs_diverso")
 
             if st.button("✅ Adicionar Lançamento", use_container_width=True, type="primary", key="lf_add_btn"):
                 if not funcionario_selecionado:
@@ -197,4 +197,5 @@ def render_page():
                     st.info("Nenhum lançamento adicionado ainda para esta obra no mês selecionado.")
             else:
                 st.info("Nenhum lançamento adicionado ainda neste mês.")
+
 
