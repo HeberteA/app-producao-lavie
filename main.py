@@ -169,7 +169,7 @@ else:
                     st.caption(f"Último envio em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
 
                 btn_enviar_desabilitado = status_folha in ['Enviada para Auditoria', 'Finalizada']
-                if st.button("Enviar para Auditoria", use_container_width=True, disabled=btn_enviar_desabilitado):
+                if st.button("Enviar para Auditoria", use_container_width=True, type="primary", disabled=btn_enviar_desabilitado):
                     with st.spinner("Enviando folha..."):
                         if db_utils.enviar_folha_para_auditoria(obra_id, mes_ref_str, st.session_state['obra_logada']):
                             st.success("Folha enviada com sucesso!")
@@ -216,7 +216,7 @@ else:
                     use_container_width=True
                 )
         st.markdown("---")
-        if st.button("Sair 🚪", use_container_width=True):
+        if st.button("Sair 🚪", use_container_width=True, type="primary"):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
@@ -233,6 +233,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
