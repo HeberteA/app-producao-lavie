@@ -10,7 +10,7 @@ def render_page():
     funcionarios_df = db_utils.get_funcionarios()
     obras_df = db_utils.get_obras()
     status_df = db_utils.get_status_do_mes(mes_selecionado)
-    folhas_df = db_utils.get_folhas(mes_selecionado)
+    folhas_df = db_utils.get_folhas_mensais(mes_selecionado)
 
     st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
     
