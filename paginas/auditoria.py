@@ -67,20 +67,25 @@ def render_page():
 
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_aprovados = True
-            
             funcionarios_com_producao = lancamentos_obra_df['Funcionário'].unique()
             
             if len(funcionarios_com_producao) > 0:
-                for func_nome in funcionarios_com_producao:
-                    func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == func_nome, 'id']
-                    if not func_id_info.empty:
-                        func_id = int(func_id_info.iloc[0])
-                        status_func_row = status_df[status_df['funcionario_id'] == func_id]
-                        status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                        
-                        if status_atual_func != 'Aprovado':
-                            todos_aprovados = False
-                            break 
+                funcionarios_com_status = pd.merge(
+                    funcionarios_obra_df,
+                    status_df,
+                    left_on='id',
+                    right_on='funcionario_id',
+                    how='left'
+                )
+                funcionarios_com_status['Status'] = funcionarios_com_status['Status'].fillna('A Revisar')
+                
+                funcionarios_relevantes = funcionarios_com_status[
+                    funcionarios_com_status['NOME'].isin(funcionarios_com_producao)
+                ]
+
+                if not all(funcionarios_relevantes['Status'] == 'Aprovado'):
+                    todos_aprovados = False
+            
             status_options = ['A Revisar', 'Analisar']
             if todos_aprovados:
                 status_options.append('Aprovado')
@@ -93,7 +98,7 @@ def render_page():
             if st.button("Salvar Status da Obra"):
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, selected_status_obra, mes_selecionado)
-                    st.toast("Status interno atualizado!", icon="✅")
+                    st.toast("Status da Obra atualizado!", icon="✅")
                     st.cache_data.clear()
                     st.rerun()
         
@@ -124,7 +129,7 @@ def render_page():
         aviso_atual = aviso_atual_info.iloc[0] if not aviso_atual_info.empty else ""
         novo_aviso = st.text_area(
             "Aviso para a Obra:", value=aviso_atual or "", 
-            key=f"aviso_{obra_selecionada}", label_visibility="collapsed"
+            key=f"aviso_{obra_selecionada}", help="Este aviso aparecerá na barra lateral do usuário."
         )
         if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=edicao_bloqueada):
             if db_utils.save_aviso_data(obra_id_selecionada, novo_aviso):
@@ -138,21 +143,14 @@ def render_page():
         producao_por_funcionario = lancamentos_obra_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
         resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
         
-        if 'Valor Parcial' in resumo_df.columns:
-            resumo_df.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-        else:
-            resumo_df['PRODUÇÃO (R$)'] = 0.0
-
+        resumo_df.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
         resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
         
         if 'Funcionário' in resumo_df.columns: 
             resumo_df = resumo_df.drop(columns=['Funcionário'])
 
         resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
-        if 'SALÁRIO BASE (R$)' in resumo_df.columns and 'PRODUÇÃO (R$)' in resumo_df.columns:
-             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-        else:
-             resumo_df['SALÁRIO A RECEBER (R$)'] = 0
+        resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
 
         if funcionarios_filtrados:
             resumo_df = resumo_df[resumo_df['Funcionário'].isin(funcionarios_filtrados)]
@@ -204,7 +202,7 @@ def render_page():
                             current_comment = current_comment_info.iloc[0] if current_comment_info is not None and not current_comment_info.empty else ""
                             new_comment = st.text_area(
                                 "Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario}",
-                                help="Este comentário será visível na tela de lançamento.", label_visibility="collapsed",
+                                help="Este comentário será visível na tela de lançamento.",
                                 disabled=edicao_bloqueada
                             )
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
@@ -249,4 +247,3 @@ def render_page():
                                         st.rerun()
                                 else:
                                     st.toast("Nenhuma alteração detectada.", icon="🤷")
-
