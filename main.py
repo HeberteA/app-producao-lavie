@@ -133,7 +133,7 @@ else:
         st.markdown("---")
         
         if st.session_state.role == 'user':
-            folhas_df = db_utils.get_folhas()
+            folhas_df = db_utils.get_folhas_mensais()
             obras_df = db_utils.get_obras()
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
             
@@ -233,5 +233,6 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
