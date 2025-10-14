@@ -88,7 +88,7 @@ def render_page():
                     with col_obs_princ:
                         obs_principal = st.text_area("Observação", key="lf_obs_principal")
             
-            st.markdown("##### Adicione Itens Extras (Diversos)")
+            st.markdown("##### Adicione Itens Diversos")
             with st.expander("📝 Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
                 
@@ -205,3 +205,4 @@ def render_page():
                     st.info("Nenhum lançamento adicionado ainda para esta obra no mês selecionado.")
             else:
                 st.info("Nenhum lançamento adicionado ainda neste mês.")
+
