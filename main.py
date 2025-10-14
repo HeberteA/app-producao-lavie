@@ -78,7 +78,7 @@ else:
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
-            st.warning("Visão de Administrador")
+            st.info("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
             obras_df = db_utils.get_obras()
@@ -100,7 +100,7 @@ else:
                 if 'aviso' in obra_info.columns:
                     aviso_obra = obra_info['aviso'].iloc[0]
                     if aviso_obra and str(aviso_obra).strip():
-                        st.warning(f"📢 Aviso: {aviso_obra}")
+                        st.warning(f"Aviso: {aviso_obra}")
         st.markdown("---")
         st.subheader("Mês de Referência (Visualização)")
         current_month_str = datetime.now().strftime('%Y-%m')
@@ -233,3 +233,4 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
