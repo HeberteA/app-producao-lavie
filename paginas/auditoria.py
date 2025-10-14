@@ -62,7 +62,7 @@ def render_page():
     col_status_geral, col_aviso_geral = st.columns(2)
 
     with col_status_geral:
-        st.markdown("##### Status Interno e Ações")
+        st.markdown("##### Status da Obra e Ações")
         utils.display_status_box("Status da Obra", status_auditoria_interno)
 
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
