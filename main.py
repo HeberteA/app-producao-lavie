@@ -77,40 +77,30 @@ else:
 
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
-        
         if st.session_state['role'] == 'admin':
             st.warning("Visão de Administrador")
-        else: 
+        else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            
             obras_df = db_utils.get_obras()
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
-            
             if not obra_info.empty:
                 obra_id = int(obra_info.iloc[0]['id'])
-                
                 hoje = date.today()
-                mes_referencia_envio = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
-                mes_ref_str = mes_referencia_envio.strftime('%Y-%m')
-
+                mes_referencia_status = hoje.replace(day=1)
+                mes_ref_str = mes_referencia_status.strftime('%Y-%m')
                 status_df = db_utils.get_status_do_mes(mes_ref_str)
-                status_geral_obra_row = status_df[
-                    (status_df['obra_id'] == obra_id) & (status_df['funcionario_id'] == 0)
-                ]
+                status_geral_obra_row = status_df[(status_df['obra_id'] == obra_id) & (status_df['funcionario_id'] == 0)]
                 status_auditoria = status_geral_obra_row['Status'].iloc[0] if not status_geral_obra_row.empty else "A Revisar"
-                
                 if status_auditoria == 'Aprovado':
                     st.success(f"Status da Auditoria: {status_auditoria}")
                 elif status_auditoria == 'Analisar':
                     st.error(f"Status da Auditoria: {status_auditoria}")
                 else:
                     st.info(f"Status da Auditoria: {status_auditoria}")
-
                 if 'aviso' in obra_info.columns:
                     aviso_obra = obra_info['aviso'].iloc[0]
                     if aviso_obra and str(aviso_obra).strip():
-                        st.warning(f"Aviso: {aviso_obra}")
-        
+                        st.warning(f"📢 Aviso: {aviso_obra}")
         st.markdown("---")
         st.subheader("Mês de Referência (Visualização)")
         current_month_str = datetime.now().strftime('%Y-%m')
@@ -119,7 +109,7 @@ else:
         try:
             current_index = available_months.index(st.session_state.selected_month)
         except ValueError:
-            current_index = 0 
+            current_index = 0
         selected_month = st.selectbox("Selecione o Mês", options=available_months, index=current_index, label_visibility="collapsed")
         st.session_state.selected_month = selected_month
         st.markdown("---")
@@ -143,14 +133,15 @@ else:
         st.markdown("---")
         
         if st.session_state.role == 'user':
-            folhas_df = db_utils.get_folhas()
+            folhas_df = db_utils.get_folhas_mensais()
             obras_df = db_utils.get_obras()
             obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
             
             if not obra_info.empty:
                 obra_id = int(obra_info.iloc[0]['id'])
+                
                 hoje = date.today()
-                mes_referencia_envio = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
+                mes_referencia_envio = hoje.replace(day=1) 
                 mes_ref_str = mes_referencia_envio.strftime('%Y-%m')
                 
                 st.subheader(f"Envio da Folha ({mes_referencia_envio.strftime('%m/%Y')})")
@@ -161,8 +152,19 @@ else:
                 ]
                 status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
 
+                if status_folha == "Não Enviada":
+                    DIA_LIMITE = 23
+                    dias_para_o_prazo = DIA_LIMITE - hoje.day
+                    
+                    if dias_para_o_prazo < 0:
+                        st.error(f"Prazo de envio vencido há {abs(dias_para_o_prazo)} dia(s)!")
+                    elif dias_para_o_prazo <= 7:
+                        st.warning(f"Atenção: O prazo de envio vence em {dias_para_o_prazo} dia(s).")
+                    else:
+                        st.info(f"Prazo de envio: Dia {DIA_LIMITE} do mês.")
+                
                 st.info(f"Status do Envio: {status_folha}")
-                if not folha_do_mes.empty and 'data_lancamento' in folha_do_mes.columns and pd.notna(folha_do_mes.iloc[0]['data_lancamento']):
+                if not folha_do_mes.empty and pd.notna(folha_do_mes.iloc[0]['data_lancamento']):
                     data_envio = pd.to_datetime(folha_do_mes.iloc[0]['data_lancamento'])
                     st.caption(f"Último envio em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
 
@@ -200,7 +202,7 @@ else:
                 if st.session_state['role'] == 'user':
                     colunas_lancamentos.remove('Obra')
                 pdf_data = utils.gerar_relatorio_pdf(
-                    resumo_df=resumo_df[colunas_resumo], 
+                    resumo_df=resumo_df[colunas_resumo],
                     lancamentos_df=lancamentos_df[colunas_lancamentos],
                     logo_path="Lavie.png",
                     mes_referencia=st.session_state.selected_month,
