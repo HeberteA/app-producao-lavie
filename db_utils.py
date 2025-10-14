@@ -236,7 +236,11 @@ def enviar_folha_para_auditoria(obra_id, mes_referencia, obra_nome):
 def salvar_novos_lancamentos(df_para_salvar):
     engine = get_db_connection()
     if engine is None: return False
+
+    df_para_salvar = df_para_salvar.where(pd.notna(df_para_salvar), None)
+
     lancamentos_dict = df_para_salvar.to_dict(orient='records')
+    
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
@@ -483,4 +487,5 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     </html>
     """
     return HTML(string=html_string).write_pdf()
+
 
