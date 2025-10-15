@@ -68,23 +68,23 @@ def render_page():
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_aprovados = True
             funcionarios_com_producao = lancamentos_obra_df['Funcionário'].unique()
-            
-            if len(funcionarios_com_producao) > 0:
-                funcionarios_com_status = pd.merge(
-                    funcionarios_obra_df,
-                    status_df,
-                    left_on='id',
-                    right_on='funcionario_id',
-                    how='left'
-                )
-                funcionarios_com_status['Status'] = funcionarios_com_status['Status'].fillna('A Revisar')
-                
-                funcionarios_relevantes = funcionarios_com_status[
-                    funcionarios_com_status['NOME'].isin(funcionarios_com_producao)
-                ]
 
-                if not all(funcionarios_relevantes['Status'] == 'Aprovado'):
-                    todos_aprovados = False
+            if len(funcionarios_com_producao) > 0:
+                for nome_func in funcionarios_com_producao:
+                    id_func_info = funcionarios_df.loc[funcionarios_df['NOME'] == nome_func, 'id']
+                    if not id_func_info.empty:
+                        id_func = int(id_func_info.iloc[0])
+                        
+                        status_func_row = status_df[
+                            (status_df['funcionario_id'] == id_func) & 
+                            (status_df['obra_id'] == obra_id_selecionada)
+                        ]
+                        
+                        status_do_funcionario = status_func_row['Status'].iloc[0] if not status_func_row.empty else 'A Revisar'
+                        
+                        if status_do_funcionario != 'Aprovado':
+                            todos_aprovados = False
+                            break 
             
             status_options = ['A Revisar', 'Analisar']
             if todos_aprovados:
