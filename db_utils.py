@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime
-from weasyprint import HTML
 import base64
 import io
 
@@ -496,6 +495,7 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     """
     
     return HTML(string=html_string).write_pdf()
+
 
 
 
