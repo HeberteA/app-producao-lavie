@@ -187,8 +187,13 @@ else:
                  if base_para_resumo.empty:
                     st.toast("Nenhum funcionário encontrado para gerar o relatório.", icon="🤷")
                 else:
+                    if 'NOME' not in base_para_resumo.columns:
+                        st.error("Erro crítico: A coluna 'NOME' dos funcionários não foi encontrada. Não é possível gerar o relatório.")
+                        st.stop() 
+                    
                     producao_df = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
                     resumo_df = pd.merge(base_para_resumo, producao_df, left_on='NOME', right_on='Funcionário', how='left')
+            
                     
                     resumo_df.rename(columns={'id': 'funcionario_id', 'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
                     resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
@@ -245,6 +250,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
