@@ -184,7 +184,7 @@ else:
                 lancamentos_df = db_utils.get_lancamentos_do_mes(st.session_state.selected_month)
                 
                 base_para_resumo = funcionarios_df.copy()
-                 if base_para_resumo.empty:
+                if base_para_resumo.empty:
                     st.toast("Nenhum funcionário encontrado para gerar o relatório.", icon="🤷")
                 else:
                     if 'NOME' not in base_para_resumo.columns:
@@ -250,6 +250,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
