@@ -188,7 +188,7 @@ else:
                 resumo_df = pd.merge(base_para_resumo, producao_df, left_on='NOME', right_on='Funcionário', how='left')
                 resumo_df.rename(columns={'id': 'funcionario_id', 'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
                 resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-                resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
+                resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0)
                 resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
                 obra_relatorio = None
                 if st.session_state['role'] == 'user':
@@ -233,6 +233,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
