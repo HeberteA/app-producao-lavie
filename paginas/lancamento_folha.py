@@ -114,7 +114,7 @@ def render_page():
                 with col_obs_div:
                     obs_diverso = st.text_area("Observação (Obrigatório)", key="lf_obs_diverso")
 
-            if st.button("Adicionar Lançamento ➕", use_container_width=True, type="primary", key="lf_add_btn"):
+            if st.button("Adicionar Lançamento", use_container_width=True, type="primary", key="lf_add_btn"):
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
                 else:
@@ -173,7 +173,7 @@ def render_page():
             st.markdown("---")
             if funcionario_selecionado:
                 is_concluded = funcionario_selecionado in st.session_state.concluded_employees
-                if st.button("Concluir Lançamentos ✅", use_container_width=True, type="primary", disabled=is_concluded, help="Marca este funcionário como concluído para esta sessão."):
+                if st.button("✅Concluir Lançamentos", use_container_width=True, type="primary", disabled=is_concluded, help="Marca este funcionário como concluído para esta sessão."):
                     st.session_state.concluded_employees.append(funcionario_selecionado)
                     st.toast(f"'{funcionario_selecionado}' foi marcado como concluído.", icon="👍")
                     st.rerun()
@@ -184,4 +184,5 @@ def render_page():
                     st.toast("Marcação de concluídos foi reiniciada.", icon="🧹")
                     st.rerun()
             # --- FIM DOS BOTÕES DE CONCLUSÃO ---
+
 
