@@ -440,11 +440,8 @@ def mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
         return False
 
 def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
-    """
-    Gera um relatório em PDF a partir de DataFrames de resumo e lançamentos.
-    """
     from weasyprint import HTML
-    
+
     try:
         with open(logo_path, "rb") as image_file:
             logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
@@ -494,6 +491,7 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     """
     
     return HTML(string=html_string).write_pdf()
+
 
 
 
