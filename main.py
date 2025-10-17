@@ -20,13 +20,11 @@ st.set_page_config(
 
 def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
     from weasyprint import HTML
-
     try:
         with open(logo_path, "rb") as image_file:
             logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
     except FileNotFoundError:
         logo_base64 = None
-
     style = """
     @page { size: A4 landscape; margin: 1.5cm; }
     body { font-family: 'Helvetica', sans-serif; font-size: 10px; }
@@ -293,6 +291,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
