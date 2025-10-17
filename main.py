@@ -3,6 +3,8 @@ import sys
 import os
 from datetime import datetime, timedelta, date
 import pandas as pd
+import base64
+import io
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -303,6 +305,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
