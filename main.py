@@ -256,13 +256,13 @@ else:
                     colunas_lancamentos = ['Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
                     if st.session_state['role'] == 'user': colunas_lancamentos.remove('Obra')
 
-                        pdf_data = gerar_relatorio_pdf( 
-                            resumo_df=resumo_df[colunas_resumo],
-                            lancamentos_df=lancamentos_df[colunas_lancamentos],
-                            logo_path="Lavie.png",
-                            mes_referencia=st.session_state.selected_month,
-                            obra_nome=obra_relatorio
-                        )
+                    pdf_data = gerar_relatorio_pdf( 
+                        resumo_df=resumo_df[colunas_resumo],
+                        lancamentos_df=lancamentos_df[colunas_lancamentos],
+                        logo_path="Lavie.png",
+                        mes_referencia=st.session_state.selected_month,
+                        obra_nome=obra_relatorio
+                    )
                         
                         st.download_button(
                             label="⬇️ Clique aqui para baixar o Relatório",
@@ -290,6 +290,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
