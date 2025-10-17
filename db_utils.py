@@ -34,13 +34,23 @@ def get_lancamentos_do_mes(mes_referencia):
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
     query = text("""
-    SELECT l.id, l.data_lancamento, l.data_servico, l.obra_id, o.nome_obra AS "Obra", 
-           f.nome AS "Funcionário", 
-           COALESCE(s.disciplina, 'DIVERSO') AS "Disciplina",
-           COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
-           CAST(l.quantidade AS INTEGER) AS "Quantidade",
-           COALESCE(s.unidade, 'UN') AS "Unidade", l.valor_unitario AS "Valor Unitário",
-           (l.quantidade * l.valor_unitario) AS "Valor Parcial", l.observacao AS "Observação"
+    SELECT 
+        l.id, 
+        l.data_lancamento, 
+        l.data_servico, 
+        l.obra_id, 
+        o.nome_obra AS "Obra",
+        -- INÍCIO DA ALTERAÇÃO --
+        l.funcionario_id, -- Adiciona o ID único do funcionário
+        -- FIM DA ALTERAÇÃO --
+        f.nome AS "Funcionário", 
+        COALESCE(s.disciplina, 'Diverso') AS "Disciplina",
+        COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
+        CAST(l.quantidade AS INTEGER) AS "Quantidade",
+        COALESCE(s.unidade, 'UN') AS "Unidade", 
+        l.valor_unitario AS "Valor Unitário",
+        (l.quantidade * l.valor_unitario) AS "Valor Parcial", 
+        l.observacao AS "Observação"
     FROM lancamentos l
     LEFT JOIN obras o ON l.obra_id = o.id
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
@@ -438,6 +448,7 @@ def mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
     except Exception as e:
         st.error(f"Erro ao mudar funcionário de obra no banco de dados: {e}")
         return False
+
 
 
 
