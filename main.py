@@ -16,6 +16,52 @@ st.set_page_config(
     layout="wide"
 )
 
+def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
+    from weasyprint import HTML
+
+    try:
+        with open(logo_path, "rb") as image_file:
+            logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        logo_base64 = None
+
+    style = """
+    @page { size: A4 landscape; margin: 1.5cm; }
+    body { font-family: 'Helvetica', sans-serif; font-size: 10px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .logo { width: 200px; height: auto; }
+    h1 { font-size: 20px; color: #333; }
+    h2 { font-size: 16px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    """
+    html_string = f"""
+    <html>
+    <head><style>{style}</style></head>
+    <body>
+        <div class="header">
+            {f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ''}
+            <h1>Relatório de Produção - {mes_referencia}</h1>
+            {f'<h2>Obra: {obra_nome}</h2>' if obra_nome else ''}
+        </div>
+        <h2>Resumo da Folha</h2>
+        {resumo_df.to_html(index=False, na_rep='', classes='table', formatters={
+            'SALÁRIO BASE (R$)': lambda x: f'R$ {x:,.2f}',
+            'PRODUÇÃO (R$)': lambda x: f'R$ {x:,.2f}',
+            'SALÁRIO A RECEBER (R$)': lambda x: f'R$ {x:,.2f}'
+        })}
+        <h2>Histórico de Lançamentos do Mês</h2>
+        {lancamentos_df.to_html(index=False, na_rep='', classes='table', formatters={
+            'Valor Unitário': lambda x: f'R$ {x:,.2f}',
+            'Valor Parcial': lambda x: f'R$ {x:,.2f}'
+        })}
+    </body>
+    </html>
+    """
+    return HTML(string=html_string).write_pdf()
+
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -224,7 +270,7 @@ else:
                         if st.session_state['role'] == 'user':
                             colunas_lancamentos.remove('Obra')
 
-                        pdf_data = utils.gerar_relatorio_pdf(
+                        pdf_data = gerar_relatorio_pdf( 
                             resumo_df=resumo_df[colunas_resumo],
                             lancamentos_df=lancamentos_df[colunas_lancamentos],
                             logo_path="Lavie.png",
@@ -257,6 +303,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
