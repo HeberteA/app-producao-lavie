@@ -264,14 +264,14 @@ else:
                         obra_nome=obra_relatorio
                     )
                         
-                        st.download_button(
-                            label="⬇️ Clique aqui para baixar o Relatório",
-                            data=pdf_data,
-                            type="primary",
-                            file_name=f"Relatorio_{st.session_state.selected_month}_{obra_relatorio or 'Geral'}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
+                    st.download_button(
+                        label="⬇️ Clique aqui para baixar o Relatório",
+                        data=pdf_data,
+                        type="primary",
+                        file_name=f"Relatorio_{st.session_state.selected_month}_{obra_relatorio or 'Geral'}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
         st.markdown("---")
         if st.button("Sair 🚪", use_container_width=True, type="primary"):
             for key in list(st.session_state.keys()):
@@ -290,6 +290,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
