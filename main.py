@@ -244,12 +244,17 @@ else:
                         resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
                         resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0)
                         resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+                        concluidos_list = st.session_state.get('concluded_employees', [])
+                        resumo_df['Situação'] = resumo_df['Funcionário'].apply(
+                            lambda nome: 'Concluído' if nome in concluidos_list else 'Pendente'
+                        )
+                        
                         obra_relatorio = None
                         if st.session_state['role'] == 'user':
                             obra_relatorio = st.session_state['obra_logada']
                             resumo_df = resumo_df[resumo_df['OBRA'] == obra_relatorio]
                             lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == obra_relatorio]
-                        colunas_resumo = ['Funcionário', 'OBRA', 'FUNÇÃO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
+                        colunas_resumo = ['Funcionário', 'OBRA', 'FUNÇÃO', 'Situação', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
                         if st.session_state['role'] == 'user': colunas_resumo.remove('OBRA')
                         colunas_lancamentos = ['Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
                         if st.session_state['role'] == 'user': colunas_lancamentos.remove('Obra')
@@ -288,6 +293,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
