@@ -227,50 +227,32 @@ else:
         
         st.header("Relatório")
         if st.button("📄 Gerar Relatório em PDF", use_container_width=True):
-            with st.spinner("Gerando relatório, por favor aguarde..."):
-                funcionarios_df = db_utils.get_funcionarios()
-                lancamentos_df = db_utils.get_lancamentos_do_mes(st.session_state.selected_month)
-                
+            with st.spinner("Gerando relatório..."):
+                funcionarios_df = db_utils.get_funcionarios(); lancamentos_df = db_utils.get_lancamentos_do_mes(st.session_state.selected_month)
                 base_para_resumo = funcionarios_df.copy()
-                
                 if base_para_resumo.empty:
-                    st.toast("Nenhum funcionário encontrado para gerar o relatório.", icon="🤷")
+                    st.toast("Nenhum funcionário para gerar relatório.", icon="🤷")
                 else:
                     if 'NOME' not in base_para_resumo.columns:
-                        st.error("Erro crítico: A coluna 'NOME' dos funcionários não foi encontrada.")
+                        st.error("Erro: Coluna 'NOME' não encontrada.")
                     else:
                         producao_df = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
                         resumo_df = pd.merge(base_para_resumo, producao_df, left_on='NOME', right_on='Funcionário', how='left')
-                        
-                        resumo_df.rename(columns={
-                            'id': 'funcionario_id', 
-                            'Valor Parcial': 'PRODUÇÃO (R$)',
-                            'NOME': 'Funcionário',
-                            'SALARIO_BASE': 'SALÁRIO BASE (R$)'
-                        }, inplace=True)
-                        
-                        if 'PRODUÇÃO (R$)' not in resumo_df.columns:
-                            resumo_df['PRODUÇÃO (R$)'] = 0
-                        if 'SALÁRIO BASE (R$)' not in resumo_df.columns:
-                            resumo_df['SALÁRIO BASE (R$)'] = 0
-                        
+                        resumo_df.rename(columns={'id': 'funcionario_id', 'Valor Parcial': 'PRODUÇÃO (R$)', 'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
+                        if 'PRODUÇÃO (R$)' not in resumo_df.columns: resumo_df['PRODUÇÃO (R$)'] = 0
+                        if 'SALÁRIO BASE (R$)' not in resumo_df.columns: resumo_df['SALÁRIO BASE (R$)'] = 0
                         resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
                         resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0)
                         resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-                        
                         obra_relatorio = None
                         if st.session_state['role'] == 'user':
                             obra_relatorio = st.session_state['obra_logada']
                             resumo_df = resumo_df[resumo_df['OBRA'] == obra_relatorio]
                             lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == obra_relatorio]
-                        
                         colunas_resumo = ['Funcionário', 'OBRA', 'FUNÇÃO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)']
-                        if st.session_state['role'] == 'user':
-                            colunas_resumo.remove('OBRA')
-
+                        if st.session_state['role'] == 'user': colunas_resumo.remove('OBRA')
                         colunas_lancamentos = ['Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
-                        if st.session_state['role'] == 'user':
-                            colunas_lancamentos.remove('Obra')
+                        if st.session_state['role'] == 'user': colunas_lancamentos.remove('Obra')
 
                         pdf_data = gerar_relatorio_pdf( 
                             resumo_df=resumo_df[colunas_resumo],
@@ -281,8 +263,9 @@ else:
                         )
                         
                         st.download_button(
-                            label="Clique aqui para baixar o Relatório",
+                            label="⬇️ Clique aqui para baixar o Relatório",
                             data=pdf_data,
+                            type="primary",
                             file_name=f"Relatorio_{st.session_state.selected_month}_{obra_relatorio or 'Geral'}.pdf",
                             mime="application/pdf",
                             use_container_width=True
@@ -305,6 +288,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
