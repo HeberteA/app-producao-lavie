@@ -69,7 +69,7 @@ def render_page():
                         if status_do_funcionario != 'Aprovado': todos_aprovados = False; break
             status_options = ['A Revisar', 'Analisar']
             if todos_aprovados: status_options.append('Aprovado')
-            else: st.info("Opção 'Aprovado' só disponível quando todos com produção estiverem 'Aprovado'.")
+            else: st.info("Opção 'Aprovado' só disponível quando todos ps Funcionários estiverem 'Aprovados'.")
             idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
             selected_status_obra = st.radio("Defina o status:", options=status_options, index=idx, horizontal=True)
             if st.button("Salvar Status da Obra"):
