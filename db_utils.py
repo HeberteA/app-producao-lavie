@@ -94,7 +94,8 @@ def get_status_do_mes(mes_referencia):
     if engine is None: return pd.DataFrame()
     query = text("""
     SELECT sa.obra_id, o.nome_obra AS "Obra", sa.funcionario_id, f.nome AS "Funcionario",
-           sa.mes_referencia AS "Mes", sa.status AS "Status", sa.comentario AS "Comentario"
+           sa.mes_referencia AS "Mes", sa.status AS "Status", sa.comentario AS "Comentario",
+           sa.lancamentos_concluidos AS "Lancamentos Concluidos" 
     FROM status_auditoria sa
     LEFT JOIN obras o ON sa.obra_id = o.id
     LEFT JOIN funcionarios f ON sa.funcionario_id = f.id
@@ -104,7 +105,6 @@ def get_status_do_mes(mes_referencia):
     if not df.empty and 'Mes' in df.columns:
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
-
 @st.cache_data(ttl=60)
 def get_folhas_mensais(mes_referencia=None):
     engine = get_db_connection()
@@ -148,41 +148,77 @@ def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_a
     except Exception as e:
         st.toast(f"Falha ao registrar log: {e}", icon="⚠️")
 
-def upsert_status_auditoria(obra_id, funcionario_id, status, mes_referencia, comentario=None):
+def upsert_status_auditoria(obra_id, funcionario_id, mes_referencia, status=None, comentario=None, lancamentos_concluidos=None):
     engine = get_db_connection()
     if engine is None: return False
-    
+    if status is None and comentario is None and lancamentos_concluidos is None:
+        st.warning("Nenhuma atualização solicitada para upsert_status_auditoria.")
+        return False
+
     mes_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
+
+    set_clauses = []
+    update_params = {}
+    if status is not None:
+        set_clauses.append("status = EXCLUDED.status")
+        update_params['status'] = status
+    if comentario is not None:
+        set_clauses.append("comentario = EXCLUDED.comentario")
+        update_params['comentario'] = comentario
+    if lancamentos_concluidos is not None:
+        set_clauses.append("lancamentos_concluidos = EXCLUDED.lancamentos_concluidos")
+        update_params['lancamentos_concluidos'] = lancamentos_concluidos
+
+    set_clause_str = ", ".join(set_clauses)
+    if not set_clause_str: 
+         return False
 
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
-                if comentario is not None:
-                    set_clause = "SET status = EXCLUDED.status, comentario = EXCLUDED.comentario"
-                else:
-                    set_clause = "SET status = EXCLUDED.status"
-                
                 query_insert = text(f"""
-                    INSERT INTO status_auditoria (obra_id, funcionario_id, mes_referencia, status, comentario)
-                    VALUES (:obra_id, :func_id, :mes_ref, :status, :comentario)
+                    INSERT INTO status_auditoria (obra_id, funcionario_id, mes_referencia, status, comentario, lancamentos_concluidos)
+                    VALUES (:obra_id, :func_id, :mes_ref, :status, :comentario, :lanc_concluidos)
                     ON CONFLICT (obra_id, funcionario_id, mes_referencia)
-                    DO UPDATE {set_clause};
+                    DO UPDATE SET {set_clause_str};
                 """)
-                
+
+                current_record_query = text("""
+                    SELECT status, comentario, lancamentos_concluidos 
+                    FROM status_auditoria 
+                    WHERE obra_id = :obra_id AND funcionario_id = :func_id AND mes_referencia = :mes_ref
+                """)
+                current_record = connection.execute(current_record_query, {'obra_id': obra_id, 'func_id': funcionario_id, 'mes_ref': mes_dt}).fetchone()
+
+                current_status = current_record[0] if current_record else 'A Revisar'
+                current_comentario = current_record[1] if current_record else ''
+                current_lanc_concluidos = current_record[2] if current_record else False
+
                 insert_params = {
                     'obra_id': obra_id, 
                     'func_id': funcionario_id, 
                     'mes_ref': mes_dt, 
-                    'status': status, 
-                    'comentario': comentario if comentario is not None else ""
+                    'status': status if status is not None else current_status, 
+                    'comentario': comentario if comentario is not None else current_comentario,
+                    'lanc_concluidos': lancamentos_concluidos if lancamentos_concluidos is not None else current_lanc_concluidos
                 }
-                
+
+                insert_params.update(update_params)
+
                 connection.execute(query_insert, insert_params)
                 transaction.commit()
-        registrar_log(st.session_state.get('user_identifier', 'unknown'), "UPSERT_STATUS", f"Status/comentário para func_id {funcionario_id} na obra_id {obra_id} atualizado.")
+
+        details = []
+        if status is not None: details.append(f"Status para '{status}'")
+        if comentario is not None: details.append("Comentário atualizado")
+        if lancamentos_concluidos is not None: details.append(f"Lançamentos Concluídos para '{lancamentos_concluidos}'")
+        log_detail_str = ". ".join(details)
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), 
+                      "UPSERT_STATUS_AUDITORIA", 
+                      f"Registro para func_id {funcionario_id} na obra_id {obra_id} ({mes_referencia}) atualizado: {log_detail_str}")
         return True
     except Exception as e:
-        st.error(f"Erro ao salvar o status: {e}")
+        st.error(f"Erro ao salvar o status/comentário/conclusão: {e}")
         return False
 
 def launch_monthly_sheet(obra_id, mes_referencia_dt, obra_nome):
@@ -449,13 +485,25 @@ def mudar_funcionario_de_obra(funcionario_id, nova_obra_id):
         st.error(f"Erro ao mudar funcionário de obra no banco de dados: {e}")
         return False
 
-
-
-
-
-
-
-
-
-
-
+def limpar_concluidos_obra_mes(obra_id, mes_referencia):
+    """Define lancamentos_concluidos como FALSE para todos funcionários de uma obra/mês."""
+    engine = get_db_connection()
+    if engine is None: return False
+    mes_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE status_auditoria 
+                    SET lancamentos_concluidos = FALSE 
+                    WHERE obra_id = :obra_id AND mes_referencia = :mes_ref AND funcionario_id != 0
+                """)
+                connection.execute(query, {'obra_id': obra_id, 'mes_ref': mes_dt})
+                transaction.commit()
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), 
+                      "LIMPAR_CONCLUIDOS", 
+                      f"Status de conclusão limpo para obra_id {obra_id} no mês {mes_referencia}.")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao limpar status de concluídos: {e}")
+        return False
