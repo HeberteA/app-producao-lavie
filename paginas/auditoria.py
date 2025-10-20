@@ -160,23 +160,30 @@ def render_page():
         if resumo_df.empty:
             st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
         else:
+            concluidos_list = st.session_state.get('concluded_employees', []) # Pega a lista de concluídos
+
             for index, row in resumo_df.iterrows():
                 with st.container(border=True):
                     funcionario = row['Funcionário']
                     func_id = row['id']
-                    
+
+                    # --- START OF CORRECTION ---
+                    # Ensure 6 columns are created here to match the access below
                     header_cols = st.columns([3, 1.5, 1.5, 1.5, 1.5, 1.5])
+                    # --- END OF CORRECTION ---
+
                     header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
                     header_cols[1].metric("Salário Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
                     header_cols[2].metric("Produção", utils.format_currency(row['PRODUÇÃO (R$)']))
-                    header_cols[3].metric("Salário a Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
-                    
+                    header_cols[3].metric("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
+
                     status_func_row = status_df[status_df['funcionario_id'] == func_id]
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
-                
+
                     with header_cols[4]:
                         utils.display_status_box("Auditoria", status_atual_func)
 
+                    # Exibe o status de Lançamento (Concluído/Pendente) - Accesses index 5
                     with header_cols[5]:
                         if funcionario in concluidos_list:
                             st.success("Lançamento: Concluído")
@@ -184,73 +191,39 @@ def render_page():
                             st.info("Lançamento: Pendente")
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
-                        
+                        # Lógica do Expander (permanece a mesma)
                         col_status, col_comment = st.columns(2)
                         with col_status:
-                            st.markdown("##### Status do Funcionário")
+                            st.markdown("##### Status de Auditoria")
                             status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
                             idx_func = status_options_func.index(status_atual_func) if status_atual_func in status_options_func else 0
-                            selected_status_func = st.radio(
-                                "Definir Status:", options=status_options_func, index=idx_func, horizontal=True, 
-                                key=f"status_{obra_selecionada}_{funcionario}",
-                                disabled=edicao_bloqueada
-                            )
-                            if st.button("Salvar Status do Funcionário", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
+                            selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada)
+                            if st.button("Salvar Status", key=f"btn_func_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 if selected_status_func != status_atual_func:
                                     db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, selected_status_func, mes_selecionado)
-                                    st.toast(f"Status de {funcionario} atualizado!", icon="✅")
-                                    st.cache_data.clear()
-                                    st.rerun()
-                                    
+                                    st.toast(f"Status de {funcionario} atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
                         with col_comment:
                             st.markdown("##### Comentário de Auditoria")
                             comment_row = status_df[status_df['funcionario_id'] == func_id]
-                            current_comment_info = comment_row['Comentario'] if not comment_row.empty else None
-                            current_comment = current_comment_info.iloc[0] if current_comment_info is not None and not current_comment_info.empty else ""
-                            new_comment = st.text_area(
-                                "Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario}",
-                                help="Este comentário será visível na tela de lançamento.",
-                                disabled=edicao_bloqueada
-                            )
+                            current_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
+                            new_comment = st.text_area("Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario}", help="Visível na tela de lançamento.", disabled=edicao_bloqueada)
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario}", disabled=edicao_bloqueada):
                                 db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, status_atual_func, mes_selecionado, comentario=new_comment)
-                                st.toast("Comentário salvo com sucesso!", icon="💬")
-                                st.cache_data.clear()
-                                st.rerun()
-                                        
+                                st.toast("Comentário salvo!", icon="💬"); st.cache_data.clear(); st.rerun()
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
                         lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario].copy()
                         if lancamentos_do_funcionario.empty:
                             st.info("Nenhum lançamento de produção para este funcionário.")
                         else:
-                            colunas_visiveis = [
-                                'id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade',
-                                'Valor Unitário', 'Valor Parcial', 'Observação'
-                            ]
-                            
-                            edited_df = st.data_editor(
-                                lancamentos_do_funcionario[colunas_visiveis],
-                                key=f"editor_{obra_selecionada}_{funcionario}",
-                                hide_index=True,
-                                column_config={
-                                    "id": None, 
-                                    "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"),
-                                    "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")
-                                },
-                                disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
-                            )
-                            
+                            colunas_visiveis = ['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
+                            edited_df = st.data_editor(lancamentos_do_funcionario[colunas_visiveis], key=f"editor_{obra_selecionada}_{funcionario}", hide_index=True, column_config={"id": None, "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"), "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium")}, disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial'])
                             if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario}", type="primary", disabled=edicao_bloqueada):
                                 original_obs = lancamentos_do_funcionario.set_index('id')['Observação']
                                 edited_obs = edited_df.set_index('id')['Observação']
                                 alteracoes = edited_obs[original_obs != edited_obs]
-
                                 if not alteracoes.empty:
                                     updates_list = [{'id': int(lanc_id), 'obs': nova_obs} for lanc_id, nova_obs in alteracoes.items()]
                                     if db_utils.atualizar_observacoes(updates_list):
-                                        st.toast("Observações salvas com sucesso!", icon="✅")
-                                        st.cache_data.clear()
-                                        st.rerun()
-                                else:
-                                    st.toast("Nenhuma alteração detectada.", icon="🤷")
+                                        st.toast("Observações salvas!", icon="✅"); st.cache_data.clear(); st.rerun()
+                                else: st.toast("Nenhuma alteração detectada.", icon="🤷")
