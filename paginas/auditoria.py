@@ -175,9 +175,16 @@ def render_page():
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                 
                     with header_cols[4]:
-                        utils.display_status_box("Status", status_atual_func)
+                        utils.display_status_box("Auditoria", status_atual_func)
+
+                    with header_cols[5]:
+                        if funcionario in concluidos_list:
+                            st.success("Lançamento: Concluído")
+                        else:
+                            st.info("Lançamento: Pendente")
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
+                        
                         col_status, col_comment = st.columns(2)
                         with col_status:
                             st.markdown("##### Status do Funcionário")
