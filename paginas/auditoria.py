@@ -54,9 +54,9 @@ def render_page():
     col_status_geral, col_aviso_geral = st.columns(2)
 
     with col_status_geral:
-        st.markdown("##### Status Interno e Ações")
-        utils.display_status_box("Status Interno de Auditoria", status_auditoria_interno)
-        with st.popover("Alterar Status Interno", disabled=edicao_bloqueada):
+        st.markdown("##### Status da Obra e Ações")
+        utils.display_status_box("Status da Obra", status_auditoria_interno)
+        with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_aprovados = True
             funcionarios_com_producao = lancamentos_obra_df['Funcionário'].unique()
             if len(funcionarios_com_producao) > 0:
@@ -72,10 +72,10 @@ def render_page():
             else: st.info("Opção 'Aprovado' só disponível quando todos com produção estiverem 'Aprovado'.")
             idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
             selected_status_obra = st.radio("Defina o status:", options=status_options, index=idx, horizontal=True)
-            if st.button("Salvar Status Interno"):
+            if st.button("Salvar Status da Obra"):
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) # Modificado para usar a função nova
-                    st.toast("Status interno atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
+                    st.toast("Status da Obra atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
         pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
         if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="Status interno 'Aprovado' e folha 'Enviada' necessários."):
             mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
