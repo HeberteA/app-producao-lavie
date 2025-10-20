@@ -67,10 +67,10 @@ def render_page():
         
         resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(utils.calcular_salario_final, axis=1)
         concluidos_list = st.session_state.get('concluded_employees', [])
-        resumo_final_df['Situação Lançamento'] = resumo_final_df['Funcionário'].apply(
+        resumo_final_df['Situação'] = resumo_final_df['Funcionário'].apply(
             lambda nome: 'Concluído' if nome in concluidos_list else 'Pendente'
         )
-        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação Lançamento']
+        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação']
         if st.session_state['role'] == 'admin':
             colunas_finais.insert(1, 'OBRA')
         colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
@@ -89,4 +89,5 @@ def render_page():
             use_container_width=True,
             hide_index=True
         )
+
 
