@@ -84,8 +84,9 @@ def render_page():
             }).applymap(
                 utils.style_status, subset=['Status']
             ).applymap(
-                utils.style_situacao, subset=['Situação Lançamento']
+                utils.style_situacao, subset=['Situação']
             ),
             use_container_width=True,
             hide_index=True
         )
+
