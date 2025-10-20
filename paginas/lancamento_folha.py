@@ -192,7 +192,8 @@ def render_page():
                     is_concluded = status_row['Lancamentos Concluidos'].iloc[0] if not status_row.empty and 'Lancamentos Concluidos' in status_row.columns and pd.notna(status_row['Lancamentos Concluidos'].iloc[0]) else False
 
                     if st.button("✅ Concluir Lançamentos do Funcionário", use_container_width=True, disabled=is_concluded, help="Marca este funcionário como concluído."):
-                        if db_utils.upsert_status_auditoria(obra_id_logada_id, func_id, mes_selecionado, lancamentos_concluidos=True):
+                        if db_utils.upsert_status_auditoria(obra_logada_id, func_id, mes_selecionado, lancamentos_concluidos=True):
+
                             st.toast(f"'{funcionario_selecionado}' marcado como concluído.", icon="👍")
                             st.cache_data.clear() 
                             st.rerun()
@@ -208,3 +209,4 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
