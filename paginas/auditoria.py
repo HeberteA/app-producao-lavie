@@ -165,7 +165,7 @@ def render_page():
                     funcionario = row['Funcionário']
                     func_id = row['id']
                     
-                    header_cols = st.columns([3, 2, 2, 2, 2])
+                    header_cols = st.columns([3, 1.5, 1.5, 1.5, 1.5, 1.5])
                     header_cols[0].markdown(f"**Funcionário:** {row['Funcionário']} ({row['FUNÇÃO']})")
                     header_cols[1].metric("Salário Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
                     header_cols[2].metric("Produção", utils.format_currency(row['PRODUÇÃO (R$)']))
