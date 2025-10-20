@@ -47,14 +47,26 @@ def render_page():
         with col_form:
             st.markdown(f"##### 📍 Lançamento para a Obra: **{st.session_state['obra_logada']}**")
             with st.container(border=True):
-                opcoes_originais = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_logada]['NOME'].unique())
+                funcionarios_da_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_logada].copy()
                 
-                pendentes = sorted([nome for nome in opcoes_originais if nome not in st.session_state.concluded_employees])
-                concluidos = sorted([nome for nome in opcoes_originais if nome in st.session_state.concluded_employees])
+                funcionarios_status_df = pd.merge(
+                    funcionarios_da_obra_df,
+                    status_df[['funcionario_id', 'Lancamentos Concluidos']],
+                    left_on='id',
+                    right_on='funcionario_id',
+                    how='left'
+                )
+                if 'Lancamentos Concluidos' not in funcionarios_status_df.columns:
+                     funcionarios_status_df['Lancamentos Concluidos'] = False
+                funcionarios_status_df['Lancamentos Concluidos'] = funcionarios_status_df['Lancamentos Concluidos'].fillna(False)
+
+                pendentes_df = funcionarios_status_df[~funcionarios_status_df['Lancamentos Concluidos']]
+                concluidos_df = funcionarios_status_df[funcionarios_status_df['Lancamentos Concluidos']]
                 
-                opcoes_concluidos_marcados = [f"✅ {nome}" for nome in concluidos]
+                pendentes = sorted(pendentes_df['NOME'].unique())
+                concluidos_marcados = sorted([f"✅ {nome}" for nome in concluidos_df['NOME'].unique()])
                 
-                opcoes_finais = pendentes + opcoes_concluidos_marcados
+                opcoes_finais = pendentes + concluidos_marcados
                 
                 selected_option = st.selectbox(
                     "Selecione o Funcionário", 
@@ -63,7 +75,7 @@ def render_page():
                     placeholder="Selecione um funcionário...",
                     key="lf_func_select"
                 )
-
+                
                 funcionario_selecionado = None
                 if selected_option:
                     funcionario_selecionado = selected_option.replace("✅ ", "")
@@ -172,17 +184,27 @@ def render_page():
 
             st.markdown("---")
             if funcionario_selecionado:
-                is_concluded = funcionario_selecionado in st.session_state.concluded_employees
-                if st.button("✅Concluir Lançamentos", use_container_width=True, type="primary", disabled=is_concluded, help="Marca este funcionário como concluído para esta sessão."):
-                    st.session_state.concluded_employees.append(funcionario_selecionado)
-                    st.toast(f"'{funcionario_selecionado}' foi marcado como concluído.", icon="👍")
-                    st.rerun()
-            
-            if len(st.session_state.concluded_employees) > 0:
-                if st.button("Limpar Concluídos 🔄", use_container_width=True, help="Remove a marcação de todos os funcionários concluídos."):
-                    st.session_state.concluded_employees = []
-                    st.toast("Marcação de concluídos foi reiniciada.", icon="🧹")
-                    st.rerun()
-            # --- FIM DOS BOTÕES DE CONCLUSÃO ---
+                func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
+                if not func_id_info.empty:
+                    func_id = int(func_id_info.iloc[0])
+                    
+                    status_row = status_df[(status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] == func_id)]
+                    is_concluded = status_row['Lancamentos Concluidos'].iloc[0] if not status_row.empty and 'Lancamentos Concluidos' in status_row.columns and pd.notna(status_row['Lancamentos Concluidos'].iloc[0]) else False
 
-
+                    if st.button("✅ Concluir Lançamentos do Funcionário", use_container_width=True, disabled=is_concluded, help="Marca este funcionário como concluído."):
+                        if db_utils.upsert_status_auditoria(obra_id_logada_id, func_id, mes_selecionado, lancamentos_concluidos=True):
+                            st.toast(f"'{funcionario_selecionado}' marcado como concluído.", icon="👍")
+                            st.cache_data.clear() 
+                            st.rerun()
+        
+            funcionarios_concluidos_db = status_df[
+                (status_df['obra_id'] == obra_logada_id) & 
+                (status_df['Lancamentos Concluidos'] == True) &
+                (status_df['funcionario_id'] != 0) 
+            ]
+            if not funcionarios_concluidos_db.empty:
+                 if st.button("🔄 Limpar Concluídos", use_container_width=True, help="Remove a marcação de todos os concluídos."):
+                    if db_utils.limpar_concluidos_obra_mes(obra_logada_id, mes_selecionado):
+                        st.toast("Marcação de concluídos reiniciada.", icon="🧹")
+                        st.cache_data.clear()
+                        st.rerun()
