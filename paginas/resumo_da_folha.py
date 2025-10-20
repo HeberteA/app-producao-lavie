@@ -43,39 +43,43 @@ def render_page():
     if base_para_resumo.empty:
         st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
     else:
-        producao_por_funcionario = lancamentos_df.groupby('Funcionário')['Valor Parcial'].sum().reset_index()
-        resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, left_on='NOME', right_on='Funcionário', how='left')
-        
-        if 'Valor Parcial' in resumo_df.columns:
-            resumo_df.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-        else:
-            resumo_df['PRODUÇÃO (R$)'] = 0.0
+        producao_por_funcionario = lancamentos_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index() 
+        producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
 
-        resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-        if 'Funcionário' in resumo_df.columns: 
-            resumo_df = resumo_df.drop(columns=['Funcionário'])
-        resumo_df.rename(columns={'id': 'funcionario_id'}, inplace=True)
-        
+        base_para_resumo.rename(columns={'id': 'funcionario_id'}, inplace=True)
+
+        resumo_df = pd.merge(base_para_resumo, producao_por_funcionario, on='funcionario_id', how='left') 
+        resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0.0)
+
         resumo_com_status_df = pd.merge(
-            resumo_df, status_df, on=['funcionario_id', 'obra_id'], how='left'
+            resumo_df,
+            status_df[['funcionario_id', 'obra_id', 'Status', 'Lancamentos Concluidos']], 
+            on=['funcionario_id', 'obra_id'],
+            how='left'
         )
         resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
+        if 'Lancamentos Concluidos' not in resumo_com_status_df.columns:
+            resumo_com_status_df['Lancamentos Concluidos'] = False
+        resumo_com_status_df['Lancamentos Concluidos'] = resumo_com_status_df['Lancamentos Concluidos'].fillna(False)
+
+
         resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
-        
+
         if 'SALÁRIO BASE (R$)' not in resumo_final_df.columns: resumo_final_df['SALÁRIO BASE (R$)'] = 0.0
         resumo_final_df['SALÁRIO BASE (R$)'] = resumo_final_df['SALÁRIO BASE (R$)'].fillna(0)
-        
         resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(utils.calcular_salario_final, axis=1)
-        concluidos_list = st.session_state.get('concluded_employees', [])
-        resumo_final_df['Situação'] = resumo_final_df['Funcionário'].apply(
-            lambda nome: 'Concluído' if nome in concluidos_list else 'Pendente'
+
+        resumo_final_df['Situação'] = resumo_final_df['Lancamentos Concluidos'].apply(
+            lambda concluido: 'Concluído' if concluido else 'Pendente'
         )
+
         colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação']
         if st.session_state['role'] == 'admin':
             colunas_finais.insert(1, 'OBRA')
+
         colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
         resumo_final_df = resumo_final_df[colunas_existentes].reset_index(drop=True)
-        
+
         st.dataframe(
             resumo_final_df.style.format({
                 'SALÁRIO BASE (R$)': 'R$ {:,.2f}',
@@ -84,10 +88,8 @@ def render_page():
             }).applymap(
                 utils.style_status, subset=['Status']
             ).applymap(
-                utils.style_situacao, subset=['Situação']
+                utils.style_situacao, subset=['Situação'] 
             ),
             use_container_width=True,
             hide_index=True
         )
-
-
