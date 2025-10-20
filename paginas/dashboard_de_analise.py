@@ -74,15 +74,15 @@ def render_page():
         if not folhas_enviadas_df.empty:
             folhas_enviadas_df['data_lancamento'] = pd.to_datetime(folhas_enviadas_df['data_lancamento'])
             folhas_enviadas_df['Mes'] = pd.to_datetime(folhas_enviadas_df['Mes'])
-            folhas_enviadas_df['data_limite'] = folhas_enviadas_df['Mes'].apply(lambda dt: dt.replace(day=23))
-            folhas_enviadas_df['dias_atraso'] = (folhas_enviadas_df['data_lancamento'].dt.date - folhas_enviadas_df['data_limite'].dt.date).dt.days
-            folhas_enviadas_df['dias_atraso'] = folhas_enviadas_df['dias_atraso'].apply(lambda x: max(0, x))
-            media_atraso_por_obra = folhas_enviadas_df.groupby('Obra')['dias_atraso'].mean().round(1).reset_index()
-            fig_atraso = px.bar(
-                media_atraso_por_obra.sort_values(by='dias_atraso', ascending=False), 
-                x='Obra', y='dias_atraso',
-                title="Média de Dias de Atraso na Entrega da Folha", text_auto=True,
-                labels={'dias_atraso': 'Média de Dias de Atraso', 'Obra': 'Obra'}
+            DIA_LIMITE = 23
+            folhas_enviadas_df['data_limite'] = folhas_enviadas_df['Mes'].apply(lambda dt: dt.replace(day=DIA_LIMITE).date() if isinstance(dt, date) else pd.NaT)
+
+            folhas_enviadas_df['data_lancamento_date'] = folhas_enviadas_df['data_lancamento'].dt.date
+            folhas_enviadas_df['dias_atraso'] = folhas_enviadas_df.apply(
+                lambda row: (row['data_lancamento_date'] - row['data_limite']).days
+                            if pd.notna(row['data_limite']) and row['data_lancamento_date'] > row['data_limite']
+                            else 0,
+                axis=1
             )
             fig_atraso.update_traces(marker_color=cor_padrao , textposition='outside')
             st.plotly_chart(fig_atraso, use_container_width=True)
