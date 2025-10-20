@@ -52,29 +52,29 @@ def render_page():
             resumo_df['PRODUÇÃO (R$)'] = 0.0
 
         resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-        
         if 'Funcionário' in resumo_df.columns: 
             resumo_df = resumo_df.drop(columns=['Funcionário'])
-
         resumo_df.rename(columns={'id': 'funcionario_id'}, inplace=True)
         
         resumo_com_status_df = pd.merge(
             resumo_df, status_df, on=['funcionario_id', 'obra_id'], how='left'
         )
-
         resumo_com_status_df['Status'] = resumo_com_status_df['Status'].fillna('A Revisar')
         resumo_final_df = resumo_com_status_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'})
         
-        if 'SALÁRIO BASE (R$)' in resumo_final_df.columns and 'PRODUÇÃO (R$)' in resumo_final_df.columns:
-            resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(utils.calcular_salario_final, axis=1)
-        else:
-            resumo_final_df['SALÁRIO A RECEBER (R$)'] = 0.0
-
-        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status']
+        if 'SALÁRIO BASE (R$)' not in resumo_final_df.columns: resumo_final_df['SALÁRIO BASE (R$)'] = 0.0
+        resumo_final_df['SALÁRIO BASE (R$)'] = resumo_final_df['SALÁRIO BASE (R$)'].fillna(0)
+        
+        resumo_final_df['SALÁRIO A RECEBER (R$)'] = resumo_final_df.apply(utils.calcular_salario_final, axis=1)
+        concluidos_list = st.session_state.get('concluded_employees', [])
+        resumo_final_df['Situação Lançamento'] = resumo_final_df['Funcionário'].apply(
+            lambda nome: 'Concluído' if nome in concluidos_list else 'Pendente'
+        )
+        colunas_finais = ['Funcionário', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação Lançamento']
         if st.session_state['role'] == 'admin':
             colunas_finais.insert(1, 'OBRA')
-
-        resumo_final_df = resumo_final_df[colunas_finais].reset_index(drop=True)
+        colunas_existentes = [col for col in colunas_finais if col in resumo_final_df.columns]
+        resumo_final_df = resumo_final_df[colunas_existentes].reset_index(drop=True)
         
         st.dataframe(
             resumo_final_df.style.format({
@@ -83,7 +83,9 @@ def render_page():
                 'SALÁRIO A RECEBER (R$)': 'R$ {:,.2f}'
             }).applymap(
                 utils.style_status, subset=['Status']
+            ).applymap(
+                utils.style_situacao, subset=['Situação Lançamento']
             ),
-            use_container_width=True
+            use_container_width=True,
+            hide_index=True
         )
-
