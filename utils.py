@@ -45,3 +45,12 @@ def style_status(status):
     elif status == 'Analisar':
         color = 'red'
     return f'color: {color}; font-weight: bold;'
+
+
+def style_situacao(situacao):
+    """Retorna o estilo CSS para a coluna Situação Lançamento."""
+    if situacao == 'Concluído':
+        return 'color: green; font-weight: bold;'
+    else: 
+        return 'color: gray; font-style: italic;'
+
