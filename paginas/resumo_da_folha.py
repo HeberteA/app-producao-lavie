@@ -91,7 +91,8 @@ def render_page():
                 utils.style_situacao, subset=['Situação'] 
             ),
             use_container_width=True,
-            height=1200,
+            height=800,
             hide_index=True
         )
+
 
