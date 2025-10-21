@@ -10,7 +10,16 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import db_utils
 import utils
-from paginas import lancamento_folha, auditoria, gerenciar_funcionarios, gerenciar_obras, resumo_da_folha, remover_lancamentos, dashboard_de_analise
+from paginas import (
+    lancamento_folha, 
+    auditoria, 
+    gerenciar_funcionarios, 
+    gerenciar_obras, 
+    resumo_da_folha, 
+    remover_lancamentos, 
+    dashboard_de_analise,
+    gerenciar_funcoes  
+)
 
 st.set_page_config(
     page_title="Cadastro de Produção",
@@ -168,6 +177,8 @@ else:
                 st.session_state.page = 'auditoria'
             if st.button("👥 Gerenciar Funcionários", use_container_width=True):
                 st.session_state.page = 'gerenciar_funcionarios'
+            if st.button("🔧 Gerenciar Funções", use_container_width=True):
+                st.session_state.page = 'gerenciar_funcoes'
             if st.button("🏗️ Gerenciar Obras", use_container_width=True):
                 st.session_state.page = 'gerenciar_obras'
         if st.button("📊 Resumo da Folha", use_container_width=True):
@@ -237,7 +248,7 @@ else:
                     resumo_df = pd.merge(base_para_resumo, producao_df, on='funcionario_id', how='left')
                     resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
                     if 'PRODUÇÃO (R$)' not in resumo_df.columns: resumo_df['PRODUÇÃO (R$)'] = 0
-                    if 'SALÁRIO BASE (R$)' not in resumo_df.columns: resumo_df['SALÁRIO BASE (R$)'] = 0
+                    if 'SALÁRIO BASE (R$)' not in resumo_df.columns: resumo_df['SALÁRIO BASE (R$)' = 0
                     resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
                     resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0)
                     resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
@@ -283,6 +294,7 @@ else:
         'lancamento_folha': lancamento_folha,
         'auditoria': auditoria,
         'gerenciar_funcionarios': gerenciar_funcionarios,
+        'gerenciar_funcoes': gerenciar_funcoes,
         'gerenciar_obras': gerenciar_obras,
         'resumo_da_folha': resumo_da_folha,
         'remover_lancamentos': remover_lancamentos,
@@ -290,24 +302,3 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
