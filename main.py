@@ -254,7 +254,7 @@ else:
                     resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
                     concluidos_list = st.session_state.get('concluded_employees', [])
                     resumo_df['Situação'] = resumo_df['Funcionário'].apply(lambda nome: 'Concluído' if nome in concluidos_list else 'Pendente')
-
+                    
                     obra_relatorio = None
                     if st.session_state['role'] == 'user':
                         obra_relatorio = st.session_state['obra_logada']
@@ -302,3 +302,4 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
