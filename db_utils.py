@@ -1,4 +1,3 @@
-# db_utils.py
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -632,3 +631,4 @@ def limpar_concluidos_obra_mes(obra_id, mes_referencia):
     except Exception as e:
         st.error(f"Erro ao limpar status de concluídos: {e}")
         return False
+
