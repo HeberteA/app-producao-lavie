@@ -16,18 +16,17 @@ def render_page():
     all_funcoes_df = get_all_funcoes_cached()
     funcionarios_df = get_funcionarios_cached()
 
-    tab_adicionar, tab_inativar = st.tabs(["➕ Adicionar Nova Função", "🚫 Inativar Função Existente"])
+    tab_adicionar, tab_inativar = st.tabs(["Adicionar Nova Função", "Inativar Função Existente"])
 
     with tab_adicionar:
         st.subheader("Adicionar Nova Função")
-        st.info("Uma vez criada, uma função não pode ter seu salário ou tipo alterado. Para corrigir, inative-a e crie uma nova.")
 
         with st.form("gf_add_funcao_form", clear_on_submit=True):
-            nome_funcao = st.text_input("Nome da Função (ex: 'Pedreiro - R$2200')")
+            nome_funcao = st.text_input("Nome da Função")
             salario_base = st.number_input("Salário Base (R$)", min_value=0.0, step=100.0, format="%.2f")
             
-            tipo_display = st.selectbox("Tipo de Contrato", options=["Produção", "Bônus"])
-            tipo_valor = "PRODUCAO" if tipo_display == "Produção" else "BONUS"
+            tipo_display = st.selectbox("Tipo de Contrato", options=["PPRODUCAO", "BONUS"])
+            tipo_valor = "PRODUCAO" if tipo_display == "PRODUCAO" else "BONUS"
             
             submitted = st.form_submit_button("Adicionar Função")
             if submitted:
