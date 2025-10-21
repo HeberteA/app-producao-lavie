@@ -1,3 +1,4 @@
+# db_utils.py
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -5,7 +6,7 @@ from datetime import datetime
 import base64
 import io
 
-@st.cache_resource(ttl=60)
+@st.cache_resource(ttl=60) 
 def get_db_connection():
     try:
         engine = create_engine(st.secrets["database"]["url"])
@@ -109,6 +110,7 @@ def get_status_do_mes(mes_referencia):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
+# Otimização de Cache: Removido TTL.
 @st.cache_data
 def get_folhas_mensais(mes_referencia=None):
     engine = get_db_connection()
@@ -297,11 +299,13 @@ def salvar_novos_lancamentos(df_para_salvar):
     if engine is None: return False
 
     df_para_salvar = df_para_salvar.where(pd.notna(df_para_salvar), None)
+    
     obra_id = int(df_para_salvar.iloc[0]['obra_id'])
     mes_ref_dt = pd.to_datetime(df_para_salvar.iloc[0]['data_servico']).date().replace(day=1)
     
     try:
         with engine.connect() as connection:
+            
             status_query = text("SELECT status FROM folhas_mensais WHERE obra_id = :obra_id AND mes_referencia = :mes_ref")
             result = connection.execute(status_query, {'obra_id': obra_id, 'mes_ref': mes_ref_dt}).fetchone()
             status_atual = result[0] if result else 'Não Enviada'
@@ -336,6 +340,7 @@ def remover_lancamentos_por_id(ids_para_remover, razao="", obra_id=None, mes_ref
     
     try:
         with engine.connect() as connection:
+            
             if obra_id is not None and mes_referencia is not None:
                 mes_ref_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
                 status_query = text("SELECT status FROM folhas_mensais WHERE obra_id = :obra_id AND mes_referencia = :mes_ref")
@@ -389,7 +394,7 @@ def atualizar_observacoes(updates_list):
         ids_str = ", ".join([str(item['id']) for item in updates_list])
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "ATUALIZAR_OBSERVACOES", f"Observações atualizadas para IDs: {ids_str}")
         
-        st.cache_data.clear() 
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao salvar as observações: {e}")
@@ -428,7 +433,7 @@ def remover_obra(obra_id):
                 transaction.commit()
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_OBRA", f"Obra ID {obra_id} INATIVADA.")
         
-        st.cache_data.clear() 
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Erro ao inativar obra: {e}.")
@@ -445,12 +450,11 @@ def mudar_codigo_acesso_obra(obra_id, novo_codigo):
                 transaction.commit()
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "MUDAR_CODIGO_ACESSO", f"Código de acesso da obra ID {obra_id} alterado.")
         
-        st.cache_data.clear() 
+        st.cache_data.clear() # Limpa o cache
         return True
     except Exception as e:
         st.error(f"Erro ao alterar o código de acesso: {e}")
         return False
-
 
 def adicionar_funcao(nome, tipo, salario_base):
     """
@@ -515,7 +519,6 @@ def inativar_funcao(funcao_id):
         return False
 
 def adicionar_funcionario(nome, funcao_id, obra_id):
-   
     engine = get_db_connection()
     if engine is None: return False
     
@@ -546,7 +549,6 @@ def adicionar_funcionario(nome, funcao_id, obra_id):
         return False
 
 def inativar_funcionario(funcionario_id):
-
     engine = get_db_connection()
     if engine is None: return False
     
@@ -562,7 +564,7 @@ def inativar_funcionario(funcionario_id):
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "INATIVAR_FUNCIONARIO", 
                       f"Funcionário ID {funcionario_id} foi inativado.")
-        st.cache_data.clear() 
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Erro ao inativar funcionário no banco de dados: {e}")
@@ -596,7 +598,7 @@ def editar_funcionario(funcionario_id, novo_nome, nova_funcao_id, nova_obra_id):
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "EDITAR_FUNCIONARIO",
                       f"Dados do funcionário ID {funcionario_id} atualizados (Nome: {novo_nome}, Obra ID: {nova_obra_id}, Função ID: {nova_funcao_id}).")
-        st.cache_data.clear() # Limpa o cache
+        st.cache_data.clear() 
         return True
     except Exception as e:
         if 'unique constraint' in str(e).lower():
@@ -604,6 +606,7 @@ def editar_funcionario(funcionario_id, novo_nome, nova_funcao_id, nova_obra_id):
         else:
             st.error(f"Erro ao editar funcionário no banco de dados: {e}")
         return False
+
 
 def limpar_concluidos_obra_mes(obra_id, mes_referencia):
     """Define lancamentos_concluidos como FALSE para todos funcionários de uma obra/mês."""
@@ -624,7 +627,7 @@ def limpar_concluidos_obra_mes(obra_id, mes_referencia):
                       "LIMPAR_CONCLUIDOS", 
                       f"Status de conclusão limpo para obra_id {obra_id} no mês {mes_referencia}.")
         
-        st.cache_data.clear()
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Erro ao limpar status de concluídos: {e}")
