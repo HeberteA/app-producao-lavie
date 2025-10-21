@@ -57,8 +57,11 @@ def render_page():
         st.markdown("##### Status da Obra e Ações")
         utils.display_status_box("Status da Obra", status_auditoria_interno)
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
-            todos_aprovados = True
+            todos_funcionarios_aprovados = True
+            folha_foi_enviada = (status_folha == "Enviada para Auditoria") 
+
             funcionarios_com_producao = lancamentos_obra_df['Funcionário'].unique()
+
             if len(funcionarios_com_producao) > 0:
                 for nome_func in funcionarios_com_producao:
                     id_func_info = funcionarios_df.loc[funcionarios_df['NOME'] == nome_func, 'id']
@@ -66,9 +69,15 @@ def render_page():
                         id_func = int(id_func_info.iloc[0])
                         status_func_row = status_df[(status_df['funcionario_id'] == id_func) & (status_df['obra_id'] == obra_id_selecionada)]
                         status_do_funcionario = status_func_row['Status'].iloc[0] if not status_func_row.empty else 'A Revisar'
-                        if status_do_funcionario != 'Aprovado': todos_aprovados = False; break
+                        if status_do_funcionario != 'Aprovado':
+                            todos_funcionarios_aprovados = False
+                            break
+
             status_options = ['A Revisar', 'Analisar']
-            if todos_aprovados: status_options.append('Aprovado')
+            pode_aprovar_obra = todos_funcionarios_aprovados and folha_foi_enviada 
+
+            if pode_aprovar_obra:
+                status_options.append('Aprovado')
             else: st.info("Opção 'Aprovado' só disponível quando todos ps Funcionários estiverem 'Aprovados'.")
             idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
             selected_status_obra = st.radio("Defina o status:", options=status_options, index=idx, horizontal=True)
@@ -129,7 +138,7 @@ def render_page():
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
 
                     with header_cols[4]:
-                        utils.display_status_box("Auditoria", status_atual_func)
+                        utils.display_status_box("Auditoria", ****status_atual_func)
 
                     with header_cols[5]:
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
