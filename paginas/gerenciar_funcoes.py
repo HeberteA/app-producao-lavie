@@ -25,7 +25,7 @@ def render_page():
             nome_funcao = st.text_input("Nome da Função")
             salario_base = st.number_input("Salário Base (R$)", min_value=0.0, step=100.0, format="%.2f")
             
-            tipo_display = st.selectbox("Tipo de Contrato", options=["PPRODUCAO", "BONUS"])
+            tipo_display = st.selectbox("Tipo de Contrato", options=["PRODUCAO", "BONUS"])
             tipo_valor = "PRODUCAO" if tipo_display == "PRODUCAO" else "BONUS"
             
             submitted = st.form_submit_button("Adicionar Função")
