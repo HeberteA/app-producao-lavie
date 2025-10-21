@@ -248,7 +248,7 @@ else:
                     resumo_df = pd.merge(base_para_resumo, producao_df, on='funcionario_id', how='left')
                     resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
                     if 'PRODUÇÃO (R$)' not in resumo_df.columns: resumo_df['PRODUÇÃO (R$)'] = 0
-                    if 'SALÁRIO BASE (R$)' not in resumo_df.columns: resumo_df['SALÁRIO BASE (R$)' = 0
+                    if 'SALÁRIO BASE (R$)' not in resumo_df.columns: resumo_df['SALÁRIO BASE (R$)'] = 0
                     resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
                     resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0)
                     resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
@@ -302,4 +302,5 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
