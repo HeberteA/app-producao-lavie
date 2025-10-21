@@ -24,11 +24,11 @@ def render_page():
         st.info("Uma vez criada, uma função não pode ter seu salário ou tipo alterado. Para corrigir, inative-a e crie uma nova.")
 
         with st.form("gf_add_funcao_form", clear_on_submit=True):
-            nome_funcao = st.text_input("Nome da Função (ex: 'Pedreiro - R$2200')")
+            nome_funcao = st.text_input("Nome da Função")
             salario_base = st.number_input("Salário Base (R$)", min_value=0.0, step=100.0, format="%.2f")
             
-            tipo_display = st.selectbox("Tipo de Contrato", options=["Produção", "Bônus"])
-            tipo_valor = "PRODUCAO" if tipo_display == "Produção" else "BONUS"
+            tipo_display = st.selectbox("Tipo de Contrato", options=["PRODUCAO", "BONUS"])
+            tipo_valor = "PRODUCAO" if tipo_display == "PRODUCAO" else "BONUS"
             
             submitted = st.form_submit_button("Adicionar Função")
             if submitted:
@@ -51,7 +51,16 @@ def render_page():
         
         active_funcoes_df = all_funcoes_df[all_funcoes_df['ativo'] == True]
         
-        st.dataframe(active_funcoes_df[['FUNÇÃO', 'TIPO', 'SALARIO_BASE']], use_container_width=True)
+        st.dataframe(
+            active_funcoes_df[['FUNÇÃO', 'TIPO', 'SALARIO(R$)']],
+            use_container_width=True,
+            column_config={
+                "SALARIO_BASE": st.column_config.NumberColumn(
+                    "Salário Base",
+                    format="R$ %.2f"
+                )
+            }
+        )
 
         funcao_para_inativar_nome = st.selectbox(
             "Selecione a função para inativar",
