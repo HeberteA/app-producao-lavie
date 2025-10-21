@@ -77,7 +77,7 @@ def render_page():
         if obra_filtro_remover != "Todas":
             df_filtrado_inativar = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
 
-        st.dataframe(df_filtrado_inativar[['NOME', 'FUNÇÃO', 'OBRA']], use_container_width=True)
+        st.dataframe(df_filtrado_inativar[['NOME', 'FUNÇÃO', 'TIPO', 'OBRA']], use_container_width=True)
 
         func_para_remover_nome = st.selectbox(
             "Selecione o funcionário para inativar", 
@@ -156,3 +156,4 @@ def render_page():
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
+
