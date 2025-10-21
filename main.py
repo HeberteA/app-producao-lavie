@@ -183,7 +183,7 @@ else:
                 st.session_state.page = 'gerenciar_obras'
         if st.button("📊 Resumo da Folha", use_container_width=True):
             st.session_state.page = 'resumo_da_folha'
-        if st.button("🗑️ Remover Lançamentos", use_container_width=True):
+        if st.button("🗑️ Gerenciar Lançamentos", use_container_width=True):
             st.session_state.page = 'remover_lancamentos'
         if st.button("📈 Dashboard de Análise", use_container_width=True):
             st.session_state.page = 'dashboard_de_analise'
@@ -302,5 +302,6 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
