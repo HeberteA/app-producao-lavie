@@ -138,7 +138,7 @@ def render_page():
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
 
                     with header_cols[4]:
-                        utils.display_status_box("Auditoria", ****status_atual_func)
+                        utils.display_status_box("Auditoria", status_atual_func)
 
                     with header_cols[5]:
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
