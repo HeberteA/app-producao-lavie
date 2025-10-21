@@ -1,9 +1,12 @@
 import streamlit as st
 import db_utils
+import pandas as pd
 
 def render_page():
     mes_selecionado = st.session_state.selected_month
     lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
+    obras_df = db_utils.get_obras()
+    folhas_df = db_utils.get_folhas_mensais(mes_selecionado)
     
     st.header("Gerenciar Lançamentos")
     
@@ -11,9 +14,16 @@ def render_page():
         st.info("Não há lançamentos para gerenciar no mês selecionado.")
     else:
         df_filtrado = lancamentos_df.copy()
-
+        obra_id_para_verificar = None
+        
         if st.session_state['role'] == 'user':
-            df_filtrado = df_filtrado[df_filtrado['Obra'] == st.session_state['obra_logada']]
+            obra_logada_nome = st.session_state['obra_logada']
+            df_filtrado = df_filtrado[df_filtrado['Obra'] == obra_logada_nome]
+            
+            obra_info = obras_df[obras_df['NOME DA OBRA'] == obra_logada_nome]
+            if not obra_info.empty:
+                obra_id_para_verificar = int(obra_info.iloc[0]['id'])
+
             funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
             funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="rl_func_user")
             if funcionario_filtrado:
@@ -25,6 +35,11 @@ def render_page():
                 obras_filtradas_nomes = st.multiselect("Filtrar por Obra(s):", options=obras_disponiveis, key="rl_obras_admin")
                 if obras_filtradas_nomes:
                     df_filtrado = df_filtrado[df_filtrado['Obra'].isin(obras_filtradas_nomes)]
+                    if len(obras_filtradas_nomes) == 1:
+                         obra_info = obras_df[obras_df['NOME DA OBRA'] == obras_filtradas_nomes[0]]
+                         if not obra_info.empty:
+                             obra_id_para_verificar = int(obra_info.iloc[0]['id'])
+
             with filtro_col2:
                 funcionarios_para_filtrar = sorted(df_filtrado['Funcionário'].unique())
                 funcionario_filtrado = st.multiselect("Filtrar por Funcionário:", options=funcionarios_para_filtrar, key="rl_func_admin")
@@ -34,6 +49,14 @@ def render_page():
         if df_filtrado.empty:
             st.info("Nenhum lançamento encontrado para os filtros selecionados.")
         else:
+            edicao_bloqueada = False
+            if obra_id_para_verificar:
+                folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_para_verificar]
+                status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
+                if status_folha in ['Enviada para Auditoria', 'Finalizada']:
+                    edicao_bloqueada = True
+                    st.error(f"Mês Fechado: A folha da obra selecionada está com status '{status_folha}'. A remoção de lançamentos está bloqueada.")
+
             df_filtrado['Remover'] = False
             colunas_visiveis = ['id', 'Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']
             
@@ -57,12 +80,12 @@ def render_page():
 
                 confirmacao = st.checkbox("Sim, confirmo a remoção.", key="rl_confirmacao_remocao")
             
-                is_disabled = (st.session_state['role'] == 'admin' and not razao_remocao.strip()) or not confirmacao
+                is_disabled = edicao_bloqueada or (st.session_state['role'] == 'admin' and not razao_remocao.strip()) or not confirmacao
 
                 if st.button("Remover Itens Selecionados", disabled=is_disabled, type="primary", key="rl_remover_btn"):
                     ids_a_remover = linhas_para_remover['id'].tolist()
-                    if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao):
+                    
+                    if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao, obra_id_para_verificar, mes_selecionado):
                         st.success("Lançamentos removidos!")
-                        st.cache_data.clear()
+                        st.cache_data.clear() # Limpa o cache
                         st.rerun()
-
