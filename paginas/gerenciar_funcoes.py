@@ -5,6 +5,7 @@ import utils
 
 def render_page():
     st.header("Gerenciar Funções 🔧")
+    
     @st.cache_data
     def get_all_funcoes_cached():
         return db_utils.get_all_funcoes()
@@ -16,7 +17,7 @@ def render_page():
     all_funcoes_df = get_all_funcoes_cached()
     funcionarios_df = get_funcionarios_cached()
 
-    tab_adicionar, tab_inativar = st.tabs(["Adicionar Nova Função", "Inativar Função Existente"])
+    tab_adicionar, tab_inativar = st.tabs([" Adicionar Nova Função", " Inativar Função Existente"])
 
     with tab_adicionar:
         st.subheader("Adicionar Nova Função")
@@ -76,5 +77,5 @@ def render_page():
                     with st.spinner("Inativando..."):
                         if db_utils.inativar_funcao(funcao_id):
                             st.success(f"Função '{funcao_para_inativar_nome}' inativada.")
-                            st.cache_data.clear()
+                            st.cache_data.clear() 
                             st.rerun()
