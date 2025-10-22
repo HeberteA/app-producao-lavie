@@ -8,7 +8,7 @@ def render_page():
     obras_df = db_utils.get_obras()
     status_df = db_utils.get_status_do_mes(mes_selecionado)
     
-    st.header("Gerenciar Obras 🏗️")
+    st.header("Gerenciar Obras")
     
     st.subheader("Adicionar Nova Obra")
     with st.form("go_add_obra_form", clear_on_submit=True):
@@ -99,3 +99,4 @@ def render_page():
                         st.error(f"Erro: Obra '{obra_para_alterar_codigo_nome}' não encontrada. A página pode estar desatualizada.")
             else:
                 st.warning("Por favor, selecione uma obra e digite o novo código.")
+
