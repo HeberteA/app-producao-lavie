@@ -264,9 +264,6 @@ def render_page():
                                             st.cache_data.clear()
                                             st.rerun()
         
-        with tab_editar:
-        col_edit_disc, col_edit_serv = st.columns(2)
-        
         with col_edit_disc:
             with st.container(border=True):
                 st.subheader("Editar Disciplina (Renomear)")
