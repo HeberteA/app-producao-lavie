@@ -151,7 +151,7 @@ def render_page():
 
                         if servico_ativo:
                             st.warning(f"Este serviço está **Ativo**.")
-                            if st.button("🚫 Inativar Serviço", type="primary", key=f"inativar_serv_{servico_id}"):
+                            if st.button("Inativar Serviço", type="primary", key=f"inativar_serv_{servico_id}"):
                                 with st.spinner("Inativando..."):
                                     if db_utils.inativar_servico(servico_id):
                                         st.success("Serviço inativado!")
@@ -159,12 +159,48 @@ def render_page():
                                         st.rerun()
                         else:
                             st.success(f"Este serviço está **Inativo**.")
-                            if st.button("✅ Reativar Serviço", key=f"reativar_serv_{servico_id}"):
+                            if st.button("Reativar Serviço", key=f"reativar_serv_{servico_id}"):
                                 with st.spinner("Reativando..."):
                                     if db_utils.reativar_servico(servico_id):
                                         st.success("Serviço reativado!")
                                         st.cache_data.clear()
                                         st.rerun()
+
+        if all_servicos_df.empty:
+            st.info("Nenhum serviço cadastrado.")
+        else:
+            col_filtro1, col_filtro2 = st.columns(2)
+            with col_filtro1:
+                disciplinas_filtro_nomes = ["Todas"] + sorted(all_servicos_df['DISCIPLINA'].unique())
+            
+                
+                disciplina_filtro = st.selectbox("Filtrar por Disciplina", options=disciplinas_filtro_nomes, key="gs_disciplina_filtro")
+            with col_filtro2:
+                status_filtro = st.selectbox("Filtrar por Status", options=["Todos", "Ativos", "Inativos"], key="gs_status_filtro")
+            
+            df_filtrado = all_servicos_df.copy()
+            if disciplina_filtro != "Todas":
+                df_filtrado = df_filtrado[df_filtrado['DISCIPLINA'] == disciplina_filtro]
+            if status_filtro == "Ativos":
+                df_filtrado = df_filtrado[df_filtrado['ativo'] == True]
+            if status_filtro == "Inativos":
+                df_filtrado = df_filtrado[df_filtrado['ativo'] == False]
+
+            st.dataframe(
+                df_filtrado[['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR', 'ativo']],
+                use_container_width=True,
+                column_config={
+                    "VALOR": st.column_config.NumberColumn("Valor Unitário", format="R$ %.2f"),
+                    "ativo": st.column_config.CheckboxColumn("Ativo?", disabled=True)
+                }
+            )
+
+            servico_selecionado_desc = st.selectbox(
+                "Selecione um serviço para gerenciar",
+                options=sorted(df_filtrado['DESCRIÇÃO DO SERVIÇO'].unique()),
+                index=None,
+                placeholder="Selecione um serviço da lista acima..."
+            )
 
     with tab_editar:
         col_edit_disc, col_edit_serv = st.columns(2)
