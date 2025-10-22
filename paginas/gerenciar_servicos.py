@@ -64,8 +64,7 @@ def render_page():
 
                     if disciplina_ativa:
                         st.warning(f"A disciplina '{disciplina_selecionada_nome}' está **Ativa**.")
-                        if st.button("🚫 Inativar Disciplina", key=f"inativar_disc_{disciplina_id}"):
-                            # Robustez: Verifica se a disciplina está em uso
+                        if st.button("Inativar Disciplina", key=f"inativar_disc_{disciplina_id}"):
                             servicos_usando = all_servicos_df[
                                 (all_servicos_df['DISCIPLINA'] == disciplina_selecionada_nome) & 
                                 (all_servicos_df['ativo'] == True)
@@ -80,7 +79,7 @@ def render_page():
                                         st.rerun()
                     else:
                         st.success(f"A disciplina '{disciplina_selecionada_nome}' está **Inativa**.")
-                        if st.button("✅ Reativar Disciplina", key=f"reativar_disc_{disciplina_id}"):
+                        if st.button("Reativar Disciplina", key=f"reativar_disc_{disciplina_id}"):
                             with st.spinner("Reativando..."):
                                 if db_utils.reativar_disciplina(disciplina_id):
                                     st.success("Disciplina reativada!")
@@ -102,10 +101,10 @@ def render_page():
                 )
                 
                 st.markdown("---")
-                descricao = st.text_input("2. Descrição do Serviço")
+                descricao = st.text_input("2. Descrição do Serviço (Ex: Alvenaria de vedação)")
                 col_unid, col_val = st.columns(2)
                 with col_unid:
-                    unidade = st.text_input("3. Unidade")
+                    unidade = st.text_input("3. Unidade (Ex: m², UN, m)")
                 with col_val:
                     valor_unitario = st.number_input("4. Valor Unitário (R$)", min_value=0.0, step=0.01, format="%.2f")
                 
@@ -129,7 +128,8 @@ def render_page():
         else:
             col_filtro1, col_filtro2 = st.columns(2)
             with col_filtro1:
-                disciplinas_filtro_nomes = ["Todas"] + sorted(all_disciplinas_df['DISCIPLINA'].unique())
+                disciplinas_filtro_nomes = ["Todas"] + sorted(all_servicos_df['DISCIPLINA'].unique())
+                
                 disciplina_filtro = st.selectbox("Filtrar por Disciplina", options=disciplinas_filtro_nomes, key="gs_disciplina_filtro")
             with col_filtro2:
                 status_filtro = st.selectbox("Filtrar por Status", options=["Todos", "Ativos", "Inativos"], key="gs_status_filtro")
@@ -141,6 +141,7 @@ def render_page():
                 df_filtrado = df_filtrado[df_filtrado['ativo'] == True]
             if status_filtro == "Inativos":
                 df_filtrado = df_filtrado[df_filtrado['ativo'] == False]
+
             st.dataframe(
                 df_filtrado[['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR', 'ativo']],
                 use_container_width=True,
@@ -162,7 +163,8 @@ def render_page():
                     servico_atual = df_filtrado[df_filtrado['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado_desc].iloc[0]
                     servico_id = int(servico_atual['id'])
                     servico_ativo = bool(servico_atual['ativo'])
-                    with st.expander("Editar Serviço", expanded=False):
+
+                    with st.expander("Editar Serviço Selecionado", expanded=False):
                         with st.form("gs_edit_servico_form"):
                             st.info(f"Editando: {servico_atual['DESCRIÇÃO DO SERVIÇO']}")
                             
@@ -199,7 +201,7 @@ def render_page():
                                             st.cache_data.clear()
                                             st.rerun()
 
-                    with st.expander("Gerenciar/Inativar Serviço Selecionado", expanded=False):
+                    with st.expander("Ativar / Inativar Serviço Selecionado", expanded=False):
                         if servico_ativo:
                             st.warning(f"Este serviço está **Ativo**. Novos lançamentos podem usá-lo.")
                             if st.button("Inativar Serviço", type="primary"):
