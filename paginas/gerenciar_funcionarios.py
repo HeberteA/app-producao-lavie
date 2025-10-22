@@ -91,7 +91,7 @@ def render_page():
             df_filtrado_inativar = df_filtrado_inativar[df_filtrado_inativar['FUNÇÃO'] == funcao_filtro_remover]
 
         st.dataframe(
-            active_func_df[['NOME', 'FUNÇÃO', 'TIPO', 'SALARIO_BASE', 'OBRA']],
+            df_filtrado_inativar[['NOME', 'FUNÇÃO', 'TIPO', 'SALARIO_BASE', 'OBRA']],
             use_container_width=True,
             column_config={
                 "SALARIO_BASE": st.column_config.NumberColumn(
@@ -177,4 +177,5 @@ def render_page():
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
+
 
