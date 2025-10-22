@@ -4,7 +4,7 @@ import pandas as pd
 import utils
 
 def render_page():
-    st.header("Gerenciar Funções 🔧")
+    st.header("Gerenciar Funções")
     @st.cache_data
     def get_all_funcoes_cached():
         return db_utils.get_all_funcoes()
