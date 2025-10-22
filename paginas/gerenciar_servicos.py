@@ -78,7 +78,7 @@ def render_page():
                                         st.rerun()
 
     with tab_inativar:
-        col_inativar_disc, col_inativar_serv = st.columns(2)
+        col_inativar_serv, col_inativar_disc = st.columns(2)
 
         with col_inativar_serv:
             with st.container(border=True):
@@ -190,14 +190,14 @@ def render_page():
                 df_filtrado[['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR', 'ativo']],
                 use_container_width=True,
                 column_config={
-                    "VALOR": st.column_config.NumberColumn("Valor Unitário", format="R$ %.2f"),
+                    "VALOR": st.column_config.NumberColumn("VALOR UNITARIO", format="R$ %.2f"),
                     "ativo": st.column_config.CheckboxColumn("ATIVO", disabled=True)
                 }
             )
 
             
     with tab_editar:
-        col_edit_disc, col_edit_serv = st.columns(2)
+        col_edit_serv, col_edit_disc = st.columns(2)
         
         with col_edit_serv:
             with st.container(border=True):
