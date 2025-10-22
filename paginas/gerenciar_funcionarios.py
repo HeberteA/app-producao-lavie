@@ -1,11 +1,10 @@
-# gerenciar_funcionarios.py
 import streamlit as st
 import db_utils
 import utils
 import pandas as pd
 
 def render_page():
-    st.header("Gerenciar Funcionários 👥")
+    st.header("Gerenciar Funcionários")
 
     @st.cache_data
     def get_all_data():
@@ -177,6 +176,7 @@ def render_page():
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
+
 
 
 
