@@ -1,3 +1,4 @@
+# gerenciar_funcionarios.py
 import streamlit as st
 import db_utils
 import utils
@@ -62,13 +63,13 @@ def render_page():
                         with st.spinner("Adicionando funcionário..."):
                             if db_utils.adicionar_funcionario(nome, funcao_id, obra_id):
                                 st.success(f"Funcionário '{nome}' adicionado com sucesso!")
-                                st.cache_data.clear()
+                                st.cache_data.clear() 
                                 st.rerun()
 
     with tab_inativar:
         st.subheader("Inativar Funcionário Existente")
-        
-       col_filtro1, col_filtro2 = st.columns(2)
+    
+        col_filtro1, col_filtro2 = st.columns(2)
         
         with col_filtro1:
             obra_filtro_remover = st.selectbox(
@@ -112,7 +113,7 @@ def render_page():
     with tab_editar:
         st.subheader("Editar Funcionário")
         obra_filtro_editar = st.selectbox(
-            "1. Filtre por Obra", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
+            "1. Filtre por Obra (Opcional)", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
             index=0, key="gf_filtro_obra_editar"
         )
 
@@ -163,7 +164,7 @@ def render_page():
                                 with st.spinner("Salvando alterações..."):
                                     if db_utils.editar_funcionario(func_id, novo_nome, nova_funcao_id, nova_obra_id):
                                         st.success(f"Funcionário '{novo_nome}' atualizado com sucesso!")
-                                        st.cache_data.clear() 
+                                        st.cache_data.clear()
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
