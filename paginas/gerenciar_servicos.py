@@ -80,49 +80,6 @@ def render_page():
     with tab_inativar:
         col_inativar_disc, col_inativar_serv = st.columns(2)
 
-        with col_inativar_disc:
-            with st.container(border=True):
-                st.subheader("Ativar / Inativar Disciplina")
-                if all_disciplinas_df.empty:
-                    st.info("Nenhuma disciplina cadastrada.")
-                else:
-                    disciplina_selecionada_nome = st.selectbox(
-                        "Selecione uma disciplina para gerenciar",
-                        options=sorted(all_disciplinas_df['nome'].unique()),
-                        index=None,
-                        placeholder="Selecione uma disciplina...",
-                        key="gs_inativar_disc_select"
-                    )
-                    
-                    if disciplina_selecionada_nome:
-                        disciplina_atual = all_disciplinas_df[all_disciplinas_df['nome'] == disciplina_selecionada_nome].iloc[0]
-                        disciplina_id = int(disciplina_atual['id'])
-                        disciplina_ativa = bool(disciplina_atual['ativo'])
-
-                        if disciplina_ativa:
-                            st.warning(f"A disciplina '{disciplina_selecionada_nome}' está **Ativa**.")
-                            if st.button("Inativar Disciplina", key=f"inativar_disc_{disciplina_id}"):
-                                servicos_usando = all_servicos_df[
-                                    (all_servicos_df['DISCIPLINA'] == disciplina_selecionada_nome) & 
-                                    (all_servicos_df['ativo'] == True)
-                                ]
-                                if not servicos_usando.empty:
-                                    st.error(f"Não é possível inativar. Esta disciplina é usada por {len(servicos_usando)} serviço(s) ativo(s). Inative os serviços primeiro.")
-                                else:
-                                    with st.spinner("Inativando..."):
-                                        if db_utils.inativar_disciplina(disciplina_id):
-                                            st.success("Disciplina inativada!")
-                                            st.cache_data.clear()
-                                            st.rerun()
-                        else:
-                            st.success(f"A disciplina '{disciplina_selecionada_nome}' está **Inativa**.")
-                            if st.button("Reativar Disciplina", key=f"reativar_disc_{disciplina_id}"):
-                                with st.spinner("Reativando..."):
-                                    if db_utils.reativar_disciplina(disciplina_id):
-                                        st.success("Disciplina reativada!")
-                                        st.cache_data.clear()
-                                        st.rerun()
-        
         with col_inativar_serv:
             with st.container(border=True):
                 st.subheader("Ativar / Inativar Serviço")
@@ -150,7 +107,7 @@ def render_page():
                         servico_ativo = bool(servico_atual['ativo'])
 
                         if servico_ativo:
-                            st.warning(f"Este serviço está **Ativo**.")
+                            st.info(f"Este serviço está **Ativo**.")
                             if st.button("Inativar Serviço", type="primary", key=f"inativar_serv_{servico_id}"):
                                 with st.spinner("Inativando..."):
                                     if db_utils.inativar_servico(servico_id):
@@ -163,6 +120,49 @@ def render_page():
                                 with st.spinner("Reativando..."):
                                     if db_utils.reativar_servico(servico_id):
                                         st.success("Serviço reativado!")
+                                        st.cache_data.clear()
+                                        st.rerun()
+        
+        with col_inativar_disc:
+            with st.container(border=True):
+                st.subheader("Ativar / Inativar Disciplina")
+                if all_disciplinas_df.empty:
+                    st.info("Nenhuma disciplina cadastrada.")
+                else:
+                    disciplina_selecionada_nome = st.selectbox(
+                        "Selecione uma disciplina para gerenciar",
+                        options=sorted(all_disciplinas_df['nome'].unique()),
+                        index=None,
+                        placeholder="Selecione uma disciplina...",
+                        key="gs_inativar_disc_select"
+                    )
+                    
+                    if disciplina_selecionada_nome:
+                        disciplina_atual = all_disciplinas_df[all_disciplinas_df['nome'] == disciplina_selecionada_nome].iloc[0]
+                        disciplina_id = int(disciplina_atual['id'])
+                        disciplina_ativa = bool(disciplina_atual['ativo'])
+
+                        if disciplina_ativa:
+                            st.info(f"A disciplina '{disciplina_selecionada_nome}' está **Ativa**.")
+                            if st.button("Inativar Disciplina", key=f"inativar_disc_{disciplina_id}"):
+                                servicos_usando = all_servicos_df[
+                                    (all_servicos_df['DISCIPLINA'] == disciplina_selecionada_nome) & 
+                                    (all_servicos_df['ativo'] == True)
+                                ]
+                                if not servicos_usando.empty:
+                                    st.error(f"Não é possível inativar. Esta disciplina é usada por {len(servicos_usando)} serviço(s) ativo(s). Inative os serviços primeiro.")
+                                else:
+                                    with st.spinner("Inativando..."):
+                                        if db_utils.inativar_disciplina(disciplina_id):
+                                            st.success("Disciplina inativada!")
+                                            st.cache_data.clear()
+                                            st.rerun()
+                        else:
+                            st.success(f"A disciplina '{disciplina_selecionada_nome}' está **Inativa**.")
+                            if st.button("Reativar Disciplina", key=f"reativar_disc_{disciplina_id}"):
+                                with st.spinner("Reativando..."):
+                                    if db_utils.reativar_disciplina(disciplina_id):
+                                        st.success("Disciplina reativada!")
                                         st.cache_data.clear()
                                         st.rerun()
 
@@ -204,39 +204,6 @@ def render_page():
 
     with tab_editar:
         col_edit_disc, col_edit_serv = st.columns(2)
-        
-        with col_edit_disc:
-            with st.container(border=True):
-                st.subheader("Editar Disciplina (Renomear)")
-                if all_disciplinas_df.empty:
-                    st.info("Nenhuma disciplina cadastrada.")
-                else:
-                    disciplina_para_editar_nome = st.selectbox(
-                        "Selecione uma disciplina para editar",
-                        options=sorted(all_disciplinas_df['nome'].unique()),
-                        index=None,
-                        placeholder="Selecione uma disciplina...",
-                        key="gs_editar_disc_select"
-                    )
-
-                    if disciplina_para_editar_nome:
-                        disciplina_atual_edit = all_disciplinas_df[all_disciplinas_df['nome'] == disciplina_para_editar_nome].iloc[0]
-                        disciplina_id_edit = int(disciplina_atual_edit['id'])
-                        
-                        with st.form("gs_edit_disc_form"):
-                            novo_nome_disciplina = st.text_input("Novo nome para a Disciplina", value=disciplina_para_editar_nome)
-                            submitted_edit_disc = st.form_submit_button("Renomear Disciplina", type="primary")
-                            if submitted_edit_disc:
-                                if not novo_nome_disciplina.strip():
-                                    st.warning("O nome não pode estar em branco.")
-                                elif novo_nome_disciplina.upper() == disciplina_para_editar_nome:
-                                    st.info("O nome não foi alterado.")
-                                else:
-                                    with st.spinner("Renomeando..."):
-                                        if db_utils.editar_disciplina(disciplina_id_edit, novo_nome_disciplina.upper()):
-                                            st.success("Disciplina renomeada!")
-                                            st.cache_data.clear()
-                                            st.rerun()
         
         with col_edit_serv:
             with st.container(border=True):
@@ -294,5 +261,41 @@ def render_page():
                                     with st.spinner("Salvando alterações..."):
                                         if db_utils.editar_servico(servico_id_edit, novo_disciplina_id, novo_descricao, novo_unidade.upper(), novo_valor):
                                             st.success("Serviço atualizado com sucesso!")
+                                            st.cache_data.clear()
+                                            st.rerun()
+        
+        with tab_editar:
+        col_edit_disc, col_edit_serv = st.columns(2)
+        
+        with col_edit_disc:
+            with st.container(border=True):
+                st.subheader("Editar Disciplina (Renomear)")
+                if all_disciplinas_df.empty:
+                    st.info("Nenhuma disciplina cadastrada.")
+                else:
+                    disciplina_para_editar_nome = st.selectbox(
+                        "Selecione uma disciplina para editar",
+                        options=sorted(all_disciplinas_df['nome'].unique()),
+                        index=None,
+                        placeholder="Selecione uma disciplina...",
+                        key="gs_editar_disc_select"
+                    )
+
+                    if disciplina_para_editar_nome:
+                        disciplina_atual_edit = all_disciplinas_df[all_disciplinas_df['nome'] == disciplina_para_editar_nome].iloc[0]
+                        disciplina_id_edit = int(disciplina_atual_edit['id'])
+                        
+                        with st.form("gs_edit_disc_form"):
+                            novo_nome_disciplina = st.text_input("Novo nome para a Disciplina", value=disciplina_para_editar_nome)
+                            submitted_edit_disc = st.form_submit_button("Renomear Disciplina", type="primary")
+                            if submitted_edit_disc:
+                                if not novo_nome_disciplina.strip():
+                                    st.warning("O nome não pode estar em branco.")
+                                elif novo_nome_disciplina.upper() == disciplina_para_editar_nome:
+                                    st.info("O nome não foi alterado.")
+                                else:
+                                    with st.spinner("Renomeando..."):
+                                        if db_utils.editar_disciplina(disciplina_id_edit, novo_nome_disciplina.upper()):
+                                            st.success("Disciplina renomeada!")
                                             st.cache_data.clear()
                                             st.rerun()
