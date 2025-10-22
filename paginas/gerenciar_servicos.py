@@ -189,6 +189,7 @@ def render_page():
             st.dataframe(
                 df_filtrado[['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR', 'ativo']],
                 use_container_width=True,
+                height = 500,
                 column_config={
                     "VALOR": st.column_config.NumberColumn("VALOR UNITARIO", format="R$ %.2f"),
                     "ativo": st.column_config.CheckboxColumn("ATIVO", disabled=True)
