@@ -25,7 +25,7 @@ def render_page():
     lista_funcoes = funcoes_df.set_index('FUNÇÃO')['id'].to_dict()
     lista_obras = obras_df.set_index('NOME DA OBRA')['id'].to_dict()
     
-    tab_adicionar, tab_inativar, tab_editar = st.tabs(["➕ Adicionar Novo", "🚫 Inativar Existente", "✏️ Editar Funcionário"])
+    tab_adicionar, tab_inativar, tab_editar = st.tabs(["Adicionar Novo", "Gerenciar/Inativar Existente", "Editar Funcionário"])
 
     with tab_adicionar:
         st.subheader("Adicionar Novo Funcionário")
@@ -68,16 +68,28 @@ def render_page():
     with tab_inativar:
         st.subheader("Inativar Funcionário Existente")
         
-        obra_filtro_remover = st.selectbox(
-            "Filtre por Obra (Opcional)", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
-            index=0, key="gf_filtro_obra_remover"
-        )
+       col_filtro1, col_filtro2 = st.columns(2)
+        
+        with col_filtro1:
+            obra_filtro_remover = st.selectbox(
+                "Filtre por Obra (Opcional)", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
+                index=0, key="gf_filtro_obra_remover"
+            )
+        
+        with col_filtro2:
+            funcao_filtro_remover = st.selectbox(
+                "Filtre por Função (Opcional)", options=["Todas"] + sorted(funcoes_df['FUNÇÃO'].unique()),
+                index=0, key="gf_filtro_funcao_remover"
+            )
         
         df_filtrado_inativar = funcionarios_df
         if obra_filtro_remover != "Todas":
-            df_filtrado_inativar = funcionarios_df[funcionarios_df['OBRA'] == obra_filtro_remover]
+            df_filtrado_inativar = df_filtrado_inativar[df_filtrado_inativar['OBRA'] == obra_filtro_remover]
+        
+        if funcao_filtro_remover != "Todas":
+            df_filtrado_inativar = df_filtrado_inativar[df_filtrado_inativar['FUNÇÃO'] == funcao_filtro_remover]
 
-        st.dataframe(df_filtrado_inativar[['NOME', 'FUNÇÃO', 'TIPO', 'OBRA']], use_container_width=True)
+        st.dataframe(df_filtrado_inativar[['NOME', 'FUNÇÃO', 'TIPO','SALARIO_BASE', 'OBRA']], use_container_width=True)
 
         func_para_remover_nome = st.selectbox(
             "Selecione o funcionário para inativar", 
@@ -156,4 +168,5 @@ def render_page():
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
+
 
