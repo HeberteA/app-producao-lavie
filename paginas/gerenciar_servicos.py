@@ -191,17 +191,11 @@ def render_page():
                 use_container_width=True,
                 column_config={
                     "VALOR": st.column_config.NumberColumn("Valor Unitário", format="R$ %.2f"),
-                    "ativo": st.column_config.CheckboxColumn("Ativo?", disabled=True)
+                    "ativo": st.column_config.CheckboxColumn("ATIVO", disabled=True)
                 }
             )
 
-            servico_selecionado_desc = st.selectbox(
-                "Selecione um serviço para gerenciar",
-                options=sorted(df_filtrado['DESCRIÇÃO DO SERVIÇO'].unique()),
-                index=None,
-                placeholder="Selecione um serviço da lista acima..."
-            )
-
+            
     with tab_editar:
         col_edit_disc, col_edit_serv = st.columns(2)
         
