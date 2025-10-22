@@ -4,11 +4,11 @@ from sqlalchemy import create_engine, text
 from datetime import datetime
 import base64
 import io
- 
+
 class FolhaFechadaException(Exception):
     pass
 
-@st.cache_resource(ttl=60)  
+@st.cache_resource(ttl=60) 
 def get_db_connection():
     try:
         engine = create_engine(st.secrets["database"]["url"])
@@ -44,7 +44,7 @@ def get_lancamentos_do_mes(mes_referencia):
         o.nome_obra AS "Obra",
         l.funcionario_id, 
         f.nome AS "Funcionário", 
-        COALESCE(s.disciplina, 'Diverso') AS "Disciplina",
+        COALESCE(d.nome, 'Diverso') AS "Disciplina", -- Modificado
         COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
         CAST(l.quantidade AS INTEGER) AS "Quantidade",
         COALESCE(s.unidade, 'UN') AS "Unidade", 
@@ -55,6 +55,7 @@ def get_lancamentos_do_mes(mes_referencia):
     LEFT JOIN obras o ON l.obra_id = o.id
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
     LEFT JOIN servicos s ON l.servico_id = s.id
+    LEFT JOIN disciplinas d ON s.disciplina_id = d.id -- Modificado
     WHERE l.arquivado = FALSE AND to_char(l.data_servico, 'YYYY-MM') = :mes;
     """)
     df = pd.read_sql(query, engine, params={'mes': mes_referencia})
@@ -80,7 +81,26 @@ def get_acessos():
 def get_precos():
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
-    return pd.read_sql('SELECT id, disciplina as "DISCIPLINA", descricao as "DESCRIÇÃO DO SERVIÇO", unidade as "UNIDADE", valor_unitario as "VALOR" FROM servicos', engine)
+    query = """
+    SELECT s.id, d.nome as "DISCIPLINA", s.descricao as "DESCRIÇÃO DO SERVIÇO", 
+           s.unidade as "UNIDADE", s.valor_unitario as "VALOR" 
+    FROM servicos s
+    JOIN disciplinas d ON s.disciplina_id = d.id
+    WHERE s.ativo = TRUE AND d.ativo = TRUE;
+    """
+    return pd.read_sql(query, engine)
+ 
+@st.cache_data
+def get_all_servicos():
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    query = """
+    SELECT s.id, d.nome as "DISCIPLINA", s.descricao as "DESCRIÇÃO DO SERVIÇO", 
+           s.unidade as "UNIDADE", s.valor_unitario as "VALOR", s.ativo 
+    FROM servicos s
+    JOIN disciplinas d ON s.disciplina_id = d.id;
+    """
+    return pd.read_sql(query, engine)
     
 @st.cache_data
 def get_funcoes():
@@ -93,6 +113,20 @@ def get_all_funcoes():
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
     return pd.read_sql('SELECT id, funcao as "FUNÇÃO", tipo as "TIPO", salario_base as "SALARIO_BASE", ativo FROM funcoes', engine)
+
+@st.cache_data
+def get_disciplinas():
+    """Busca apenas disciplinas ativas."""
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    return pd.read_sql('SELECT id, nome, ativo FROM disciplinas WHERE ativo = TRUE', engine)
+
+@st.cache_data
+def get_all_disciplinas():
+    """Busca todas as disciplinas (ativas e inativas)."""
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    return pd.read_sql('SELECT id, nome, ativo FROM disciplinas', engine)
 
 @st.cache_data
 def get_status_do_mes(mes_referencia):
@@ -150,7 +184,7 @@ def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_a
                 connection.execute(query, {
                     'usuario': usuario, 'acao': acao, 'detalhes': detalhes,
                     'tabela_afetada': tabela_afetada, 'id_registro_afetado': id_registro_afetado
-                }) 
+                })
     except Exception as e:
         st.toast(f"Falha ao registrar log: {e}", icon="⚠️")
 
@@ -211,7 +245,7 @@ def upsert_status_auditoria(obra_id, funcionario_id, mes_referencia, status=None
 
                 insert_params.update(update_params)
 
-                connection.execute(query_insert, insert_params) 
+                connection.execute(query_insert, insert_params)
 
         details = []
         if status is not None: details.append(f"Status para '{status}'")
@@ -239,10 +273,10 @@ def launch_monthly_sheet(obra_id, mes_referencia_dt, obra_nome):
                 connection.execute(query_arquivar, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
 
                 query_update_status = text("UPDATE folhas_mensais SET status = 'Finalizada' WHERE obra_id = :obra_id AND mes_referencia = :mes_inicio;")
-                connection.execute(query_update_status, {'obra_id': obra_id, 'mes_inicio': mes_inicio}) 
+                connection.execute(query_update_status, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "FINALIZAR_FOLHA", f"Folha para {obra_nome} ({mes_referencia_dt.strftime('%Y-%m')}) finalizada.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao finalizar a folha: {e}")
@@ -258,10 +292,10 @@ def devolver_folha_para_revisao(obra_id, mes_referencia):
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query = text("UPDATE folhas_mensais SET status = 'Devolvida para Revisão' WHERE obra_id = :obra_id AND mes_referencia = :mes_ref")
-                connection.execute(query, {'obra_id': obra_id, 'mes_ref': mes_dt}) 
+                connection.execute(query, {'obra_id': obra_id, 'mes_ref': mes_dt})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "DEVOLVER_FOLHA", f"Folha da obra_id {obra_id} devolvida para revisão.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao devolver a folha: {e}")
@@ -281,15 +315,15 @@ def enviar_folha_para_auditoria(obra_id, mes_referencia, obra_nome):
                     ON CONFLICT (obra_id, mes_referencia) 
                     DO UPDATE SET status = 'Enviada para Auditoria', data_lancamento = NOW(), contador_envios = folhas_mensais.contador_envios + 1;
                 """)
-                connection.execute(query_insert, {'obra_id': obra_id, 'mes_ref': mes_dt}) 
+                connection.execute(query_insert, {'obra_id': obra_id, 'mes_ref': mes_dt})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "ENVIAR_FOLHA_AUDITORIA", f"Folha de {obra_nome} enviada.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao enviar a folha: {e}")
         return False
- 
+
 def salvar_novos_lancamentos(df_para_salvar):
     engine = get_db_connection()
     if engine is None: return False
@@ -300,17 +334,16 @@ def salvar_novos_lancamentos(df_para_salvar):
     mes_ref_dt = pd.to_datetime(df_para_salvar.iloc[0]['data_servico']).date().replace(day=1)
     
     try:
-        with engine.connect() as connection: 
+        with engine.connect() as connection:
             with connection.begin() as transaction:
-                 
+                
                 status_query = text("SELECT status FROM folhas_mensais WHERE obra_id = :obra_id AND mes_referencia = :mes_ref")
                 result = connection.execute(status_query, {'obra_id': obra_id, 'mes_ref': mes_ref_dt}).fetchone()
                 status_atual = result[0] if result else 'Não Enviada'
                 
-                if status_atual in ['Enviada para Auditoria', 'Finalizada']: 
+                if status_atual in ['Enviada para Auditoria', 'Finalizada']:
                     raise FolhaFechadaException(f"Não foi possível salvar: A folha (Status: {status_atual}) já foi enviada ou finalizada.")
                 
-                # 2. OPERAÇÃO DE ESCRITA (se a verificação passar)
                 lancamentos_dict = df_para_salvar.to_dict(orient='records')
                 query = text("""
                     INSERT INTO lancamentos (data_servico, obra_id, funcionario_id, servico_id,
@@ -318,49 +351,48 @@ def salvar_novos_lancamentos(df_para_salvar):
                     VALUES (:data_servico, :obra_id, :funcionario_id, :servico_id,
                             :servico_diverso_descricao, :quantidade, :valor_unitario, :observacao, :data_lancamento)
                 """)
-                connection.execute(query, lancamentos_dict) 
+                connection.execute(query, lancamentos_dict)
             
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "SALVAR_LANCAMENTOS", f"{len(lancamentos_dict)} lançamentos salvos.")
         st.cache_data.clear() 
         return True
 
-    except FolhaFechadaException as ffe: 
+    except FolhaFechadaException as ffe:
         st.error(str(ffe))
         return False
-    except Exception as e: 
+    except Exception as e:
         st.error(f"Ocorreu um erro ao salvar na base de dados: {e}")
         return False
- 
+        
 def remover_lancamentos_por_id(ids_para_remover, razao="", obra_id=None, mes_referencia=None):
     engine = get_db_connection()
     if engine is None: return False
     if not ids_para_remover: return False
     
     try:
-        with engine.connect() as connection: 
+        with engine.connect() as connection:
             with connection.begin() as transaction:
-                 
+                
                 if obra_id is not None and mes_referencia is not None:
                     mes_ref_dt = pd.to_datetime(mes_referencia, format='%Y-%m').date()
                     status_query = text("SELECT status FROM folhas_mensais WHERE obra_id = :obra_id AND mes_referencia = :mes_ref")
                     result = connection.execute(status_query, {'obra_id': obra_id, 'mes_ref': mes_ref_dt}).fetchone()
                     status_atual = result[0] if result else 'Não Enviada'
                     
-                    if status_atual in ['Enviada para Auditoria', 'Finalizada']: 
+                    if status_atual in ['Enviada para Auditoria', 'Finalizada']:
                         raise FolhaFechadaException(f"Não foi possível remover: A folha (Status: {status_atual}) já foi enviada ou finalizada.")
- 
+
                 query = text("DELETE FROM lancamentos WHERE id = ANY(:ids)")
                 connection.execute(query, {'ids': ids_para_remover})
-                 
         
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_LANCAMENTOS", f"IDs: {ids_para_remover}. Razão: {razao}")
         st.cache_data.clear() 
         return True
 
-    except FolhaFechadaException as ffe: 
+    except FolhaFechadaException as ffe:
         st.error(str(ffe))
         return False
-    except Exception as e: 
+    except Exception as e:
         st.error(f"Erro ao remover lançamentos: {e}")
         return False
         
@@ -371,10 +403,10 @@ def save_aviso_data(obra_id, novo_aviso):
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query = text("UPDATE obras SET aviso = :aviso WHERE id = :id")
-                connection.execute(query, {'aviso': novo_aviso, 'id': obra_id}) 
+                connection.execute(query, {'aviso': novo_aviso, 'id': obra_id})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "SALVAR_AVISO", f"Aviso para obra_id {obra_id} atualizado.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Erro ao salvar o aviso: {e}")
@@ -388,7 +420,7 @@ def atualizar_observacoes(updates_list):
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query = text("UPDATE lancamentos SET observacao = :obs WHERE id = :id")
-                connection.execute(query, updates_list) 
+                connection.execute(query, updates_list)
         ids_str = ", ".join([str(item['id']) for item in updates_list])
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "ATUALIZAR_OBSERVACOES", f"Observações atualizadas para IDs: {ids_str}")
         
@@ -409,7 +441,7 @@ def adicionar_obra(nome_obra, codigo_acesso):
                 new_obra_id = result.scalar_one()
 
                 query_acesso = text("INSERT INTO acessos_obras (obra_id, codigo_acesso) VALUES (:obra_id, :codigo)")
-                connection.execute(query_acesso, {'obra_id': new_obra_id, 'codigo': codigo_acesso}) 
+                connection.execute(query_acesso, {'obra_id': new_obra_id, 'codigo': codigo_acesso})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "ADICIONAR_OBRA", f"Obra '{nome_obra}' adicionada.")
         
         st.cache_data.clear() 
@@ -426,10 +458,10 @@ def remover_obra(obra_id):
             with connection.begin() as transaction:
                 query = text("UPDATE obras SET status = 'Inativa' WHERE id = :id")
                 connection.execute(query, {'id': obra_id})
-                connection.execute(text("DELETE FROM acessos_obras WHERE obra_id = :id"), {'id': obra_id}) 
+                connection.execute(text("DELETE FROM acessos_obras WHERE obra_id = :id"), {'id': obra_id})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_OBRA", f"Obra ID {obra_id} INATIVADA.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Erro ao inativar obra: {e}.")
@@ -442,10 +474,10 @@ def mudar_codigo_acesso_obra(obra_id, novo_codigo):
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query = text("UPDATE acessos_obras SET codigo_acesso = :novo_codigo WHERE obra_id = :obra_id")
-                connection.execute(query, {'novo_codigo': novo_codigo, 'obra_id': obra_id}) 
+                connection.execute(query, {'novo_codigo': novo_codigo, 'obra_id': obra_id})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "MUDAR_CODIGO_ACESSO", f"Código de acesso da obra ID {obra_id} alterado.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Erro ao alterar o código de acesso: {e}")
@@ -465,7 +497,7 @@ def adicionar_funcao(nome, tipo, salario_base):
                     'nome': nome, 
                     'tipo': tipo, 
                     'salario_base': salario_base
-                }) 
+                })
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "ADICIONAR_FUNCAO", 
@@ -485,7 +517,7 @@ def inativar_funcao(funcao_id):
     
     try:
         with engine.connect() as connection:
-            with connection.begin() as transaction: 
+            with connection.begin() as transaction:
                 check_query = text("SELECT COUNT(*) FROM funcionarios WHERE funcao_id = :id AND ativo = TRUE")
                 count = connection.execute(check_query, {'id': funcao_id}).scalar_one()
                 
@@ -495,12 +527,11 @@ def inativar_funcao(funcao_id):
                 
                 query = text("UPDATE funcoes SET ativo = FALSE WHERE id = :id")
                 connection.execute(query, {'id': funcao_id})
-     
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "INATIVAR_FUNCAO", 
                       f"Função ID {funcao_id} foi inativada.")
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Erro ao inativar função no banco de dados: {e}")
@@ -521,7 +552,7 @@ def adicionar_funcionario(nome, funcao_id, obra_id):
                     'nome': nome, 
                     'funcao_id': funcao_id, 
                     'obra_id': obra_id
-                }) 
+                })
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "ADICIONAR_FUNCIONARIO", 
@@ -545,7 +576,7 @@ def inativar_funcionario(funcionario_id):
                 query = text("""
                     UPDATE funcionarios SET ativo = FALSE WHERE id = :id
                 """)
-                connection.execute(query, {'id': funcionario_id}) 
+                connection.execute(query, {'id': funcionario_id})
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "INATIVAR_FUNCIONARIO", 
@@ -575,12 +606,12 @@ def editar_funcionario(funcionario_id, novo_nome, nova_funcao_id, nova_obra_id):
                     'nova_funcao_id': nova_funcao_id,
                     'nova_obra_id': nova_obra_id,
                     'funcionario_id': funcionario_id
-                }) 
+                })
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
                       "EDITAR_FUNCIONARIO",
                       f"Dados do funcionário ID {funcionario_id} atualizados (Nome: {novo_nome}, Obra ID: {nova_obra_id}, Função ID: {nova_funcao_id}).")
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         if 'unique constraint' in str(e).lower():
@@ -601,13 +632,168 @@ def limpar_concluidos_obra_mes(obra_id, mes_referencia):
                     SET lancamentos_concluidos = FALSE 
                     WHERE obra_id = :obra_id AND mes_referencia = :mes_ref AND funcionario_id != 0
                 """)
-                connection.execute(query, {'obra_id': obra_id, 'mes_ref': mes_dt}) 
+                connection.execute(query, {'obra_id': obra_id, 'mes_ref': mes_dt})
         registrar_log(st.session_state.get('user_identifier', 'unknown'), 
                       "LIMPAR_CONCLUIDOS", 
                       f"Status de conclusão limpo para obra_id {obra_id} no mês {mes_referencia}.")
         
-        st.cache_data.clear()  
+        st.cache_data.clear() 
         return True
     except Exception as e:
         st.error(f"Erro ao limpar status de concluídos: {e}")
+        return False
+
+
+def adicionar_disciplina(nome):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("INSERT INTO disciplinas (nome, ativo) VALUES (:nome, TRUE)")
+                connection.execute(query, {'nome': nome})
+        registrar_log(st.session_state.get('user_identifier', 'admin'), "ADICIONAR_DISCIPLINA", f"Disciplina '{nome}' adicionada.")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        if 'unique constraint' in str(e).lower():
+            st.error(f"Erro: A disciplina '{nome}' já existe.")
+        else:
+            st.error(f"Erro ao adicionar disciplina: {e}")
+        return False
+
+def inativar_disciplina(disciplina_id):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                check_query = text("SELECT COUNT(*) FROM servicos WHERE disciplina_id = :id AND ativo = TRUE")
+                count = connection.execute(check_query, {'id': disciplina_id}).scalar_one()
+                
+                if count > 0:
+                    st.error(f"Não é possível inativar: {count} serviço(s) ativo(s) está(ão) usando esta disciplina. Inative os serviços primeiro.")
+                    return False
+                
+                query = text("UPDATE disciplinas SET ativo = FALSE WHERE id = :id")
+                connection.execute(query, {'id': disciplina_id})
+        registrar_log(st.session_state.get('user_identifier', 'admin'), "INATIVAR_DISCIPLINA", f"Disciplina ID {disciplina_id} inativada.")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao inativar disciplina: {e}")
+        return False
+
+def reativar_disciplina(disciplina_id):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE disciplinas SET ativo = TRUE WHERE id = :id")
+                connection.execute(query, {'id': disciplina_id})
+        registrar_log(st.session_state.get('user_identifier', 'admin'), "REATIVAR_DISCIPLINA", f"Disciplina ID {disciplina_id} reativada.")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao reativar disciplina: {e}")
+        return False
+
+def adicionar_servico(disciplina_id, descricao, unidade, valor_unitario):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    INSERT INTO servicos (disciplina_id, descricao, unidade, valor_unitario, ativo)
+                    VALUES (:disciplina_id, :descricao, :unidade, :valor, TRUE)
+                """)
+                connection.execute(query, {
+                    'disciplina_id': disciplina_id,
+                    'descricao': descricao,
+                    'unidade': unidade,
+                    'valor': valor_unitario
+                })
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "ADICIONAR_SERVICO", 
+                      f"Serviço '{descricao}' adicionado.")
+        st.cache_data.clear() 
+        return True
+    except Exception as e:
+        if 'unique constraint' in str(e).lower():
+            st.error(f"Erro: Já existe um serviço com esta disciplina e descrição.")
+        else:
+            st.error(f"Erro ao adicionar serviço no banco de dados: {e}")
+        return False
+
+def editar_servico(servico_id, disciplina_id, descricao, unidade, valor_unitario):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE servicos 
+                    SET disciplina_id = :disciplina_id, 
+                        descricao = :descricao, 
+                        unidade = :unidade,
+                        valor_unitario = :valor
+                    WHERE id = :id
+                """)
+                connection.execute(query, {
+                    'disciplina_id': disciplina_id,
+                    'descricao': descricao,
+                    'unidade': unidade,
+                    'valor': valor_unitario,
+                    'id': servico_id
+                })
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "EDITAR_SERVICO", 
+                      f"Serviço ID {servico_id} ('{descricao}') atualizado.")
+        st.cache_data.clear() 
+        return True
+    except Exception as e:
+        if 'unique constraint' in str(e).lower():
+            st.error(f"Erro: Já existe um serviço com esta disciplina e descrição.")
+        else:
+            st.error(f"Erro ao editar serviço no banco de dados: {e}")
+        return False
+
+def inativar_servico(servico_id):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE servicos SET ativo = FALSE WHERE id = :id")
+                connection.execute(query, {'id': servico_id})
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "INATIVAR_SERVICO", 
+                      f"Serviço ID {servico_id} inativado.")
+        st.cache_data.clear() 
+        return True
+    except Exception as e:
+        st.error(f"Erro ao inativar serviço: {e}")
+        return False
+
+def reativar_servico(servico_id):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE servicos SET ativo = TRUE WHERE id = :id")
+                connection.execute(query, {'id': servico_id})
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "REATIVAR_SERVICO", 
+                      f"Serviço ID {servico_id} reativado.")
+        st.cache_data.clear() 
+        return True
+    except Exception as e:
+        st.error(f"Erro ao reativar serviço: {e}")
         return False
