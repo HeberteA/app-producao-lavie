@@ -20,8 +20,8 @@ def render_page():
 
     tab_adicionar, tab_editar, tab_inativar = st.tabs([
         "Adicionar", 
-        "Inativar", 
-        "Gerenciar/Editar"
+        "Gerenciar/Editar", 
+        "Inativar"
     ])
 
     with tab_adicionar:
