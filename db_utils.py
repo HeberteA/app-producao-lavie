@@ -797,3 +797,25 @@ def reativar_servico(servico_id):
     except Exception as e:
         st.error(f"Erro ao reativar serviço: {e}")
         return False
+
+def editar_disciplina(disciplina_id, novo_nome):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("UPDATE disciplinas SET nome = :nome WHERE id = :id")
+                connection.execute(query, {'nome': novo_nome, 'id': disciplina_id})
+        
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "EDITAR_DISCIPLINA", 
+                      f"Disciplina ID {disciplina_id} renomeada para '{novo_nome}'.")
+        st.cache_data.clear() 
+        return True
+    except Exception as e:
+        if 'unique constraint' in str(e).lower():
+            st.error(f"Erro: O nome de disciplina '{novo_nome}' já existe.")
+        else:
+            st.error(f"Erro ao editar disciplina: {e}")
+        return False
+
