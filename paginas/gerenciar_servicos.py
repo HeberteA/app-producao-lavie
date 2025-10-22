@@ -263,7 +263,7 @@ def render_page():
                                             st.cache_data.clear()
                                             st.rerun()
 
-    if all_servicos_df.empty:
+        if all_servicos_df.empty:
             st.info("Nenhum serviço cadastrado.")
         else:
             col_filtro1, col_filtro2 = st.columns(2)
@@ -292,4 +292,6 @@ def render_page():
                     "ativo": st.column_config.CheckboxColumn("ATIVO", disabled=True)
                 }
             )
+
+    
 
