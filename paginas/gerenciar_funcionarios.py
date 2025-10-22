@@ -95,7 +95,7 @@ def render_page():
             use_container_width=True,
             column_config={
                 "SALARIO_BASE": st.column_config.NumberColumn(
-                    "Salário Base",
+                    "SALARIO BASE",
                     format="R$ %.2f"  
                 )
             }
@@ -177,5 +177,6 @@ def render_page():
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
+
 
 
