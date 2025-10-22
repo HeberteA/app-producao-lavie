@@ -18,7 +18,8 @@ from paginas import (
     resumo_da_folha, 
     remover_lancamentos, 
     dashboard_de_analise,
-    gerenciar_funcoes  
+    gerenciar_funcoes,
+    gerenciar_servicos  
 )
 
 st.set_page_config(
@@ -177,8 +178,10 @@ else:
                 st.session_state.page = 'auditoria'
             if st.button("👥 Gerenciar Funcionários", use_container_width=True):
                 st.session_state.page = 'gerenciar_funcionarios'
-            if st.button("🔧 Gerenciar Funções", use_container_width=True):
+            if st.button("🔧 Gerenciar Funções", use_container_width=True): 
                 st.session_state.page = 'gerenciar_funcoes'
+            if st.button("🛠️ Gerenciar Serviços", use_container_width=True):
+                st.session_state.page = 'gerenciar_servicos'
             if st.button("🏗️ Gerenciar Obras", use_container_width=True):
                 st.session_state.page = 'gerenciar_obras'
         if st.button("📊 Resumo da Folha", use_container_width=True):
@@ -295,6 +298,7 @@ else:
         'auditoria': auditoria,
         'gerenciar_funcionarios': gerenciar_funcionarios,
         'gerenciar_funcoes': gerenciar_funcoes,
+        'gerenciar_servicos': gerenciar_servicos,
         'gerenciar_obras': gerenciar_obras,
         'resumo_da_folha': resumo_da_folha,
         'remover_lancamentos': remover_lancamentos,
@@ -302,6 +306,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
