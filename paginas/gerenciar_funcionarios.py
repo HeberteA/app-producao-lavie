@@ -72,13 +72,13 @@ def render_page():
         
         with col_filtro1:
             obra_filtro_remover = st.selectbox(
-                "Filtre por Obra (Opcional)", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
+                "Filtre por Obra", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
                 index=0, key="gf_filtro_obra_remover"
             )
         
         with col_filtro2:
             funcao_filtro_remover = st.selectbox(
-                "Filtre por Função (Opcional)", options=["Todas"] + sorted(funcoes_df['FUNÇÃO'].unique()),
+                "Filtre por Função", options=["Todas"] + sorted(funcoes_df['FUNÇÃO'].unique()),
                 index=0, key="gf_filtro_funcao_remover"
             )
         
@@ -112,7 +112,7 @@ def render_page():
     with tab_editar:
         st.subheader("Editar Funcionário")
         obra_filtro_editar = st.selectbox(
-            "1. Filtre por Obra (Opcional)", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
+            "1. Filtre por Obra", options=["Todas"] + sorted(obras_df['NOME DA OBRA'].unique()), 
             index=0, key="gf_filtro_obra_editar"
         )
 
@@ -153,7 +153,6 @@ def render_page():
                         else:
                             nova_funcao_id = lista_funcoes[nova_funcao_nome]
                             nova_obra_id = lista_obras[nova_obra_nome]
-                            
                             nome_conflitante = funcionarios_df[
                                 (funcionarios_df['NOME'].str.lower() == novo_nome.lower()) &
                                 (funcionarios_df['id'] != func_id)
@@ -168,7 +167,3 @@ def render_page():
                                         st.rerun()
             except Exception as e:
                 st.error(f"Erro ao carregar dados do funcionário. A função ou obra dele pode ter sido inativada. Detalhe: {e}")
-
-
-
-
