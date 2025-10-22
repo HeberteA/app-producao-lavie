@@ -18,10 +18,10 @@ def render_page():
 
     all_servicos_df, all_disciplinas_df, active_disciplinas_df = get_servicos_e_disciplinas_data()
 
-    tab_adicionar, tab_inativar, tab_editar = st.tabs([
+    tab_adicionar, tab_editar, tab_inativar = st.tabs([
         "Adicionar", 
-        "Gerenciar/Inativar", 
-        "Editar"
+        "Inativar", 
+        "Gerenciar/Editar"
     ])
 
     with tab_adicionar:
@@ -166,36 +166,7 @@ def render_page():
                                         st.cache_data.clear()
                                         st.rerun()
 
-        if all_servicos_df.empty:
-            st.info("Nenhum serviço cadastrado.")
-        else:
-            col_filtro1, col_filtro2 = st.columns(2)
-            with col_filtro1:
-                disciplinas_filtro_nomes = ["Todas"] + sorted(all_servicos_df['DISCIPLINA'].unique())
-            
-                
-                disciplina_filtro = st.selectbox("Filtrar por Disciplina", options=disciplinas_filtro_nomes, key="gs_disciplina_filtro")
-            with col_filtro2:
-                status_filtro = st.selectbox("Filtrar por Status", options=["Todos", "Ativos", "Inativos"], key="gs_status_filtro")
-            
-            df_filtrado = all_servicos_df.copy()
-            if disciplina_filtro != "Todas":
-                df_filtrado = df_filtrado[df_filtrado['DISCIPLINA'] == disciplina_filtro]
-            if status_filtro == "Ativos":
-                df_filtrado = df_filtrado[df_filtrado['ativo'] == True]
-            if status_filtro == "Inativos":
-                df_filtrado = df_filtrado[df_filtrado['ativo'] == False]
-
-            st.dataframe(
-                df_filtrado[['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR', 'ativo']],
-                use_container_width=True,
-                height = 700,
-                column_config={
-                    "VALOR": st.column_config.NumberColumn("VALOR UNITARIO", format="R$ %.2f"),
-                    "ativo": st.column_config.CheckboxColumn("ATIVO", disabled=True)
-                }
-            )
-
+        
             
     with tab_editar:
         col_edit_serv, col_edit_disc = st.columns(2)
@@ -291,3 +262,34 @@ def render_page():
                                             st.success("Disciplina renomeada!")
                                             st.cache_data.clear()
                                             st.rerun()
+
+    if all_servicos_df.empty:
+            st.info("Nenhum serviço cadastrado.")
+        else:
+            col_filtro1, col_filtro2 = st.columns(2)
+            with col_filtro1:
+                disciplinas_filtro_nomes = ["Todas"] + sorted(all_servicos_df['DISCIPLINA'].unique())
+            
+                
+                disciplina_filtro = st.selectbox("Filtrar por Disciplina", options=disciplinas_filtro_nomes, key="gs_disciplina_filtro")
+            with col_filtro2:
+                status_filtro = st.selectbox("Filtrar por Status", options=["Todos", "Ativos", "Inativos"], key="gs_status_filtro")
+            
+            df_filtrado = all_servicos_df.copy()
+            if disciplina_filtro != "Todas":
+                df_filtrado = df_filtrado[df_filtrado['DISCIPLINA'] == disciplina_filtro]
+            if status_filtro == "Ativos":
+                df_filtrado = df_filtrado[df_filtrado['ativo'] == True]
+            if status_filtro == "Inativos":
+                df_filtrado = df_filtrado[df_filtrado['ativo'] == False]
+
+            st.dataframe(
+                df_filtrado[['DISCIPLINA', 'DESCRIÇÃO DO SERVIÇO', 'UNIDADE', 'VALOR', 'ativo']],
+                use_container_width=True,
+                height = 700,
+                column_config={
+                    "VALOR": st.column_config.NumberColumn("VALOR UNITARIO", format="R$ %.2f"),
+                    "ativo": st.column_config.CheckboxColumn("ATIVO", disabled=True)
+                }
+            )
+
