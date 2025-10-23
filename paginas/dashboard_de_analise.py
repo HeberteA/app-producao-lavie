@@ -53,7 +53,7 @@ def render_page():
     cor_padrao = '#E37026'
 
     if st.session_state['role'] == 'admin':
-        kpi_cols = st.columns([1.5, 1.5, 2, 2])
+        kpi_cols = st.columns([1, 1.5, 2, 2.5])
         kpi_cols[0].metric("Produção Total", utils.format_currency(total_produzido))
         top_obra = df_filtrado_dash.groupby('Obra')['Valor Parcial'].sum().idxmax() if not df_filtrado_dash.empty else "N/A"
         kpi_cols[1].metric("Obra Destaque", top_obra)
