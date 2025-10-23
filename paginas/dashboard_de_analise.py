@@ -60,7 +60,7 @@ def render_page():
         kpi_cols[2].metric("Funcionário Destaque", top_funcionario)
         kpi_cols[3].metric("Serviço de Maior Custo", top_servico)
     else:
-        kpi_cols = st.columns(3)
+        kpi_cols = st.columns([1, 2, 3)
         kpi_cols[0].metric("Produção Total", utils.format_currency(total_produzido))
         kpi_cols[1].metric("Funcionário Destaque", top_funcionario)
         kpi_cols[2].metric("Serviço de Maior Custo", top_servico)
