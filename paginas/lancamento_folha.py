@@ -54,7 +54,7 @@ def render_page():
             st.markdown(f"##### Lançamento para a Obra: **{st.session_state['obra_logada']}**")
             with st.container(border=True):
                 funcionarios_da_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_logada].copy()
-            
+                
                 status_conclusao_df = status_df[
                     (status_df['obra_id'] == obra_logada_id) &
                     (status_df['funcionario_id'] != 0) 
@@ -81,7 +81,7 @@ def render_page():
                     options=opcoes_finais, 
                     index=None,
                     placeholder="Selecione um funcionário...",
-                    key="lf_func_select"
+                    key="lf_func_select" 
                 )
                 
                 funcionario_selecionado = None
@@ -95,11 +95,18 @@ def render_page():
             st.markdown("##### Selecione o Serviço Principal")
             with st.container(border=True):
                 disciplinas = sorted(precos_df['DISCIPLINA'].unique())
-                disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...", key="lf_disciplina_select")
-                opcoes_servico = sorted(precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique()) if disciplina_selecionada else []
-                servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione uma disciplina primeiro...", disabled=not disciplina_selecionada, key="lf_servico_select")
+                disciplina_idx = disciplinas.index(st.session_state.get("lf_disciplina_select")) if st.session_state.get("lf_disciplina_select") in disciplinas else None
+                disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=disciplina_idx, placeholder="Selecione...", key="lf_disciplina_select")
                 
-                quantidade_principal = 0.0
+                opcoes_servico = []
+                servico_idx = None
+                if disciplina_selecionada:
+                    opcoes_servico = sorted(precos_df[precos_df['DISCIPLINA'] == disciplina_selecionada]['DESCRIÇÃO DO SERVIÇO'].unique())
+                    servico_idx = opcoes_servico.index(st.session_state.get("lf_servico_select")) if st.session_state.get("lf_servico_select") in opcoes_servico else None
+
+                servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=servico_idx, placeholder="Selecione uma disciplina primeiro...", disabled=not disciplina_selecionada, key="lf_servico_select")
+                
+                quantidade_principal = 0.0 
                 valor_parcial_servico = 0.0
                 if servico_selecionado:
                     servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
@@ -111,7 +118,7 @@ def render_page():
                         quantidade_principal = st.number_input(
                             "Quantidade", 
                             min_value=0.0, 
-                            step=0.1, 
+                            step=0.1,  
                             format="%.2f", 
                             key="lf_qty_principal"
                         )
@@ -136,7 +143,7 @@ def render_page():
                         "Quantidade", 
                         min_value=0.0, 
                         step=0.1,  
-                        format="%.2f",
+                        format="%.2f", 
                         key="lf_qty_diverso"
                     )
                 valor_parcial_diverso = quantidade_diverso * valor_diverso
@@ -151,12 +158,28 @@ def render_page():
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
                 else:
+                    current_servico_selecionado = st.session_state.get("lf_servico_select")
+                    current_quantidade_principal = st.session_state.get("lf_qty_principal", 0.0)
+                    current_obs_principal = st.session_state.get("lf_obs_principal", "")
+                    current_data_servico_principal = st.session_state.get("lf_data_principal", datetime.now().date())
+                    
+                    current_descricao_diverso = st.session_state.get("lf_desc_diverso", "")
+                    current_quantidade_diverso = st.session_state.get("lf_qty_diverso", 0.0)
+                    current_valor_diverso = st.session_state.get("lf_valor_diverso", 0.0)
+                    current_obs_diverso = st.session_state.get("lf_obs_diverso", "")
+                    current_data_servico_diverso = st.session_state.get("lf_data_diverso", datetime.now().date())
+
+
                     erros = []
-                    if servico_selecionado and quantidade_principal > 0.0 and not obs_principal.strip():
+                    if current_servico_selecionado and current_quantidade_principal > 0.0 and not current_obs_principal.strip():
                         erros.append("Para o Serviço Principal, o campo 'Observação' é obrigatório.")
-                    if descricao_diverso.strip() and quantidade_diverso > 0.0 and not obs_diverso.strip():
+                    if current_descricao_diverso.strip() and current_quantidade_diverso > 0.0 and not current_obs_diverso.strip():
                         erros.append("Para o Item Diverso, o campo 'Observação' é obrigatório.")
-                    if erros:
+                    
+                    if not current_servico_selecionado and not (current_descricao_diverso.strip() and current_quantidade_diverso > 0.0):
+                         st.info("Nenhum item com quantidade maior que zero foi adicionado.")
+
+                    elif erros:
                         for erro in erros: st.warning(erro)
                     else:
                         novos_lancamentos = []
@@ -165,39 +188,46 @@ def render_page():
                         if func_id_info.empty: st.error("Funcionário não encontrado.")
                         else:
                             func_id = int(func_id_info.iloc[0])
-                            if servico_selecionado and quantidade_principal > 0.0:
-                                servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
+                            if current_servico_selecionado and current_quantidade_principal > 0.0:
+                                servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == current_servico_selecionado].iloc[0]
                                 novos_lancamentos.append({
-                                    'data_servico': data_servico_principal, 
+                                    'data_servico': current_data_servico_principal, 
                                     'obra_id': obra_logada_id, 
                                     'funcionario_id': func_id, 
                                     'servico_id': int(servico_info['id']), 
                                     'servico_diverso_descricao': None, 
-                                    'quantidade': quantidade_principal, 
+                                    'quantidade': current_quantidade_principal, 
                                     'valor_unitario': utils.safe_float(servico_info['VALOR']), 
-                                    'observacao': obs_principal, 
+                                    'observacao': current_obs_principal, 
                                     'data_lancamento': agora
                                 })
-                            if descricao_diverso.strip() and quantidade_diverso > 0.0 and valor_diverso > 0.0:
+                            if current_descricao_diverso.strip() and current_quantidade_diverso > 0.0 and current_valor_diverso > 0.0:
                                 novos_lancamentos.append({
-                                    'data_servico': data_servico_diverso, 
+                                    'data_servico': current_data_servico_diverso, 
                                     'obra_id': obra_logada_id, 
                                     'funcionario_id': func_id, 
                                     'servico_id': None, 
-                                    'servico_diverso_descricao': descricao_diverso, 
-                                    'quantidade': quantidade_diverso, 
-                                    'valor_unitario': valor_diverso, 
-                                    'observacao': obs_diverso, 
+                                    'servico_diverso_descricao': current_descricao_diverso, 
+                                    'quantidade': current_quantidade_diverso, 
+                                    'valor_unitario': current_valor_diverso, 
+                                    'observacao': current_obs_diverso, 
                                     'data_lancamento': agora
                                 })
+                            
                             if novos_lancamentos:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos)
                                 if db_utils.salvar_novos_lancamentos(df_para_salvar):
                                     st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
-                                    st.cache_data.clear() 
-                                    st.rerun()
-                            else:
-                                st.info("Nenhum item com quantidade maior que zero foi adicionado.")
+                                    st.cache_data.clear()
+                                    st.session_state.lf_disciplina_select = None
+                                    st.session_state.lf_servico_select = None
+                                    st.session_state.lf_qty_principal = 0.0 
+                                    st.session_state.lf_obs_principal = ""
+                                    st.session_state.lf_desc_diverso = ""
+                                    st.session_state.lf_valor_diverso = 0.0
+                                    st.session_state.lf_qty_diverso = 0.0
+                                    st.session_state.lf_obs_diverso = ""
+                                    st.rerun() 
                                 
         with col_view:
             if funcionario_selecionado:
@@ -241,11 +271,12 @@ def render_page():
                     status_row = status_df[(status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] == func_id)]
                     is_concluded = status_row['Lancamentos Concluidos'].iloc[0] if not status_row.empty and 'Lancamentos Concluidos' in status_row.columns and pd.notna(status_row['Lancamentos Concluidos'].iloc[0]) else False
 
-                    if st.button("✅ Concluir Lançamentos do Funcionário", use_container_width=True, disabled=is_concluded, help="Marca este funcionário como concluído para este mês."):
+                    if st.button("✅ Concluir Lançamentos", use_container_width=True, disabled=is_concluded, help="Marca este funcionário como concluído para este mês."):
                         if db_utils.upsert_status_auditoria(obra_logada_id, func_id, mes_selecionado, lancamentos_concluidos=True):
                             st.toast(f"'{funcionario_selecionado}' marcado como concluído.", icon="👍")
                             st.cache_data.clear() 
                             st.rerun()
+        
             funcionarios_concluidos_db = status_df[
                 (status_df['obra_id'] == obra_logada_id) & 
                 (status_df['Lancamentos Concluidos'] == True) &
