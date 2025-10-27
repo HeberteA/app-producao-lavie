@@ -1,12 +1,18 @@
 import streamlit as st
 import db_utils
-import pandas as pd
+import pandas as pd 
 
 def render_page():
     mes_selecionado = st.session_state.selected_month
-    lancamentos_df = db_utils.get_lancamentos_do_mes(mes_selecionado)
-    obras_df = db_utils.get_obras()
-    folhas_df = db_utils.get_folhas_mensais(mes_selecionado)
+    
+    @st.cache_data
+    def get_remove_page_data(mes):
+        lancamentos_df = db_utils.get_lancamentos_do_mes(mes)
+        obras_df = db_utils.get_obras() 
+        folhas_df = db_utils.get_folhas_mensais(mes)
+        return lancamentos_df, obras_df, folhas_df
+
+    lancamentos_df, obras_df, folhas_df = get_remove_page_data(mes_selecionado)
     
     st.header("Gerenciar Lançamentos")
     
@@ -50,9 +56,12 @@ def render_page():
             st.info("Nenhum lançamento encontrado para os filtros selecionados.")
         else:
             edicao_bloqueada = False
+            status_folha = "Não Enviada" 
             if obra_id_para_verificar:
                 folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_para_verificar]
-                status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
+                if not folha_do_mes.empty:
+                    status_folha = folha_do_mes['status'].iloc[0]
+                
                 if status_folha in ['Enviada para Auditoria', 'Finalizada']:
                     edicao_bloqueada = True
                     st.error(f"Mês Fechado: A folha da obra selecionada está com status '{status_folha}'. A remoção de lançamentos está bloqueada.")
@@ -64,15 +73,34 @@ def render_page():
                 df_filtrado[colunas_visiveis],
                 hide_index=True,
                 key="rl_data_editor",
-                column_config={"id": None, "Remover": st.column_config.CheckboxColumn(required=True)},
-                disabled=df_filtrado.columns.drop(['Remover'])
+                column_config={
+                    "id": None, 
+                    "Remover": st.column_config.CheckboxColumn(required=True),
+                    "Data": st.column_config.DatetimeColumn("Data", format="DD/MM HH:mm"),
+                    "Quantidade": st.column_config.NumberColumn(
+                        "Quantidade",
+                        format="%.2f" 
+                    ),
+                    "Valor Parcial": st.column_config.NumberColumn(
+                        "Valor Parcial",
+                        format="R$ %.2f" 
+                    )
+                },
+                disabled=df_filtrado.columns.drop(['Remover']) 
             )
           
             linhas_para_remover = df_modificado[df_modificado['Remover']]
         
             if not linhas_para_remover.empty:
                 st.warning("Você selecionou os seguintes lançamentos para remoção permanente:")
-                st.dataframe(linhas_para_remover.drop(columns=['Remover'])) 
+                st.dataframe(
+                     linhas_para_remover.drop(columns=['Remover']),
+                     column_config={
+                         "Data": st.column_config.DatetimeColumn("Data", format="DD/MM HH:mm"),
+                         "Quantidade": st.column_config.NumberColumn("Quantidade", format="%.2f"),
+                         "Valor Parcial": st.column_config.NumberColumn("Valor Parcial", format="R$ %.2f")
+                     }
+                )
             
                 razao_remocao = ""
                 if st.session_state['role'] == 'admin':
