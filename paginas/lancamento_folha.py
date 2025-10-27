@@ -218,16 +218,27 @@ def render_page():
                                 df_para_salvar = pd.DataFrame(novos_lancamentos)
                                 if db_utils.salvar_novos_lancamentos(df_para_salvar):
                                     st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
-                                    st.cache_data.clear()
-                                    st.session_state.lf_disciplina_select = None
-                                    st.session_state.lf_servico_select = None
-                                    st.session_state.lf_qty_principal = 0.0 
-                                    st.session_state.lf_obs_principal = ""
-                                    st.session_state.lf_desc_diverso = ""
-                                    st.session_state.lf_valor_diverso = 0.0
-                                    st.session_state.lf_qty_diverso = 0.0
-                                    st.session_state.lf_obs_diverso = ""
-                                    st.rerun() 
+                                    st.cache_data.clear() #
+                                    keys_to_delete = [
+                                        "lf_disciplina_select", 
+                                        "lf_servico_select", 
+                                        "lf_qty_principal", 
+                                        "lf_obs_principal"
+                                    ]
+                                    for key in keys_to_delete:
+                                        if key in st.session_state:
+                                            del st.session_state[key]
+                                    keys_diverso = [
+                                        "lf_desc_diverso", 
+                                        "lf_valor_diverso", 
+                                        "lf_qty_diverso", 
+                                        "lf_obs_diverso"
+                                    ]
+                                    for key in keys_diverso:
+                                        if key in st.session_state:
+                                            del st.session_state[key]
+                                    
+                                    st.rerun()
                                 
         with col_view:
             if funcionario_selecionado:
@@ -288,3 +299,4 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
