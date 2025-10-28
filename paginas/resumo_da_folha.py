@@ -5,7 +5,7 @@ import utils
 
 def render_page():
     mes_selecionado = st.session_state.selected_month
-    st.header(f"📊 Resumo da Folha - {mes_selecionado}")
+    st.header(f"Resumo da Folha - {mes_selecionado}")
 
     @st.cache_data
     def get_resumo_data(mes):
@@ -246,3 +246,4 @@ def render_page():
                             key="pdf_download_resumo_final" 
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
