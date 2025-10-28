@@ -93,6 +93,23 @@ def render_page():
             resumo_df['Situação'] = 'Pendente'
             resumo_df.drop(columns=['funcionario_id_x', 'funcionario_id_y'], errors='ignore', inplace=True) 
 
+    st.markdown("---")
+        st.subheader("Totais")
+        col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+        
+        total_base = resumo_df['SALÁRIO BASE (R$)'].sum()
+        total_liquida = resumo_df['PRODUÇÃO LÍQUIDA (R$)'].sum()
+        total_bruta = resumo_df['PRODUÇÃO BRUTA (R$)'].sum()
+        total_receber = resumo_df['SALÁRIO A RECEBER (R$)'].sum()
+        
+        col_t1.metric("Total Salário Base", utils.format_currency(total_base))
+        col_t2.metric("Total Produção Líquida", utils.format_currency(total_liquida))
+        col_t3.metric("Total Produção Bruta", utils.format_currency(total_bruta))
+        col_t4.metric("Total a Receber", utils.format_currency(total_receber))
+        
+        st.markdown("---")
+        col_dl1, col_dl2 = st.columns(2)
+
     st.subheader("Detalhes da Folha")
     
     if resumo_df.empty:
@@ -125,22 +142,7 @@ def render_page():
             }
         )
 
-        st.markdown("---")
-        st.subheader("Totais")
-        col_t1, col_t2, col_t3, col_t4 = st.columns(4)
         
-        total_base = resumo_df['SALÁRIO BASE (R$)'].sum()
-        total_liquida = resumo_df['PRODUÇÃO LÍQUIDA (R$)'].sum()
-        total_bruta = resumo_df['PRODUÇÃO BRUTA (R$)'].sum()
-        total_receber = resumo_df['SALÁRIO A RECEBER (R$)'].sum()
-        
-        col_t1.metric("Total Salário Base", utils.format_currency(total_base))
-        col_t2.metric("Total Produção Líquida", utils.format_currency(total_liquida))
-        col_t3.metric("Total Produção Bruta", utils.format_currency(total_bruta))
-        col_t4.metric("Total a Receber", utils.format_currency(total_receber))
-        
-        st.markdown("---")
-        col_dl1, col_dl2 = st.columns(2)
 
         with col_dl1:
             excel_data = utils.to_excel(resumo_df[colunas_exibicao_finais])
@@ -190,4 +192,5 @@ def render_page():
                     key="pdf_download_resumo_final", 
                     on_click=lambda: st.session_state.pop('pdf_data_resumo', None) 
                 )
+
 
