@@ -28,81 +28,6 @@ st.set_page_config(
     layout="wide"
 )
 
-def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
-    from weasyprint import HTML
-    try:
-        with open(logo_path, "rb") as image_file:
-            logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
-    except FileNotFoundError:
-        logo_base64 = None
-    style = """
-    @page { size: A4 landscape; margin: 1.5cm; }
-    body { font-family: 'Helvetica', sans-serif; font-size: 10px; }
-    .header { text-align: center; margin-bottom: 20px; }
-    .logo { width: 150px; height: auto; } /* Ajuste tamanho se necessário */
-    h1 { font-size: 18px; color: #333; }
-    h2 { font-size: 14px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; } /* Diminui fonte da tabela */
-    th, td { border: 1px solid #ddd; padding: 4px; text-align: left; }
-    th { background-color: #f2f2f2; font-weight: bold; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    .currency { text-align: right; } /* Alinha moeda à direita */
-    .number { text-align: right; } /* Alinha números à direita */
-    """
-    
-    resumo_formatters = {
-        'SALÁRIO BASE (R$)': lambda x: f'R$ {x:,.2f}',
-        'PRODUÇÃO BRUTA (R$)': lambda x: f'R$ {x:,.2f}',
-        'PRODUÇÃO LÍQUIDA (R$)': lambda x: f'R$ {x:,.2f}',
-        'SALÁRIO A RECEBER (R$)': lambda x: f'R$ {x:,.2f}'
-    }
-    resumo_classes = ['table'] + ['currency' if col in resumo_formatters else '' for col in resumo_df.columns]
-
-    lancamentos_formatters = {
-        'Quantidade': lambda x: f'{x:,.2f}',
-        'Valor Unitário': lambda x: f'R$ {x:,.2f}',
-        'Valor Parcial': lambda x: f'R$ {x:,.2f}'
-    }
-    lancamentos_classes = ['table']
-    for col in lancamentos_df.columns:
-        if col in ['Valor Unitário', 'Valor Parcial']:
-            lancamentos_classes.append('currency')
-        elif col == 'Quantidade':
-             lancamentos_classes.append('number')
-        else:
-            lancamentos_classes.append('')
-
-
-    html_string = f"""
-    <html>
-    <head><style>{style}</style></head>
-    <body>
-        <div class="header">
-            {f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ''}
-            <h1>Relatório de Produção - {mes_referencia}</h1>
-            {f'<h2>Obra: {obra_nome}</h2>' if obra_nome else ''}
-        </div>
-        <h2>Resumo da Folha</h2>
-        {resumo_df.to_html(
-            index=False, 
-            na_rep='', 
-            classes=resumo_classes, 
-            formatters=resumo_formatters,
-            justify='left' 
-        )}
-        <h2>Histórico de Lançamentos do Mês</h2>
-        {lancamentos_df.to_html(
-            index=False, 
-            na_rep='', 
-            classes=lancamentos_classes, 
-            formatters=lancamentos_formatters,
-            justify='left' 
-        )}
-    </body>
-    </html>
-    """
-    return HTML(string=html_string).write_pdf()
-
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -120,13 +45,22 @@ def login_page():
             if 'admin' in st.secrets and st.secrets.admin.password == admin_password:
                 st.session_state.logged_in = True
                 st.session_state.role = 'admin'
-                st.session_state.obra_logada = 'Todas'
+                st.session_state.obra_logada = 'Todas' 
+                st.session_state.user_identifier = 'admin' 
                 st.session_state.page = 'auditoria'
                 st.rerun()
             else:
                 st.error("Senha de administrador incorreta.")
     else:
-        obras_com_acesso = pd.merge(obras_df_login, acessos_df_login, left_on='id', right_on='obra_id')
+        obras_ativas_login = obras_df_login[obras_df_login['status'] == 'Ativa']
+        if obras_ativas_login.empty:
+             st.error("Nenhuma obra ativa encontrada para login.")
+             return
+        obras_com_acesso = pd.merge(obras_ativas_login, acessos_df_login, left_on='id', right_on='obra_id')
+        if obras_com_acesso.empty:
+             st.error("Nenhuma obra configurada com código de acesso.")
+             return
+             
         obra_login = st.selectbox("Selecione a Obra", options=obras_com_acesso['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
         codigo_login = st.text_input("Código de Acesso", type="password")
         if st.button("Entrar", use_container_width=True, type="primary"):
@@ -136,13 +70,14 @@ def login_page():
                     if codigo_correto == codigo_login:
                         st.session_state.logged_in = True
                         st.session_state.role = 'user'
-                        st.session_state.obra_logada = obra_login
+                        st.session_state.obra_logada = obra_login 
+                        st.session_state.user_identifier = f"user_{obra_login}"
                         st.session_state.page = 'lancamento_folha'
                         st.rerun()
                     else:
                         st.error("Obra ou código de acesso incorreto.")
                 except IndexError:
-                    st.error("Obra ou código de acesso incorreto.")
+                    st.error("Obra ou código de acesso incorreto.") 
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
@@ -162,28 +97,34 @@ else:
     if 'page' not in st.session_state:
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
 
+    @st.cache_data
+    def get_sidebar_data(mes_atual):
+        obras_df = db_utils.get_obras() 
+        folhas_df = db_utils.get_folhas_mensais()
+        status_df = db_utils.get_status_do_mes(mes_atual) 
+        return obras_df, folhas_df, status_df
+
+    mes_atual_sidebar = datetime.now().strftime('%Y-%m')
+    obras_df_sidebar, folhas_df_sidebar, status_df_sidebar = get_sidebar_data(mes_atual_sidebar)
+
+
     with st.sidebar:
         st.image("Lavie.png", use_container_width=True)
         if st.session_state['role'] == 'admin':
             st.info("Visão de Administrador")
         else:
             st.metric(label="Obra Ativa", value=st.session_state['obra_logada'])
-            obras_df = db_utils.get_obras()
-            obra_info = obras_df.loc[obras_df['NOME DA OBRA'] == st.session_state['obra_logada']]
+            obra_info = obras_df_sidebar.loc[obras_df_sidebar['NOME DA OBRA'] == st.session_state['obra_logada']]
             if not obra_info.empty:
                 obra_id = int(obra_info.iloc[0]['id'])
                 hoje = date.today()
                 mes_referencia_status = hoje.replace(day=1)
-                mes_ref_str = mes_referencia_status.strftime('%Y-%m')
-                status_df = db_utils.get_status_do_mes(mes_ref_str)
-                status_geral_obra_row = status_df[(status_df['obra_id'] == obra_id) & (status_df['funcionario_id'] == 0)]
+                
+                status_geral_obra_row = status_df_sidebar[(status_df_sidebar['obra_id'] == obra_id) & (status_df_sidebar['funcionario_id'] == 0)]
                 status_auditoria = status_geral_obra_row['Status'].iloc[0] if not status_geral_obra_row.empty else "A Revisar"
-                if status_auditoria == 'Aprovado':
-                    st.success(f"Status da Auditoria: {status_auditoria}")
-                elif status_auditoria == 'Analisar':
-                    st.error(f"Status da Auditoria: {status_auditoria}")
-                else:
-                    st.info(f"Status da Auditoria: {status_auditoria}")
+                
+                utils.display_status_box("Status Auditoria", status_auditoria) 
+
                 if 'aviso' in obra_info.columns:
                     aviso_obra = obra_info['aviso'].iloc[0]
                     if aviso_obra and str(aviso_obra).strip():
@@ -197,8 +138,12 @@ else:
             current_index = available_months.index(st.session_state.selected_month)
         except ValueError:
             current_index = 0
+            st.session_state.selected_month = available_months[0] 
+            
         selected_month = st.selectbox("Selecione o Mês", options=available_months, index=current_index, label_visibility="collapsed")
-        st.session_state.selected_month = selected_month
+        if selected_month != st.session_state.selected_month:
+            st.session_state.selected_month = selected_month
+            st.rerun() 
         st.markdown("---")
         st.header("Navegação")
         if st.session_state.role == 'user':
@@ -363,6 +308,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
