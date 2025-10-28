@@ -192,9 +192,9 @@ def render_page():
                     with header_cols[7]:
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
                         if lanc_concluido:
-                            st.success("Lanç.: Concluído") 
+                            st.success("Lançamento: Concluído") 
                         else:
-                            st.warning("Lanç.: Pendente")
+                            st.warning("Lançamento: Pendente")
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
                         col_status, col_comment = st.columns(2)
