@@ -44,10 +44,19 @@ def get_lancamentos_do_mes(mes_referencia):
         o.nome_obra AS "Obra",
         l.funcionario_id, 
         f.nome AS "Funcionário", 
-        COALESCE(d.nome, 'Diverso') AS "Disciplina", -- Modificado
-        COALESCE(s.descricao, l.servico_diverso_descricao) AS "Serviço",
-        CAST(l.quantidade AS INTEGER) AS "Quantidade",
-        COALESCE(s.unidade, 'UN') AS "Unidade", 
+        CASE 
+            WHEN l.servico_id IS NULL AND l.servico_diverso_descricao LIKE '[GRATIFICACAO]%' THEN 'GRATIFICAÇÃO' -- Identifica Gratificação
+            WHEN l.servico_id IS NULL THEN 'Diverso'                                             -- Identifica Item Diverso
+            ELSE d.nome                                                                           -- Disciplina normal do serviço
+        END AS "Disciplina",
+        -- Remove o prefixo da descrição da gratificação para exibição
+        CASE
+            WHEN l.servico_id IS NULL AND l.servico_diverso_descricao LIKE '[GRATIFICACAO]%' 
+            THEN TRIM(SUBSTRING(l.servico_diverso_descricao FROM 16)) -- Remove '[GRATIFICACAO] '
+            ELSE COALESCE(s.descricao, l.servico_diverso_descricao)
+        END AS "Serviço", 
+        l.quantidade AS "Quantidade", -- Já deve ser NUMERIC
+        COALESCE(s.unidade, 'UN') AS "Unidade", -- Gratificação usará 'UN'
         l.valor_unitario AS "Valor Unitário",
         (l.quantidade * l.valor_unitario) AS "Valor Parcial", 
         l.observacao AS "Observação"
@@ -55,7 +64,7 @@ def get_lancamentos_do_mes(mes_referencia):
     LEFT JOIN obras o ON l.obra_id = o.id
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
     LEFT JOIN servicos s ON l.servico_id = s.id
-    LEFT JOIN disciplinas d ON s.disciplina_id = d.id -- Modificado
+    LEFT JOIN disciplinas d ON s.disciplina_id = d.id 
     WHERE l.arquivado = FALSE AND to_char(l.data_servico, 'YYYY-MM') = :mes;
     """)
     df = pd.read_sql(query, engine, params={'mes': mes_referencia})
@@ -63,6 +72,8 @@ def get_lancamentos_do_mes(mes_referencia):
         df = df.rename(columns={'data_lancamento': 'Data', 'data_servico': 'Data do Serviço'})
         df['Data'] = pd.to_datetime(df['Data'])
         df['Data do Serviço'] = pd.to_datetime(df['Data do Serviço'])
+        if 'Quantidade' in df.columns:
+            df['Quantidade'] = df['Quantidade'].astype(float) 
     return df
 
 @st.cache_data
@@ -818,4 +829,5 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
