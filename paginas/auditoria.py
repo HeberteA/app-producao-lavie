@@ -125,7 +125,6 @@ def render_page():
     st.markdown("---")
 
     if not funcionarios_obra_df.empty:
-        # --- CÁLCULO DO RESUMO (Atualizado) ---
         funcionarios_obra_df['SALARIO_BASE'] = funcionarios_obra_df['SALARIO_BASE'].apply(utils.safe_float)
         
         producao_bruta_df = pd.DataFrame()
@@ -134,19 +133,16 @@ def render_page():
         if not lancamentos_obra_df.empty:
             lancamentos_obra_df['Valor Parcial'] = lancamentos_obra_df['Valor Parcial'].apply(utils.safe_float)
             
-            # 1. Produção Bruta (SEM gratificações)
             lanc_producao = lancamentos_obra_df[lancamentos_obra_df['Disciplina'] != 'GRATIFICAÇÃO']
             if not lanc_producao.empty:
                 producao_bruta_df = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
                 producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
             
-            # 2. Total de Gratificações
             lanc_gratificacoes = lancamentos_obra_df[lancamentos_obra_df['Disciplina'] == 'GRATIFICAÇÃO']
             if not lanc_gratificacoes.empty:
                 total_gratificacoes_df = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
                 total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
 
-        # 3. Merge
         resumo_df = funcionarios_obra_df.copy()
         if not producao_bruta_df.empty:
             resumo_df = pd.merge(resumo_df, producao_bruta_df, left_on='id', right_on='funcionario_id', how='left')
@@ -154,25 +150,21 @@ def render_page():
             resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
             
         if not total_gratificacoes_df.empty:
-             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat')) # Adiciona sufixo se 'funcionario_id' já existir
-             # Remove colunas duplicadas se necessário
+             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat')) 
              if 'funcionario_id_grat' in resumo_df.columns:
                  resumo_df.drop(columns=['funcionario_id_grat'], inplace=True)
              if 'funcionario_id' in resumo_df.columns and 'id' in resumo_df.columns and 'funcionario_id' != 'id':
-                  resumo_df.drop(columns=['funcionario_id'], inplace=True) # Mantém apenas 'id'
+                  resumo_df.drop(columns=['funcionario_id'], inplace=True) 
         else:
              resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
 
-        # Garante colunas e tipos + fillna(0)
         resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
         resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
         resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
         resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0)
 
-        # Calcula Líquida e Salário a Receber
         resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
         resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-        # --- FIM DO CÁLCULO ---
 
         st.subheader("Análise por Funcionário")
 
