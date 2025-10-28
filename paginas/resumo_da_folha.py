@@ -93,7 +93,7 @@ def render_page():
             resumo_df['Situação'] = 'Pendente'
             resumo_df.drop(columns=['funcionario_id_x', 'funcionario_id_y'], errors='ignore', inplace=True) 
 
-    st.markdown("---")
+        st.markdown("---")
         st.subheader("Totais")
         col_t1, col_t2, col_t3, col_t4 = st.columns(4)
         
@@ -192,5 +192,6 @@ def render_page():
                     key="pdf_download_resumo_final", 
                     on_click=lambda: st.session_state.pop('pdf_data_resumo', None) 
                 )
+
 
 
