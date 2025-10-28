@@ -138,7 +138,7 @@ def render_page():
         if funcionario_filtrado != "Todos":
             df_filtrado_final = df_filtrado_final[df_filtrado_final['NOME'] == funcionario_filtrado]
             
-    st.markdown("---")
+        st.markdown("---")
         st.subheader("Totais")
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
         total_base = df_filtrado_final['SALÁRIO BASE (R$)'].sum()
@@ -174,7 +174,7 @@ def render_page():
 
         st.dataframe(
             df_filtrado_final[colunas_finais_existentes],
-            use_container_width=True, hide_index=True, 
+            use_container_width=True, hide_index=True, height=550,
             column_config={
                 "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
@@ -222,6 +222,7 @@ def render_page():
                             key="pdf_download_resumo_final"
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
 
 
 
