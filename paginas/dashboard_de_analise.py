@@ -20,7 +20,7 @@ def render_page():
     lancamentos_df, funcionarios_df, folhas_df, obras_df = get_dashboard_data(mes_selecionado)
 
     if funcionarios_df.empty: 
-        st.info(f"Nenhum funcionário ativo encontrado para o mês {mes_selecionado}.")
+        st.info("Nenhum funcionário ativo encontrado para o mês {mes_selecionado}.")
         return 
 
     resumo_df = pd.DataFrame()
