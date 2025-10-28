@@ -141,6 +141,8 @@ def render_page():
                 "Situação": st.column_config.TextColumn() 
             }
         )
+        st.markdown("---")
+        col_dl1, col_dl2 = st.columns(2)
 
         
 
@@ -192,6 +194,7 @@ def render_page():
                     key="pdf_download_resumo_final", 
                     on_click=lambda: st.session_state.pop('pdf_data_resumo', None) 
                 )
+
 
 
 
