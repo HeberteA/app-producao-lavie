@@ -125,21 +125,55 @@ def render_page():
     st.markdown("---")
 
     if not funcionarios_obra_df.empty:
+        # --- CÁLCULO DO RESUMO (Atualizado) ---
         funcionarios_obra_df['SALARIO_BASE'] = funcionarios_obra_df['SALARIO_BASE'].apply(utils.safe_float)
         
+        producao_bruta_df = pd.DataFrame()
+        total_gratificacoes_df = pd.DataFrame()
+
         if not lancamentos_obra_df.empty:
             lancamentos_obra_df['Valor Parcial'] = lancamentos_obra_df['Valor Parcial'].apply(utils.safe_float)
-            producao_por_funcionario = lancamentos_obra_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            producao_por_funcionario.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
-            resumo_df = pd.merge(funcionarios_obra_df, producao_por_funcionario, left_on='id', right_on='funcionario_id', how='left')
+            
+            # 1. Produção Bruta (SEM gratificações)
+            lanc_producao = lancamentos_obra_df[lancamentos_obra_df['Disciplina'] != 'GRATIFICAÇÃO']
+            if not lanc_producao.empty:
+                producao_bruta_df = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+            
+            # 2. Total de Gratificações
+            lanc_gratificacoes = lancamentos_obra_df[lancamentos_obra_df['Disciplina'] == 'GRATIFICAÇÃO']
+            if not lanc_gratificacoes.empty:
+                total_gratificacoes_df = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+
+        # 3. Merge
+        resumo_df = funcionarios_obra_df.copy()
+        if not producao_bruta_df.empty:
+            resumo_df = pd.merge(resumo_df, producao_bruta_df, left_on='id', right_on='funcionario_id', how='left')
         else:
-            resumo_df = funcionarios_obra_df.copy()
             resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
+            
+        if not total_gratificacoes_df.empty:
+             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat')) # Adiciona sufixo se 'funcionario_id' já existir
+             # Remove colunas duplicadas se necessário
+             if 'funcionario_id_grat' in resumo_df.columns:
+                 resumo_df.drop(columns=['funcionario_id_grat'], inplace=True)
+             if 'funcionario_id' in resumo_df.columns and 'id' in resumo_df.columns and 'funcionario_id' != 'id':
+                  resumo_df.drop(columns=['funcionario_id'], inplace=True) # Mantém apenas 'id'
+        else:
+             resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
+
+        # Garante colunas e tipos + fillna(0)
         resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
         resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
+        resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
         resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0)
+
+        # Calcula Líquida e Salário a Receber
         resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
         resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+        # --- FIM DO CÁLCULO ---
+
         st.subheader("Análise por Funcionário")
 
         if resumo_df.empty:
@@ -150,25 +184,25 @@ def render_page():
                     funcionario_nome = row['Funcionário']
                     func_id = row['id']
 
-                    header_cols = st.columns([2, 1.5, 1.5, 1.5, 1.5, 1.2, 1.2]) 
+                    header_cols = st.columns([2, 1.5, 1.5, 1.5, 1.5, 1.5, 1, 1]) 
                     header_cols[0].markdown(f"**Funcionário:** {funcionario_nome} ({row['FUNÇÃO']})")
-                    header_cols[1].metric("Salário Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
+                    header_cols[1].metric("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
                     header_cols[2].metric("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']))
                     header_cols[3].metric("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']))
-                    header_cols[4].metric("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
-
-                    status_func_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)]
+                    header_cols[4].metric("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)'])) 
+                    header_cols[5].metric("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
+                    status_func_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] 
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
 
-                    with header_cols[5]:
+                    with header_cols[6]:
                         utils.display_status_box("Auditoria", status_atual_func)
 
-                    with header_cols[6]:
+                    with header_cols[7]:
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
                         if lanc_concluido:
-                            st.success("Lançamento: Concluído")
+                            st.success("Lanç.: Concluído") 
                         else:
-                            st.warning("Lançamento: Pendente")
+                            st.warning("Lanç.: Pendente")
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
                         col_status, col_comment = st.columns(2)
