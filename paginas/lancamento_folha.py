@@ -140,10 +140,12 @@ def render_page():
                     obs_diverso = st.text_area("Observação (Item Diverso)", key="lf_obs_diverso")
 
             with st.expander("Adicionar Gratificação"):
+                st.warning("Observação: Este lançamento aplica-se somente a funcionários enquadrados na modalidade de PRODUÇÃO, que neste mês não atingiram produção suficiente para alcançar o salário base. Por esse motivo, o gestor autoriza o pagamento de um valor complementar, registrado a título de GRATIFICAÇÃO.")
                 desc_grat = st.text_input("Descrição da Gratificação", key="lf_desc_grat")
                 val_grat = st.number_input("Valor da Gratificação (R$)", min_value=0.0, step=1.00, format="%.2f", key="lf_val_grat")
                 obs_grat = st.text_area("Observação (Gratificação)", key="lf_obs_grat")
                 data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
+                
             if st.button("Adicionar Lançamento(s)", use_container_width=True, type="primary", key="lf_add_btn"):
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
@@ -314,5 +316,6 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
