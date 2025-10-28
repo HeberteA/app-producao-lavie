@@ -39,14 +39,40 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     @page { size: A4 landscape; margin: 1.5cm; }
     body { font-family: 'Helvetica', sans-serif; font-size: 10px; }
     .header { text-align: center; margin-bottom: 20px; }
-    .logo { width: 200px; height: auto; }
-    h1 { font-size: 20px; color: #333; }
-    h2 { font-size: 16px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    .logo { width: 150px; height: auto; } /* Ajuste tamanho se necessário */
+    h1 { font-size: 18px; color: #333; }
+    h2 { font-size: 14px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; } /* Diminui fonte da tabela */
+    th, td { border: 1px solid #ddd; padding: 4px; text-align: left; }
     th { background-color: #f2f2f2; font-weight: bold; }
     tr:nth-child(even) { background-color: #f9f9f9; }
+    .currency { text-align: right; } /* Alinha moeda à direita */
+    .number { text-align: right; } /* Alinha números à direita */
     """
+    
+    resumo_formatters = {
+        'SALÁRIO BASE (R$)': lambda x: f'R$ {x:,.2f}',
+        'PRODUÇÃO BRUTA (R$)': lambda x: f'R$ {x:,.2f}',
+        'PRODUÇÃO LÍQUIDA (R$)': lambda x: f'R$ {x:,.2f}',
+        'SALÁRIO A RECEBER (R$)': lambda x: f'R$ {x:,.2f}'
+    }
+    resumo_classes = ['table'] + ['currency' if col in resumo_formatters else '' for col in resumo_df.columns]
+
+    lancamentos_formatters = {
+        'Quantidade': lambda x: f'{x:,.2f}',
+        'Valor Unitário': lambda x: f'R$ {x:,.2f}',
+        'Valor Parcial': lambda x: f'R$ {x:,.2f}'
+    }
+    lancamentos_classes = ['table']
+    for col in lancamentos_df.columns:
+        if col in ['Valor Unitário', 'Valor Parcial']:
+            lancamentos_classes.append('currency')
+        elif col == 'Quantidade':
+             lancamentos_classes.append('number')
+        else:
+            lancamentos_classes.append('')
+
+
     html_string = f"""
     <html>
     <head><style>{style}</style></head>
@@ -57,16 +83,21 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
             {f'<h2>Obra: {obra_nome}</h2>' if obra_nome else ''}
         </div>
         <h2>Resumo da Folha</h2>
-        {resumo_df.to_html(index=False, na_rep='', classes='table', formatters={
-            'SALÁRIO BASE (R$)': lambda x: f'R$ {x:,.2f}',
-            'PRODUÇÃO (R$)': lambda x: f'R$ {x:,.2f}',
-            'SALÁRIO A RECEBER (R$)': lambda x: f'R$ {x:,.2f}'
-        })}
+        {resumo_df.to_html(
+            index=False, 
+            na_rep='', 
+            classes=resumo_classes, 
+            formatters=resumo_formatters,
+            justify='left' 
+        )}
         <h2>Histórico de Lançamentos do Mês</h2>
-        {lancamentos_df.to_html(index=False, na_rep='', classes='table', formatters={
-            'Valor Unitário': lambda x: f'R$ {x:,.2f}',
-            'Valor Parcial': lambda x: f'R$ {x:,.2f}'
-        })}
+        {lancamentos_df.to_html(
+            index=False, 
+            na_rep='', 
+            classes=lancamentos_classes, 
+            formatters=lancamentos_formatters,
+            justify='left' 
+        )}
     </body>
     </html>
     """
@@ -240,39 +271,65 @@ else:
         st.header("Relatório")
         if st.button("📄 Gerar Relatório em PDF", use_container_width=True):
             with st.spinner("Gerando relatório..."):
-                funcionarios_df = db_utils.get_funcionarios(); lancamentos_df = db_utils.get_lancamentos_do_mes(st.session_state.selected_month)
+                funcionarios_pdf = db_utils.get_funcionarios() 
+                lancamentos_pdf = db_utils.get_lancamentos_do_mes(st.session_state.selected_month) 
                 
-                if funcionarios_df.empty:
-                    st.toast("Nenhum funcionário para gerar relatório.", icon="🤷")
+                if funcionarios_pdf.empty:
+                    st.toast("Nenhum funcionário ativo para gerar relatório.", icon="🤷")
                 else:
-                    base_para_resumo = funcionarios_df.rename(columns={'id': 'funcionario_id'})
-                    producao_df = lancamentos_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-                    producao_df.rename(columns={'Valor Parcial': 'PRODUÇÃO (R$)'}, inplace=True)
-                    resumo_df = pd.merge(base_para_resumo, producao_df, on='funcionario_id', how='left')
-                    resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
-                    if 'PRODUÇÃO (R$)' not in resumo_df.columns: resumo_df['PRODUÇÃO (R$)'] = 0
-                    if 'SALÁRIO BASE (R$)' not in resumo_df.columns: resumo_df['SALÁRIO BASE (R$)'] = 0
-                    resumo_df['PRODUÇÃO (R$)'] = resumo_df['PRODUÇÃO (R$)'].fillna(0)
-                    resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0)
-                    resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-                    concluidos_list = st.session_state.get('concluded_employees', [])
-                    resumo_df['Situação'] = resumo_df['Funcionário'].apply(lambda nome: 'Concluído' if nome in concluidos_list else 'Pendente')
-                    
+                    base_para_resumo = funcionarios_pdf.copy()
+                    base_para_resumo['funcionario_id'] = base_para_resumo['id']
+                    base_para_resumo['SALARIO_BASE'] = base_para_resumo['SALARIO_BASE'].apply(utils.safe_float)
+
+                    if not lancamentos_pdf.empty:
+                         lancamentos_pdf['Valor Parcial'] = lancamentos_pdf['Valor Parcial'].apply(utils.safe_float)
+                         producao_bruta_pdf = lancamentos_pdf.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                         producao_bruta_pdf.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+                         resumo_pdf = pd.merge(base_para_resumo, producao_bruta_pdf, on='funcionario_id', how='left')
+                    else:
+                         resumo_pdf = base_para_resumo.copy()
+                         resumo_pdf['PRODUÇÃO BRUTA (R$)'] = 0.0
+
+                    resumo_pdf.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
+                    resumo_pdf['PRODUÇÃO BRUTA (R$)'] = resumo_pdf['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
+                    resumo_pdf['SALÁRIO BASE (R$)'] = resumo_pdf['SALÁRIO BASE (R$)'].fillna(0.0)
+
+                    resumo_pdf['PRODUÇÃO LÍQUIDA (R$)'] = resumo_pdf.apply(utils.calcular_producao_liquida, axis=1)
+                    resumo_pdf['SALÁRIO A RECEBER (R$)'] = resumo_pdf.apply(utils.calcular_salario_final, axis=1)
+
+                    status_pdf = db_utils.get_status_do_mes(st.session_state.selected_month)
+                    concluidos_df = status_pdf[status_pdf['Lancamentos Concluidos'] == True][['funcionario_id']]
+                    if not concluidos_df.empty:
+                         resumo_pdf = pd.merge(resumo_pdf, concluidos_df, on='funcionario_id', how='left', indicator=True)
+                         resumo_pdf['Situação'] = resumo_pdf['_merge'].apply(lambda x: 'Concluído' if x == 'both' else 'Pendente')
+                         resumo_pdf.drop(columns=['_merge'], inplace=True)
+                    else:
+                         resumo_pdf['Situação'] = 'Pendente'
+
                     obra_relatorio = None
                     if st.session_state['role'] == 'user':
                         obra_relatorio = st.session_state['obra_logada']
-                        resumo_df = resumo_df[resumo_df['OBRA'] == obra_relatorio]
-                        lancamentos_df = lancamentos_df[lancamentos_df['Obra'] == obra_relatorio]
+                        resumo_pdf = resumo_pdf[resumo_pdf['OBRA'] == obra_relatorio]
+                        if not lancamentos_pdf.empty:
+                            lancamentos_pdf = lancamentos_pdf[lancamentos_pdf['Obra'] == obra_relatorio]
                     
-                    colunas_resumo = ['Funcionário', 'OBRA', 'FUNÇÃO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO (R$)', 'SALÁRIO A RECEBER (R$)', 'Situação']
-                    if st.session_state['role'] == 'user': colunas_resumo.remove('OBRA')
+                    colunas_resumo_pdf = [
+                        'Funcionário', 'OBRA', 'FUNÇÃO', 
+                        'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 
+                        'PRODUÇÃO LÍQUIDA (R$)', 'SALÁRIO A RECEBER (R$)', 
+                        'Situação'
+                    ]
+                    if st.session_state['role'] == 'user': colunas_resumo_pdf.remove('OBRA')
                     
-                    colunas_lancamentos = ['Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial']
-                    if st.session_state['role'] == 'user': colunas_lancamentos.remove('Obra')
+                    colunas_lancamentos_pdf = ['Data', 'Data do Serviço', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
+                    if st.session_state['role'] == 'user': colunas_lancamentos_pdf.remove('Obra')
+
+                    if lancamentos_pdf.empty:
+                         lancamentos_pdf = pd.DataFrame(columns=colunas_lancamentos_pdf) 
 
                     pdf_data = gerar_relatorio_pdf( 
-                        resumo_df=resumo_df[colunas_resumo],
-                        lancamentos_df=lancamentos_df[colunas_lancamentos],
+                        resumo_df=resumo_pdf[colunas_resumo_pdf],
+                        lancamentos_df=lancamentos_pdf[colunas_lancamentos_pdf],
                         logo_path="Lavie.png",
                         mes_referencia=st.session_state.selected_month,
                         obra_nome=obra_relatorio
@@ -306,6 +363,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
