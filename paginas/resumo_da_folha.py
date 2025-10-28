@@ -101,8 +101,8 @@ def render_page():
         colunas_exibicao = [
             'NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 
             'SALÁRIO BASE (R$)', 
-            'PRODUÇÃO BRUTA (R$)', 
             'PRODUÇÃO LÍQUIDA (R$)', 
+            'PRODUÇÃO BRUTA (R$)', 
             'SALÁRIO A RECEBER (R$)',
             'Situação' 
         ]
@@ -130,13 +130,13 @@ def render_page():
         col_t1, col_t2, col_t3, col_t4 = st.columns(4)
         
         total_base = resumo_df['SALÁRIO BASE (R$)'].sum()
-        total_bruta = resumo_df['PRODUÇÃO BRUTA (R$)'].sum()
         total_liquida = resumo_df['PRODUÇÃO LÍQUIDA (R$)'].sum()
+        total_bruta = resumo_df['PRODUÇÃO BRUTA (R$)'].sum()
         total_receber = resumo_df['SALÁRIO A RECEBER (R$)'].sum()
         
         col_t1.metric("Total Salário Base", utils.format_currency(total_base))
-        col_t2.metric("Total Produção Bruta", utils.format_currency(total_bruta))
-        col_t3.metric("Total Produção Líquida", utils.format_currency(total_liquida))
+        col_t2.metric("Total Produção Líquida", utils.format_currency(total_liquida))
+        col_t3.metric("Total Produção Bruta", utils.format_currency(total_bruta))
         col_t4.metric("Total a Receber", utils.format_currency(total_receber))
         
         st.markdown("---")
@@ -190,3 +190,4 @@ def render_page():
                     key="pdf_download_resumo_final", 
                     on_click=lambda: st.session_state.pop('pdf_data_resumo', None) 
                 )
+
