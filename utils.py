@@ -1,12 +1,24 @@
 import streamlit as st
 import io
 import pandas as pd
+from datetime import date
 
 def calcular_salario_final(row):
-    if str(row['TIPO']).upper() == 'PRODUCAO':
-        return max(row['SALÁRIO BASE (R$)'], row['PRODUÇÃO (R$)'])
+    """Calcula o salário final a receber."""
+    salario_base = row.get('SALÁRIO BASE (R$)', 0.0)
+    producao_bruta = row.get('PRODUÇÃO BRUTA (R$)', 0.0)
+    tipo_contrato = str(row.get('TIPO', '')).upper()
+
+    if tipo_contrato == 'PRODUCAO':
+        return max(salario_base, producao_bruta)
     else:
-        return row['SALÁRIO BASE (R$)'] + row['PRODUÇÃO (R$)']
+        return salario_base + producao_bruta
+
+def calcular_producao_liquida(row):
+    """Calcula a produção líquida (bruta - base), mínimo zero."""
+    salario_base = row.get('SALÁRIO BASE (R$)', 0.0)
+    producao_bruta = row.get('PRODUÇÃO BRUTA (R$)', 0.0)
+    return max(0.0, producao_bruta - salario_base)
 
 def to_excel(df):
     output = io.BytesIO()
@@ -17,16 +29,22 @@ def to_excel(df):
 
 def format_currency(value):
     try:
-        return f"R$ {float(value):,.2f}"
+        float_value = safe_float(value)
+        return f"R$ {float_value:,.2f}"
     except (ValueError, TypeError):
-        return str(value)
-
+        return str(value) 
 def safe_float(value):
+    if value is None:
+        return 0.0
     try:
         s = str(value).replace('R$', '').strip()
-        if ',' in s:
+        if isinstance(value, (int, float)):
+            return float(value)
+        elif isinstance(value, str):
             s = s.replace('.', '').replace(',', '.')
-        return float(s)
+            return float(s) if s else 0.0
+        else:
+            return 0.0
     except (ValueError, TypeError):
         return 0.0
 
@@ -51,6 +69,5 @@ def style_situacao(situacao):
     """Retorna o estilo CSS para a coluna Situação Lançamento."""
     if situacao == 'Concluído':
         return 'color: green; font-weight: bold;'
-    else: 
+    else:
         return 'color: gray; font-style: italic;'
-
