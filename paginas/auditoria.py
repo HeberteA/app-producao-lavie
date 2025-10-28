@@ -1,4 +1,3 @@
-# paginas/auditoria.py
 import streamlit as st
 import pandas as pd
 import db_utils
