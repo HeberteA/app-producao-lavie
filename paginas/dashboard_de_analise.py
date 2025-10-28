@@ -22,74 +22,205 @@ def render_page():
     if funcionarios_df.empty: 
         st.info(f"Nenhum funcionário ativo encontrado para o mês {mes_selecionado}.")
         return 
-    resumo_df = pd.DataFrame()
+
+    resumo_df = pd.DataFrame() 
     try:
         if not lancamentos_df.empty:
             lancamentos_df['Valor Parcial'] = lancamentos_df['Valor Parcial'].apply(utils.safe_float)
-            producao_bruta_agg = lancamentos_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            producao_bruta_agg.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+            lanc_producao = lancamentos_df[lancamentos_df['Disciplina'] != 'GRATIFICAÇÃO']
+            lanc_gratificacoes = lancamentos_df[lancamentos_df['Disciplina'] == 'GRATIFICAÇÃO']
+
+            producao_bruta_agg = pd.DataFrame()
+            if not lanc_producao.empty:
+                 producao_bruta_agg = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                 producao_bruta_agg.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
             
-            resumo_df_merged = pd.merge(
-                funcionarios_df, 
-                producao_bruta_agg, 
-                left_on='id',             
-                right_on='funcionario_id',
-                how='left'                
-            )
-            if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns:
-                resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
-            resumo_df = resumo_df_merged 
+            total_gratificacoes_agg = pd.DataFrame()
+            if not lanc_gratificacoes.empty:
+                 total_gratificacoes_agg = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                 total_gratificacoes_agg.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+
+            resumo_df_merged = pd.merge(funcionarios_df, producao_bruta_agg, left_on='id', right_on='funcionario_id', how='left')
+            if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns: resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
+            
+            resumo_df_merged = pd.merge(resumo_df_merged, total_gratificacoes_agg, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
+            if 'funcionario_id_grat' in resumo_df_merged.columns: resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id_grat'])
+            if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns and 'funcionario_id' != 'id': resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
+
+            resumo_df = resumo_df_merged
         else:
             resumo_df = funcionarios_df.copy()
             resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
+            resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
 
-        if not resumo_df.empty:
+        if not resumo_df.empty: 
             resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE (R$)', 'NOME': 'Funcionário'}, inplace=True) 
             resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0).apply(utils.safe_float)
             resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float) 
+            resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
             
             resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1) 
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1) 
             resumo_df['EFICIENCIA (Líquida/Base)'] = 0.0 
             mask_salario_positivo = resumo_df['SALÁRIO BASE (R$)'] > 0
-            if mask_salario_positivo.any(): 
+            if mask_salario_positivo.any():
                  resumo_df.loc[mask_salario_positivo, 'EFICIENCIA (Líquida/Base)'] = \
                      (resumo_df.loc[mask_salario_positivo, 'PRODUÇÃO LÍQUIDA (R$)'] / resumo_df.loc[mask_salario_positivo, 'SALÁRIO BASE (R$)'])
-            resumo_df['EFICIENCIA (Líquida/Base)'] = resumo_df['EFICIENCIA (Líquida/Base)'].fillna(0).replace(float('inf'), 0) 
+            resumo_df['EFICIENCIA (Líquida/Base)'] = resumo_df['EFICIENCIA (Líquida/Base)'].fillna(0).replace(float('inf'), 0)
         
     except KeyError as e:
-         st.error(f"Erro ao calcular resumo: Chave não encontrada - {e}. Verifique os nomes das colunas em funcionarios_df ou lancamentos_df.")
-         return 
+         st.error(f"Erro ao calcular resumo: Chave não encontrada - {e}. Verifique nomes das colunas.")
+         resumo_df = pd.DataFrame() 
     except Exception as e:
          st.error(f"Erro inesperado ao calcular resumo: {e}")
-         return
+         resumo_df = pd.DataFrame() 
+
+    with st.expander("Filtros do Dashboard", expanded=False): 
+        obra_selecionada_filt = []
+        funcao_selecionada_filt = []
+        tipo_selecionado_filt = []
+        funcionario_selecionado_filt = []
+        
+        obras_disponiveis_filt = sorted(resumo_df['OBRA'].unique()) if not resumo_df.empty else []
+        funcoes_disponiveis_filt = sorted(resumo_df['FUNÇÃO'].unique()) if not resumo_df.empty else []
+        tipos_disponiveis_filt = sorted(resumo_df['TIPO'].unique()) if not resumo_df.empty else []
+        funcionarios_disponiveis_filt = sorted(resumo_df['Funcionário'].unique()) if not resumo_df.empty else []
 
 
-    df_filtrado_resumo = resumo_df.copy() if not resumo_df.empty else pd.DataFrame(columns=resumo_df.columns)
-    df_filtrado_lanc = pd.DataFrame() 
-    if not lancamentos_df.empty:
-         df_filtrado_lanc = lancamentos_df.copy()
+        filt_col1, filt_col2, filt_col3, filt_col4 = st.columns(4)
 
-    st.sidebar.markdown("---") 
-    st.sidebar.subheader("Filtros do Dashboard")
+        with filt_col1:
+            if st.session_state['role'] == 'admin':
+                default_obras = st.session_state.get('dash_obras_admin_default', obras_disponiveis_filt)
+                default_obras = [o for o in default_obras if o in obras_disponiveis_filt]
+                if not default_obras and obras_disponiveis_filt: default_obras = obras_disponiveis_filt
 
-    obra_selecionada = []
-    if not resumo_df.empty:
-        obras_disponiveis = sorted(resumo_df['OBRA'].unique())
-        if st.session_state['role'] == 'admin':
-            default_obras = st.session_state.get('dash_obras_admin_default', obras_disponiveis)
-            obra_selecionada = st.sidebar.multiselect(
-                "Filtrar por Obra(s)", options=obras_disponiveis, 
-                key="dash_obras_admin", default=default_obras
-            )
-            st.session_state['dash_obras_admin_default'] = obra_selecionada
-        else:
-            obra_selecionada = [st.session_state['obra_logada']] 
-            if st.session_state['obra_logada'] not in obras_disponiveis:
-                 st.sidebar.warning("A obra logada não possui dados neste mês.")
-                 obra_selecionada = [] 
+                obra_selecionada_filt = st.multiselect(
+                    "Obra(s)", options=obras_disponiveis_filt, 
+                    key="dash_obras_admin_main", default=default_obras
+                )
+                st.session_state['dash_obras_admin_default'] = obra_selecionada_filt
+            else:
+                obra_selecionada_filt = [st.session_state['obra_logada']] 
+                st.text_input("Obra", value=st.session_state['obra_logada'], disabled=True) 
+
+        with filt_col2:
+            funcoes_opts_filtradas_filt = funcoes_disponiveis_filt
+            if st.session_state['role'] == 'admin' and obra_selecionada_filt and obra_selecionada_filt != obras_disponiveis_filt: # Se admin filtrou obras
+                 funcoes_opts_filtradas_filt = sorted(resumo_df[resumo_df['OBRA'].isin(obra_selecionada_filt)]['FUNÇÃO'].unique()) if not resumo_df.empty else []
+
+            if funcoes_opts_filtradas_filt:
+                default_funcoes = st.session_state.get('dash_funcoes_default', funcoes_opts_filtradas_filt)
+                default_funcoes = [f for f in default_funcoes if f in funcoes_opts_filtradas_filt] 
+                if not default_funcoes: default_funcoes = funcoes_opts_filtradas_filt
+
+                funcao_selecionada_filt = st.multiselect(
+                    "Função(ões)", options=funcoes_opts_filtradas_filt, 
+                    key="dash_funcoes_main", default=default_funcoes
+                )
+                st.session_state['dash_funcoes_default'] = funcao_selecionada_filt 
+            else:
+                 st.multiselect("Função(ões)", [], disabled=True)
+
+        with filt_col3:
+            if tipos_disponiveis_filt:
+                default_tipos = st.session_state.get('dash_tipos_default', tipos_disponiveis_filt)
+                default_tipos = [t for t in default_tipos if t in tipos_disponiveis_filt]
+                if not default_tipos: default_tipos = tipos_disponiveis_filt
+
+                tipo_selecionado_filt = st.multiselect(
+                    "Tipo Contrato", options=tipos_disponiveis_filt,
+                    key="dash_tipos_main", default=default_tipos
+                )
+                st.session_state['dash_tipos_default'] = tipo_selecionado_filt 
+            else:
+                st.multiselect("Tipo Contrato", [], disabled=True)
+
+        with filt_col4:
+            df_temp_func_opts = resumo_df.copy()
+            if obra_selecionada_filt: df_temp_func_opts = df_temp_func_opts[df_temp_func_opts['OBRA'].isin(obra_selecionada_filt)]
+            if funcao_selecionada_filt: df_temp_func_opts = df_temp_func_opts[df_temp_func_opts['FUNÇÃO'].isin(funcao_selecionada_filt)]
+            if tipo_selecionado_filt: df_temp_func_opts = df_temp_func_opts[df_temp_func_opts['TIPO'].isin(tipo_selecionado_filt)]
+            funcionarios_opts_filtrados = sorted(df_temp_func_opts['Funcionário'].unique())
+
+            if funcionarios_opts_filtrados:
+                default_funcs = st.session_state.get('dash_funcs_default', []) 
+                default_funcs = [f for f in default_funcs if f in funcionarios_opts_filtrados]
+
+                funcionario_selecionado_filt = st.multiselect(
+                    "Funcionário(s)", options=funcionarios_opts_filtrados,
+                    key="dash_funcs_main", default=default_funcs
+                )
+                st.session_state['dash_funcs_default'] = funcionario_selecionado_filt 
+            else:
+                 st.multiselect("Funcionário(s)", [], disabled=True)
+
+    df_filtrado_resumo = resumo_df.copy() if not resumo_df.empty else pd.DataFrame()
+    df_filtrado_lanc = lancamentos_df.copy() if not lancamentos_df.empty else pd.DataFrame()
+
+    if not df_filtrado_resumo.empty:
+        if obra_selecionada_filt: df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['OBRA'].isin(obra_selecionada_filt)]
+        if funcao_selecionada_filt: df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['FUNÇÃO'].isin(funcao_selecionada_filt)]
+        if tipo_selecionado_filt: df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['TIPO'].isin(tipo_selecionado_filt)]
+        if funcionario_selecionado_filt: df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['Funcionário'].isin(funcionario_selecionado_filt)]
+    
+    if not df_filtrado_lanc.empty and not df_filtrado_resumo.empty:
+         ids_funcs_filtrados = df_filtrado_resumo['id'].unique()
+         df_filtrado_lanc = df_filtrado_lanc[df_filtrado_lanc['funcionario_id'].isin(ids_funcs_filtrados)]
+    elif not df_filtrado_resumo.empty and df_filtrado_lanc.empty:
+         pass 
     else:
-         st.sidebar.info("Não há dados de resumo para filtrar por obra.")
+        df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns if not lancamentos_df.empty else [])
+
+    if funcionarios_df.empty: 
+        st.info(f"Nenhum funcionário ativo encontrado para o mês {mes_selecionado}.")
+
+    resumo_df = pd.DataFrame() 
+    try:
+        if not lancamentos_df.empty:
+            lancamentos_df['Valor Parcial'] = lancamentos_df['Valor Parcial'].apply(utils.safe_float)
+            producao_bruta_agg = lancamentos_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+            producao_bruta_agg.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+            total_gratificacoes_agg = lancamentos_df[lancamentos_df['Disciplina'] == 'GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+            total_gratificacoes_agg.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+
+            resumo_df_merged = pd.merge(funcionarios_df, producao_bruta_agg, left_on='id', right_on='funcionario_id', how='left')
+            if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns:
+                 resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
+            
+            resumo_df_merged = pd.merge(resumo_df_merged, total_gratificacoes_agg, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
+            if 'funcionario_id_grat' in resumo_df_merged.columns: resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id_grat'])
+            if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns and 'funcionario_id' != 'id': resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
+
+            resumo_df = resumo_df_merged
+        else:
+            resumo_df = funcionarios_df.copy()
+            resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
+            resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
+
+        if not resumo_df.empty: 
+            resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE (R$)', 'NOME': 'Funcionário'}, inplace=True) 
+            resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0).apply(utils.safe_float)
+            resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float) 
+            resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
+            
+            resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1) 
+            resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1) 
+            resumo_df['EFICIENCIA (Líquida/Base)'] = 0.0 
+            mask_salario_positivo = resumo_df['SALÁRIO BASE (R$)'] > 0
+            if mask_salario_positivo.any():
+                 resumo_df.loc[mask_salario_positivo, 'EFICIENCIA (Líquida/Base)'] = \
+                     (resumo_df.loc[mask_salario_positivo, 'PRODUÇÃO LÍQUIDA (R$)'] / resumo_df.loc[mask_salario_positivo, 'SALÁRIO BASE (R$)'])
+            resumo_df['EFICIENCIA (Líquida/Base)'] = resumo_df['EFICIENCIA (Líquida/Base)'].fillna(0).replace(float('inf'), 0)
+        
+    except KeyError as e:
+         st.error(f"Erro ao calcular resumo: Chave não encontrada - {e}.")
+         resumo_df = pd.DataFrame()
+    except Exception as e:
+         st.error(f"Erro inesperado ao calcular resumo: {e}")
+         resumo_df = pd.DataFrame()
+    df_filtrado_resumo = resumo_df.copy() if not resumo_df.empty else pd.DataFrame(columns=resumo_df.columns)
+    df_filtrado_lanc = lancamentos_df.copy() if not lancamentos_df.empty else pd.DataFrame()
 
     if obra_selecionada and not df_filtrado_resumo.empty:
          df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['OBRA'].isin(obra_selecionada)]
@@ -99,52 +230,29 @@ def render_page():
         df_filtrado_resumo = pd.DataFrame(columns=resumo_df.columns) 
         df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns if not lancamentos_df.empty else [])
 
-    funcao_selecionada = []
-    if not df_filtrado_resumo.empty:
-        funcoes_disponiveis_filtradas = sorted(df_filtrado_resumo['FUNÇÃO'].unique())
-        default_funcoes = st.session_state.get('dash_funcoes_default', funcoes_disponiveis_filtradas)
-        default_funcoes = [f for f in default_funcoes if f in funcoes_disponiveis_filtradas] 
-        if not default_funcoes: default_funcoes = funcoes_disponiveis_filtradas
-
-        funcao_selecionada = st.sidebar.multiselect(
-            "Filtrar por Função(ões)", options=funcoes_disponiveis_filtradas, 
-            key="dash_funcoes", default=default_funcoes
-        )
-        st.session_state['dash_funcoes_default'] = funcao_selecionada
-    elif not resumo_df.empty:
-         st.sidebar.info("Nenhuma função disponível para a(s) obra(s) selecionada(s).")
-
     if funcao_selecionada and not df_filtrado_resumo.empty:
         df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['FUNÇÃO'].isin(funcao_selecionada)]
         if not df_filtrado_lanc.empty:
             funcs_filtrados_ids = df_filtrado_resumo['id'].unique() 
             df_filtrado_lanc = df_filtrado_lanc[df_filtrado_lanc['funcionario_id'].isin(funcs_filtrados_ids)]
-    elif not funcao_selecionada and not df_filtrado_resumo.empty:
+    elif not funcao_selecionada and not df_filtrado_resumo.empty and funcoes_opts_filtradas:
         df_filtrado_resumo = pd.DataFrame(columns=resumo_df.columns)
         df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns if not lancamentos_df.empty else [])
 
+
     if df_filtrado_resumo.empty and not resumo_df.empty: 
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
-    elif resumo_df.empty and funcionarios_df.empty: 
-         pass 
-    elif resumo_df.empty: 
-         st.error("Não foi possível calcular o resumo dos dados.")
-
     st.markdown("---")
-    
     total_prod_bruta = df_filtrado_resumo['PRODUÇÃO BRUTA (R$)'].sum() if not df_filtrado_resumo.empty else 0
     total_prod_liquida = df_filtrado_resumo['PRODUÇÃO LÍQUIDA (R$)'].sum() if not df_filtrado_resumo.empty else 0
     total_gratificacoes_kpi = df_filtrado_resumo['TOTAL GRATIFICAÇÕES (R$)'].sum() if not df_filtrado_resumo.empty and 'TOTAL GRATIFICAÇÕES (R$)' in df_filtrado_resumo else 0
     media_prod_liquida_func = df_filtrado_resumo['PRODUÇÃO LÍQUIDA (R$)'].mean() if not df_filtrado_resumo.empty else 0
-    
     top_funcionario_bruta = "N/A"
     if not df_filtrado_resumo.empty and df_filtrado_resumo['PRODUÇÃO BRUTA (R$)'].max() > 0:
          try: 
              idx_max_bruta = df_filtrado_resumo['PRODUÇÃO BRUTA (R$)'].idxmax()
-             if 'Funcionário' in df_filtrado_resumo.columns:
-                  top_funcionario_bruta = df_filtrado_resumo.loc[idx_max_bruta, 'Funcionário']
+             if 'Funcionário' in df_filtrado_resumo.columns: top_funcionario_bruta = df_filtrado_resumo.loc[idx_max_bruta, 'Funcionário']
          except KeyError: pass 
-              
     top_servico_custo = "N/A" 
     lanc_sem_grat = df_filtrado_lanc[df_filtrado_lanc['Disciplina'] != 'GRATIFICAÇÃO'] if not df_filtrado_lanc.empty else pd.DataFrame()
     if not lanc_sem_grat.empty:
@@ -152,7 +260,6 @@ def render_page():
         if not serv_grouped.empty:
             try: top_servico_custo = serv_grouped.idxmax()
             except ValueError: pass
-
     num_cols = 5 
     kpi_cols = st.columns(num_cols)
     kpi_cols[0].metric("💰 Prod. Bruta Total", utils.format_currency(total_prod_bruta))
@@ -160,7 +267,6 @@ def render_page():
     kpi_cols[2].metric("⭐ Total Gratificações", utils.format_currency(total_gratificacoes_kpi)) 
     kpi_cols[3].metric("👤 Prod. Líq. Média/Func.", utils.format_currency(media_prod_liquida_func)) 
     kpi_cols[4].metric("🏆 Func. Destaque", str(top_funcionario_bruta)) 
-
     if st.session_state['role'] == 'admin':
         kpi_cols_admin = st.columns(num_cols) 
         top_obra_bruta = "N/A"; top_obra_eficiencia = "N/A"; top_obra_grat = "N/A" 
@@ -169,21 +275,18 @@ def render_page():
             if not soma_bruta_obra.empty and soma_bruta_obra.sum() > 0:
                  try: top_obra_bruta = soma_bruta_obra.idxmax()
                  except ValueError: pass 
-            
             media_liquida_por_obra = df_filtrado_resumo.groupby('OBRA')['PRODUÇÃO LÍQUIDA (R$)'].mean()
             if not media_liquida_por_obra.empty:
                 try: top_obra_eficiencia = media_liquida_por_obra.idxmax()
                 except ValueError: pass
-
             soma_grat_obra = df_filtrado_resumo.groupby('OBRA')['TOTAL GRATIFICAÇÕES (R$)'].sum() if 'TOTAL GRATIFICAÇÕES (R$)' in df_filtrado_resumo else pd.Series()
             if not soma_grat_obra.empty and soma_grat_obra.sum() > 0:
                  try: top_obra_grat = soma_grat_obra.idxmax()
                  except ValueError: pass
-        
-        kpi_cols_admin[0].metric("🏆 Obra Destaque (Bruta)", str(top_obra_bruta))
-        kpi_cols_admin[1].metric("🚀 Obra Eficiente (Líq/Func)", str(top_obra_eficiencia)) 
-        kpi_cols_admin[2].metric("⭐ Obra (Gratificações)", str(top_obra_grat)) 
-        kpi_cols_admin[3].metric("🔧 Serviço + Custo", str(top_servico_custo)) 
+        kpi_cols_admin[0].metric("Obra Destaque (Bruta)", str(top_obra_bruta))
+        kpi_cols_admin[1].metric("Obra Eficiente (Líq/Func)", str(top_obra_eficiencia)) 
+        kpi_cols_admin[2].metric("Obra (Gratificações)", str(top_obra_grat)) 
+        kpi_cols_admin[3].metric("Serviço + Custo", str(top_servico_custo))
     
     cor_bruta = '#E37026' 
     cor_liquida = '#1E88E5' 
