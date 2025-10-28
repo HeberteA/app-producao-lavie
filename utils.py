@@ -1,8 +1,8 @@
 import streamlit as st
 import io
 import pandas as pd
-from datetime import date 
-import base64 
+from datetime import date
+import base64
 
 try:
     from weasyprint import HTML
@@ -20,14 +20,23 @@ def calcular_salario_final(row):
 
     if tipo_contrato == 'PRODUCAO':
         return max(salario_base, producao_bruta)
-    else:
+    else: 
         return salario_base + producao_bruta
 
 def calcular_producao_liquida(row):
-    """Calcula a produção líquida (bruta - base), mínimo zero."""
+    """
+    Calcula a produção líquida.
+    - Para tipo 'PRODUCAO': max(0, bruta - base)
+    - Para outros tipos (ex: 'BONUS'): bruta (pois é um adicional)
+    """
     salario_base = row.get('SALÁRIO BASE (R$)', 0.0)
     producao_bruta = row.get('PRODUÇÃO BRUTA (R$)', 0.0)
-    return max(0.0, producao_bruta - salario_base)
+    tipo_contrato = str(row.get('TIPO', '')).upper()
+
+    if tipo_contrato == 'PRODUCAO':
+        return max(0.0, producao_bruta - salario_base)
+    else: 
+        return producao_bruta
 
 def to_excel(df):
     output = io.BytesIO()
@@ -42,7 +51,7 @@ def format_currency(value):
         formatted = f"R$ {float_value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         return formatted
     except (ValueError, TypeError):
-        return str(value) 
+        return str(value)
 
 def safe_float(value):
     if value is None:
@@ -87,7 +96,7 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     if not WEASYPRINT_AVAILABLE:
         st.error("A biblioteca 'weasyprint' não está instalada. O download do PDF não está disponível.")
         st.warning("Para habilitar o PDF, instale com: pip install weasyprint")
-        return None 
+        return None
         
     try:
         with open(logo_path, "rb") as image_file:
@@ -103,12 +112,12 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
     h1 { font-size: 18px; color: #333; }
     h2 { font-size: 14px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
-    th, td { border: 1px solid #ddd; padding: 4px; text-align: left; word-wrap: break-word; } /* Adicionado word-wrap */
+    th, td { border: 1px solid #ddd; padding: 4px; text-align: left; word-wrap: break-word; } 
     th { background-color: #f2f2f2; font-weight: bold; }
     tr:nth-child(even) { background-color: #f9f9f9; }
     .currency, .number { text-align: right; }
-    td:nth-child(1) { width: 20%; } /* Ajuste a largura da coluna Funcionário/Data se necessário */
-    td:nth-child(2) { width: 10%; } /* Ajuste a largura da coluna Obra/Data Serviço se necessário */
+    td:nth-child(1) { width: 20%; } 
+    td:nth-child(2) { width: 10%; } 
     """
     
     resumo_df_html = resumo_df.copy()
@@ -133,34 +142,56 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
          if col in lancamentos_df_html.columns:
              try:
                  lancamentos_df_html[col] = pd.to_datetime(lancamentos_df_html[col]).dt.strftime('%d/%m/%Y %H:%M')
-             except:
+             except: 
                   try:
                       lancamentos_df_html[col] = pd.to_datetime(lancamentos_df_html[col]).dt.strftime('%d/%m/%Y')
                   except:
-                      pass
+                      pass 
+
     resumo_html = resumo_df_html.to_html(index=False, na_rep='', classes='table', justify='left', escape=False)
     lancamentos_html = lancamentos_df_html.to_html(index=False, na_rep='', classes='table', justify='left', escape=False)
     
     def add_css_classes_to_td(html_table, df_columns, currency_cols, number_cols):
-        header_row = html_table.split('<thead>')[1].split('</thead>')[0]
+        try:
+            header_row = html_table.split('<thead>')[1].split('</thead>')[0]
+        except IndexError:
+             return html_table
+             
         col_indices = {col: i for i, col in enumerate(df_columns)}
         
         currency_indices = {col_indices[col] for col in currency_cols if col in col_indices}
         number_indices = {col_indices[col] for col in number_cols if col in col_indices}
 
-        body_rows = html_table.split('<tbody>')[1].split('</tbody>')[0].split('<tr>')
+        try:
+            tbody_content = html_table.split('<tbody>')[1].split('</tbody>')[0]
+        except IndexError:
+             return html_table
+
+        body_rows = tbody_content.split('<tr>')
         new_body_rows = []
-        for row in body_rows:
-            if not row.strip(): continue
-            cells = row.split('<td>')
-            new_cells = [cells[0]]
-            for i, cell in enumerate(cells[1:]):
+        for row_html in body_rows:
+            row_html_stripped = row_html.strip()
+            if not row_html_stripped or row_html_stripped == '</tr>': continue
+            
+            cells = row_html.split('<td')
+            if len(cells) <= 1: 
+                 cells = row_html.split('<th')
+                 tag = 'th'
+            else:
+                 tag = 'td'
+
+            if len(cells) <= 1:
+                 new_body_rows.append(row_html)
+                 continue
+
+            new_cells = [cells[0]] 
+            for i, cell_content in enumerate(cells[1:]):
                 if i in currency_indices:
-                    new_cells.append(f'<td class="currency">{cell}')
+                    new_cells.append(f'<{tag} class="currency"{cell_content}')
                 elif i in number_indices:
-                    new_cells.append(f'<td class="number">{cell}')
+                    new_cells.append(f'<{tag} class="number"{cell_content}')
                 else:
-                     new_cells.append(f'<td>{cell}')
+                     new_cells.append(f'<{tag}{cell_content}') 
             new_body_rows.append(''.join(new_cells))
             
         new_tbody = '<tbody>' + '<tr>'.join(new_body_rows) + '</tbody>'
@@ -168,7 +199,6 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
 
     resumo_html = add_css_classes_to_td(resumo_html, resumo_df.columns, currency_cols_resumo, [])
     lancamentos_html = add_css_classes_to_td(lancamentos_html, lancamentos_df.columns, currency_cols_lanc, number_cols_lanc)
-
 
     html_string = f"""
     <html>
@@ -193,4 +223,3 @@ def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, ob
          st.error(f"Erro ao gerar PDF com WeasyPrint: {e}")
          st.info("Verifique se as dependências do WeasyPrint (como Pango, Cairo, GDK-PixBuf) estão instaladas corretamente no sistema.")
          return None
-# --- FIM DA FUNÇÃO PDF ---
