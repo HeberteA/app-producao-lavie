@@ -22,6 +22,7 @@ def render_page():
     if funcionarios_df.empty: 
         st.info(f"Nenhum funcionário ativo encontrado para o mês {mes_selecionado}.")
         return 
+
     resumo_df = pd.DataFrame() 
     try:
         lanc_producao = pd.DataFrame()
@@ -42,20 +43,23 @@ def render_page():
              total_gratificacoes_agg.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
 
         resumo_df_merged = funcionarios_df.copy() 
+        
         if not producao_bruta_agg.empty:
             resumo_df_merged = pd.merge(resumo_df_merged, producao_bruta_agg, left_on='id', right_on='funcionario_id', how='left')
             if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns: 
                 resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
         else:
              resumo_df_merged['PRODUÇÃO BRUTA (R$)'] = 0.0 
+             
         if not total_gratificacoes_agg.empty:
             resumo_df_merged = pd.merge(resumo_df_merged, total_gratificacoes_agg, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
             if 'funcionario_id_grat' in resumo_df_merged.columns: resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id_grat'])
             if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns and 'funcionario_id' != 'id': resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
         else:
-            resumo_df_merged['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
+            resumo_df_merged['TOTAL GRATIFICAÇÕES (R$)'] = 0.0 
 
         resumo_df = resumo_df_merged 
+
         if not resumo_df.empty: 
             resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE (R$)', 'NOME': 'Funcionário'}, inplace=True) 
             resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0).apply(utils.safe_float)
@@ -161,6 +165,7 @@ def render_page():
         df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['TIPO'].isin(tipo_selecionado_filt)]
     elif not tipo_selecionado_filt and not df_filtrado_resumo.empty and tipos_opts_filtrados_filt:
          df_filtrado_resumo = pd.DataFrame(columns=resumo_df.columns)
+
     if funcionario_selecionado_filt and not df_filtrado_resumo.empty:
         df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['Funcionário'].isin(funcionario_selecionado_filt)]
     if not df_filtrado_lanc.empty and not df_filtrado_resumo.empty:
@@ -168,6 +173,7 @@ def render_page():
          df_filtrado_lanc = df_filtrado_lanc[df_filtrado_lanc['funcionario_id'].isin(ids_funcs_filtrados)]
     else: 
         df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns if not lancamentos_df.empty else [])
+
 
     if df_filtrado_resumo.empty and not resumo_df.empty: 
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
@@ -266,6 +272,7 @@ def render_page():
         st.plotly_chart(fig_hist_liquida, use_container_width=True)
         st.caption("Este gráfico mostra quantos funcionários se encaixam em cada faixa de produção líquida.")
 
+
     if not df_filtrado_lanc.empty:
         st.markdown("---")
         st.subheader("Produção Bruta ao Longo do Tempo")
@@ -306,7 +313,6 @@ def render_page():
                     st.plotly_chart(fig_custo_disc, use_container_width=True)
             else:
                  st.info("Nenhum serviço (exceto gratificações) encontrado para análise detalhada.")
-
 
     if st.session_state['role'] == 'admin':
         if not folhas_df.empty:
