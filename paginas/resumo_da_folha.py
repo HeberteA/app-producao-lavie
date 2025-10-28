@@ -137,7 +137,21 @@ def render_page():
             df_filtrado_final = df_filtrado_final[df_filtrado_final['FUNÇÃO'] == funcao_filtrada]
         if funcionario_filtrado != "Todos":
             df_filtrado_final = df_filtrado_final[df_filtrado_final['NOME'] == funcionario_filtrado]
-    
+            
+    st.markdown("---")
+        st.subheader("Totais")
+        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
+        total_base = df_filtrado_final['SALÁRIO BASE (R$)'].sum()
+        total_bruta = df_filtrado_final['PRODUÇÃO BRUTA (R$)'].sum()
+        total_liquida = df_filtrado_final['PRODUÇÃO LÍQUIDA (R$)'].sum()
+        total_grat = df_filtrado_final['TOTAL GRATIFICAÇÕES (R$)'].sum()
+        total_receber = df_filtrado_final['SALÁRIO A RECEBER (R$)'].sum()
+        col_t1.metric("Total Salário Base", utils.format_currency(total_base))
+        col_t2.metric("Total Prod. Bruta", utils.format_currency(total_bruta))
+        col_t3.metric("Total Prod. Líquida", utils.format_currency(total_liquida))
+        col_t4.metric("Total Gratificações", utils.format_currency(total_grat))
+        col_t5.metric("Total a Receber", utils.format_currency(total_receber))
+
     st.markdown("---") 
     st.subheader("Detalhes da Folha")
 
@@ -160,7 +174,7 @@ def render_page():
 
         st.dataframe(
             df_filtrado_final[colunas_finais_existentes],
-            use_container_width=True, hide_index=True,
+            use_container_width=True, hide_index=True, height= 550
             column_config={
                 "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
@@ -171,21 +185,7 @@ def render_page():
                 "Situação": st.column_config.TextColumn("Situação Lançamento")
             }
         )
-
-        st.markdown("---")
-        st.subheader("Totais")
-        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
-        total_base = df_filtrado_final['SALÁRIO BASE (R$)'].sum()
-        total_bruta = df_filtrado_final['PRODUÇÃO BRUTA (R$)'].sum()
-        total_liquida = df_filtrado_final['PRODUÇÃO LÍQUIDA (R$)'].sum()
-        total_grat = df_filtrado_final['TOTAL GRATIFICAÇÕES (R$)'].sum()
-        total_receber = df_filtrado_final['SALÁRIO A RECEBER (R$)'].sum()
-        col_t1.metric("Total Salário Base", utils.format_currency(total_base))
-        col_t2.metric("Total Prod. Bruta", utils.format_currency(total_bruta))
-        col_t3.metric("Total Prod. Líquida", utils.format_currency(total_liquida))
-        col_t4.metric("Total Gratificações", utils.format_currency(total_grat))
-        col_t5.metric("Total a Receber", utils.format_currency(total_receber))
-
+        
         st.markdown("---")
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
@@ -222,3 +222,4 @@ def render_page():
                             key="pdf_download_resumo_final"
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
