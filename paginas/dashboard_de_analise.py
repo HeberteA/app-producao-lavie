@@ -14,26 +14,30 @@ def render_page():
         lancs_df = db_utils.get_lancamentos_do_mes(mes)
         funcs_df = db_utils.get_funcionarios() 
         folhas_df = db_utils.get_folhas_mensais(mes) 
-        obras_df = db_utils.get_obras()
+        obras_df = db_utils.get_obras() 
         return lancs_df, funcs_df, folhas_df, obras_df
 
     lancamentos_df, funcionarios_df, folhas_df, obras_df = get_dashboard_data(mes_selecionado)
 
-    if lancamentos_df.empty and funcionarios_df.empty:
-        st.info(f"Ainda não há lançamentos ou funcionários cadastrados para o mês {mes_selecionado}.")
-        return
-    elif lancamentos_df.empty:
-         st.info(f"Ainda não há lançamentos de produção para analisar no mês {mes_selecionado}.")
+    if funcionarios_df.empty:
+        st.info(f"Nenhum funcionário ativo encontrado para o mês {mes_selecionado}.")
+        return 
+
     if not lancamentos_df.empty:
         lancamentos_df['Valor Parcial'] = lancamentos_df['Valor Parcial'].apply(utils.safe_float)
         producao_bruta_agg = lancamentos_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
         producao_bruta_agg.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+
         resumo_df = pd.merge(
             funcionarios_df, 
             producao_bruta_agg, 
-            on='funcionario_id', 
-            how='left' 
+            left_on='id',       
+            right_on='funcionario_id',
+            how='left'             
         )
+        if 'funcionario_id' in resumo_df.columns and 'id' in resumo_df.columns:
+            resumo_df = resumo_df.drop(columns=['funcionario_id'])
+
     else:
         resumo_df = funcionarios_df.copy()
         resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
@@ -44,12 +48,16 @@ def render_page():
     
     resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
     resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
-    resumo_df['EFICIENCIA (Líquida/Base)'] = (resumo_df['PRODUÇÃO LÍQUIDA (R$)'] / resumo_df['SALÁRIO BASE (R$)']).fillna(0).replace(float('inf'), 0)
+    resumo_df['EFICIENCIA (Líquida/Base)'] = (resumo_df['PRODUÇÃO LÍQUIDA (R$)'] / resumo_df['SALÁRIO BASE (R$)']).fillna(0).replace(float('inf'), 0) 
+
     df_filtrado_resumo = resumo_df.copy()
-    df_filtrado_lanc = lancamentos_df.copy() 
+    df_filtrado_lanc = pd.DataFrame() 
+    if not lancamentos_df.empty:
+         df_filtrado_lanc = lancamentos_df.copy()
 
     st.sidebar.markdown("---") 
     st.sidebar.subheader("Filtros do Dashboard")
+
     obras_disponiveis = sorted(resumo_df['OBRA'].unique())
     obra_selecionada = []
     if st.session_state['role'] == 'admin':
@@ -57,7 +65,7 @@ def render_page():
             "Filtrar por Obra(s)", 
             options=obras_disponiveis, 
             key="dash_obras_admin",
-            default=obras_disponiveis
+            default=obras_disponiveis 
         )
     else:
         obra_selecionada = [st.session_state['obra_logada']] 
@@ -66,9 +74,9 @@ def render_page():
          df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['OBRA'].isin(obra_selecionada)]
          if not df_filtrado_lanc.empty:
              df_filtrado_lanc = df_filtrado_lanc[df_filtrado_lanc['Obra'].isin(obra_selecionada)]
-    else:
-        df_filtrado_resumo = pd.DataFrame(columns=resumo_df.columns)
-        df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns)
+    else: 
+        df_filtrado_resumo = pd.DataFrame(columns=resumo_df.columns) 
+        df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns if not lancamentos_df.empty else [])
 
 
     funcoes_disponiveis = sorted(df_filtrado_resumo['FUNÇÃO'].unique())
@@ -81,19 +89,18 @@ def render_page():
     if funcao_selecionada:
         df_filtrado_resumo = df_filtrado_resumo[df_filtrado_resumo['FUNÇÃO'].isin(funcao_selecionada)]
         if not df_filtrado_lanc.empty:
-            funcs_filtrados_ids = df_filtrado_resumo['funcionario_id'].unique()
+            funcs_filtrados_ids = df_filtrado_resumo['id'].unique() 
             df_filtrado_lanc = df_filtrado_lanc[df_filtrado_lanc['funcionario_id'].isin(funcs_filtrados_ids)]
-    else:
+    else: 
         df_filtrado_resumo = pd.DataFrame(columns=resumo_df.columns)
-        df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns)
+        df_filtrado_lanc = pd.DataFrame(columns=lancamentos_df.columns if not lancamentos_df.empty else [])
 
 
-    if df_filtrado_resumo.empty and df_filtrado_lanc.empty:
+    if df_filtrado_resumo.empty: 
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
-        return 
 
     st.markdown("---")
-    st.subheader("💡 Indicadores Chave")
+    st.subheader("Indicadores Chave")
     
     total_prod_bruta = df_filtrado_resumo['PRODUÇÃO BRUTA (R$)'].sum()
     total_prod_liquida = df_filtrado_resumo['PRODUÇÃO LÍQUIDA (R$)'].sum()
@@ -126,7 +133,7 @@ def render_page():
     
     if st.session_state['role'] == 'admin' and len(obra_selecionada) > 1 : 
         st.markdown("---")
-        st.subheader("🏗️ Análise por Obra")
+        st.subheader("Análise por Obra")
         
         col_obra1, col_obra2 = st.columns(2)
         
