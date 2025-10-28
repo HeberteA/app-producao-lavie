@@ -214,25 +214,6 @@ else:
             st.markdown("---")
         
         st.header("Relatório")
-        
-        obra_pdf_selecionada = "Todas"
-        obra_pdf_nome_arquivo = "Geral"
-        obra_pdf_titulo = None
-        
-        if st.session_state['role'] == 'admin':
-            opcoes_obra_pdf = ["Todas"] + sorted(obras_df_sidebar['NOME DA OBRA'].unique())
-            obra_pdf_selecionada = st.selectbox(
-                "Gerar relatório para a Obra:", 
-                options=opcoes_obra_pdf, 
-                key="sidebar_pdf_obra_filter"
-            )
-            if obra_pdf_selecionada != "Todas":
-                 obra_pdf_nome_arquivo = obra_pdf_selecionada.replace(" ", "_")
-                 obra_pdf_titulo = obra_pdf_selecionada
-        elif st.session_state['role'] == 'user':
-            obra_pdf_selecionada = st.session_state['obra_logada']
-            obra_pdf_nome_arquivo = obra_pdf_selecionada.replace(" ", "_")
-            obra_pdf_titulo = obra_pdf_selecionada
         if st.button("📄 Gerar Relatório em PDF", use_container_width=True):
             with st.spinner("Gerando relatório..."):
                 funcionarios_pdf = db_utils.get_funcionarios() 
@@ -242,26 +223,45 @@ else:
                     st.toast("Nenhum funcionário ativo para gerar relatório.", icon="🤷")
                 else:
                     base_para_resumo = funcionarios_pdf.copy()
-                    base_para_resumo['funcionario_id'] = base_para_resumo['id']
+                    base_para_resumo['funcionario_id'] = base_para_resumo['id'] 
                     base_para_resumo['SALARIO_BASE'] = base_para_resumo['SALARIO_BASE'].apply(utils.safe_float)
+
+                    producao_bruta_pdf_df = pd.DataFrame()
+                    total_gratificacoes_pdf_df = pd.DataFrame()
 
                     if not lancamentos_pdf.empty:
                          lancamentos_pdf['Valor Parcial'] = lancamentos_pdf['Valor Parcial'].apply(utils.safe_float)
-                         producao_bruta_pdf = lancamentos_pdf.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-                         producao_bruta_pdf.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
-                         resumo_pdf = pd.merge(base_para_resumo, producao_bruta_pdf, on='funcionario_id', how='left')
+                         
+                         lanc_producao_pdf = lancamentos_pdf[lancamentos_pdf['Disciplina'] != 'GRATIFICAÇÃO']
+                         if not lanc_producao_pdf.empty:
+                             producao_bruta_pdf_df = lanc_producao_pdf.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                             producao_bruta_pdf_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+                         
+                         lanc_gratificacoes_pdf = lancamentos_pdf[lancamentos_pdf['Disciplina'] == 'GRATIFICAÇÃO']
+                         if not lanc_gratificacoes_pdf.empty:
+                             total_gratificacoes_pdf_df = lanc_gratificacoes_pdf.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                             total_gratificacoes_pdf_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+
+                    resumo_pdf = base_para_resumo.copy()
+                    if not producao_bruta_pdf_df.empty:
+                        resumo_pdf = pd.merge(resumo_pdf, producao_bruta_pdf_df, on='funcionario_id', how='left')
                     else:
-                         resumo_pdf = base_para_resumo.copy()
                          resumo_pdf['PRODUÇÃO BRUTA (R$)'] = 0.0
+                    
+                    if not total_gratificacoes_pdf_df.empty:
+                         resumo_pdf = pd.merge(resumo_pdf, total_gratificacoes_pdf_df, on='funcionario_id', how='left')
+                    else:
+                         resumo_pdf['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
 
                     resumo_pdf.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
                     resumo_pdf['PRODUÇÃO BRUTA (R$)'] = resumo_pdf['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
+                    resumo_pdf['TOTAL GRATIFICAÇÕES (R$)'] = resumo_pdf['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
                     resumo_pdf['SALÁRIO BASE (R$)'] = resumo_pdf['SALÁRIO BASE (R$)'].fillna(0.0)
 
                     resumo_pdf['PRODUÇÃO LÍQUIDA (R$)'] = resumo_pdf.apply(utils.calcular_producao_liquida, axis=1)
                     resumo_pdf['SALÁRIO A RECEBER (R$)'] = resumo_pdf.apply(utils.calcular_salario_final, axis=1)
 
-                    status_pdf = db_utils.get_status_do_mes(st.session_state.selected_month) # Cacheado
+                    status_pdf = db_utils.get_status_do_mes(st.session_state.selected_month) 
                     concluidos_df = status_pdf[status_pdf['Lancamentos Concluidos'] == True][['funcionario_id']]
                     if not concluidos_df.empty:
                          resumo_pdf = pd.merge(resumo_pdf, concluidos_df, on='funcionario_id', how='left', indicator=True)
@@ -278,9 +278,10 @@ else:
                          st.warning(f"Nenhum dado encontrado para a obra '{obra_pdf_selecionada}' no mês {st.session_state.selected_month}.")
                     else:
                         colunas_resumo_pdf = [
-                            'Funcionário', 'OBRA', 'FUNÇÃO', 
+                            'Funcionário', 'OBRA', 'FUNÇÃO', 'TIPO',
                             'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 
-                            'PRODUÇÃO LÍQUIDA (R$)', 'SALÁRIO A RECEBER (R$)', 
+                            'PRODUÇÃO LÍQUIDA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 
+                            'SALÁRIO A RECEBER (R$)', 
                             'Situação'
                         ]
                         if obra_pdf_selecionada != "Todas":
@@ -291,24 +292,22 @@ else:
                              if 'Obra' in colunas_lancamentos_pdf: colunas_lancamentos_pdf.remove('Obra')
 
                         if lancamentos_pdf.empty:
-                            lancamentos_pdf = pd.DataFrame(columns=colunas_lancamentos_pdf)
+                            lancamentos_pdf = pd.DataFrame(columns=colunas_lancamentos_pdf) 
 
                         pdf_data = utils.gerar_relatorio_pdf( 
                             resumo_df=resumo_pdf[colunas_resumo_pdf],
                             lancamentos_df=lancamentos_pdf[colunas_lancamentos_pdf],
                             logo_path="Lavie.png",
                             mes_referencia=st.session_state.selected_month,
-                            obra_nome=obra_pdf_titulo
+                            obra_nome=obra_pdf_titulo 
                         )
                             
                         if pdf_data: 
                             st.download_button(
-                                label="⬇️ Clique aqui para baixar o Relatório",
-                                data=pdf_data,
+                                label="⬇️ Clique aqui para baixar o Relatório", data=pdf_data,
                                 type="primary",
                                 file_name=f"Relatorio_{st.session_state.selected_month}_{obra_pdf_nome_arquivo}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True,
+                                mime="application/pdf", use_container_width=True,
                                 key="pdf_download_sidebar_final" 
                             )
                             st.info("Seu download está pronto. Clique no botão acima.")
@@ -333,6 +332,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
