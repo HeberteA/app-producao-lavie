@@ -151,8 +151,7 @@ def render_page():
         if funcionario_filtrado != "Todos":
             df_filtrado_final = df_filtrado_final[df_filtrado_final['NOME'] == funcionario_filtrado]
         
-        if st.session_state['role'] == 'admin': 
-            st.markdown("---")
+        st.markdown("---")
         st.subheader("Totais")
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5) 
         
@@ -167,8 +166,7 @@ def render_page():
         col_t3.metric("Total Prod. Líquida", utils.format_currency(total_liquida))
         col_t4.metric("Total Gratificações", utils.format_currency(total_grat)) 
         col_t5.metric("Total a Receber", utils.format_currency(total_receber))
-        if st.session_state['role'] == 'admin': 
-             st.markdown("---")
+        st.markdown("---")
     st.subheader("Detalhes da Folha")
     
     if df_filtrado_final.empty:
@@ -243,6 +241,7 @@ def render_page():
                             key="pdf_download_resumo_final" 
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
 
 
 
