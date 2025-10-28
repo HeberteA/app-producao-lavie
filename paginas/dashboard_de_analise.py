@@ -131,7 +131,6 @@ def render_page():
          st.error("Não foi possível calcular o resumo dos dados.")
 
     st.markdown("---")
-    st.subheader("Indicadores Chave")
     
     total_prod_bruta = df_filtrado_resumo['PRODUÇÃO BRUTA (R$)'].sum() if not df_filtrado_resumo.empty else 0
     total_prod_liquida = df_filtrado_resumo['PRODUÇÃO LÍQUIDA (R$)'].sum() if not df_filtrado_resumo.empty else 0
