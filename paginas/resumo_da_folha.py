@@ -153,7 +153,6 @@ def render_page():
         
         if st.session_state['role'] == 'admin': 
             st.markdown("---")
-        st.markdown("---")
         st.subheader("Totais")
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5) 
         
@@ -244,6 +243,7 @@ def render_page():
                             key="pdf_download_resumo_final" 
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
 
 
 
