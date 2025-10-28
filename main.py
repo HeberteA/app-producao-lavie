@@ -214,6 +214,25 @@ else:
             st.markdown("---")
         
         st.header("Relatório")
+        
+        obra_pdf_selecionada = "Todas"
+        obra_pdf_nome_arquivo = "Geral"
+        obra_pdf_titulo = None
+        
+        if st.session_state['role'] == 'admin':
+            opcoes_obra_pdf = ["Todas"] + sorted(obras_df_sidebar['NOME DA OBRA'].unique())
+            obra_pdf_selecionada = st.selectbox(
+                "Gerar relatório para a Obra:", 
+                options=opcoes_obra_pdf, 
+                key="sidebar_pdf_obra_filter"
+            )
+            if obra_pdf_selecionada != "Todas":
+                 obra_pdf_nome_arquivo = obra_pdf_selecionada.replace(" ", "_")
+                 obra_pdf_titulo = obra_pdf_selecionada
+        elif st.session_state['role'] == 'user':
+            obra_pdf_selecionada = st.session_state['obra_logada']
+            obra_pdf_nome_arquivo = obra_pdf_selecionada.replace(" ", "_")
+            obra_pdf_titulo = obra_pdf_selecionada
         if st.button("📄 Gerar Relatório em PDF", use_container_width=True):
             with st.spinner("Gerando relatório..."):
                 funcionarios_pdf = db_utils.get_funcionarios() 
@@ -242,7 +261,7 @@ else:
                     resumo_pdf['PRODUÇÃO LÍQUIDA (R$)'] = resumo_pdf.apply(utils.calcular_producao_liquida, axis=1)
                     resumo_pdf['SALÁRIO A RECEBER (R$)'] = resumo_pdf.apply(utils.calcular_salario_final, axis=1)
 
-                    status_pdf = db_utils.get_status_do_mes(st.session_state.selected_month)
+                    status_pdf = db_utils.get_status_do_mes(st.session_state.selected_month) # Cacheado
                     concluidos_df = status_pdf[status_pdf['Lancamentos Concluidos'] == True][['funcionario_id']]
                     if not concluidos_df.empty:
                          resumo_pdf = pd.merge(resumo_pdf, concluidos_df, on='funcionario_id', how='left', indicator=True)
@@ -250,50 +269,56 @@ else:
                          resumo_pdf.drop(columns=['_merge'], inplace=True)
                     else:
                          resumo_pdf['Situação'] = 'Pendente'
-
-                    obra_relatorio = None
-                    if st.session_state['role'] == 'user':
-                        obra_relatorio = st.session_state['obra_logada']
-                        resumo_pdf = resumo_pdf[resumo_pdf['OBRA'] == obra_relatorio]
+                    if obra_pdf_selecionada != "Todas":
+                        resumo_pdf = resumo_pdf[resumo_pdf['OBRA'] == obra_pdf_selecionada]
                         if not lancamentos_pdf.empty:
-                            lancamentos_pdf = lancamentos_pdf[lancamentos_pdf['Obra'] == obra_relatorio]
+                            lancamentos_pdf = lancamentos_pdf[lancamentos_pdf['Obra'] == obra_pdf_selecionada]
                     
-                    colunas_resumo_pdf = [
-                        'Funcionário', 'OBRA', 'FUNÇÃO', 
-                        'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 
-                        'PRODUÇÃO LÍQUIDA (R$)', 'SALÁRIO A RECEBER (R$)', 
-                        'Situação'
-                    ]
-                    if st.session_state['role'] == 'user': colunas_resumo_pdf.remove('OBRA')
-                    
-                    colunas_lancamentos_pdf = ['Data', 'Data do Serviço', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
-                    if st.session_state['role'] == 'user': colunas_lancamentos_pdf.remove('Obra')
-
-                    if lancamentos_pdf.empty:
-                         lancamentos_pdf = pd.DataFrame(columns=colunas_lancamentos_pdf) 
-
-                    pdf_data = gerar_relatorio_pdf( 
-                        resumo_df=resumo_pdf[colunas_resumo_pdf],
-                        lancamentos_df=lancamentos_pdf[colunas_lancamentos_pdf],
-                        logo_path="Lavie.png",
-                        mes_referencia=st.session_state.selected_month,
-                        obra_nome=obra_relatorio
-                    )
+                    if resumo_pdf.empty:
+                         st.warning(f"Nenhum dado encontrado para a obra '{obra_pdf_selecionada}' no mês {st.session_state.selected_month}.")
+                    else:
+                        colunas_resumo_pdf = [
+                            'Funcionário', 'OBRA', 'FUNÇÃO', 
+                            'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 
+                            'PRODUÇÃO LÍQUIDA (R$)', 'SALÁRIO A RECEBER (R$)', 
+                            'Situação'
+                        ]
+                        if obra_pdf_selecionada != "Todas":
+                             if 'OBRA' in colunas_resumo_pdf: colunas_resumo_pdf.remove('OBRA')
                         
-                    st.download_button(
-                        label="⬇️ Clique aqui para baixar o Relatório",
-                        data=pdf_data,
-                        type="primary",
-                        file_name=f"Relatorio_{st.session_state.selected_month}_{obra_relatorio or 'Geral'}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
+                        colunas_lancamentos_pdf = ['Data', 'Data do Serviço', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Unidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
+                        if obra_pdf_selecionada != "Todas":
+                             if 'Obra' in colunas_lancamentos_pdf: colunas_lancamentos_pdf.remove('Obra')
+
+                        if lancamentos_pdf.empty:
+                            lancamentos_pdf = pd.DataFrame(columns=colunas_lancamentos_pdf)
+
+                        pdf_data = utils.gerar_relatorio_pdf( 
+                            resumo_df=resumo_pdf[colunas_resumo_pdf],
+                            lancamentos_df=lancamentos_pdf[colunas_lancamentos_pdf],
+                            logo_path="Lavie.png",
+                            mes_referencia=st.session_state.selected_month,
+                            obra_nome=obra_pdf_titulo
+                        )
+                            
+                        if pdf_data: 
+                            st.download_button(
+                                label="⬇️ Clique aqui para baixar o Relatório",
+                                data=pdf_data,
+                                type="primary",
+                                file_name=f"Relatorio_{st.session_state.selected_month}_{obra_pdf_nome_arquivo}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                                key="pdf_download_sidebar_final" 
+                            )
+                            st.info("Seu download está pronto. Clique no botão acima.")
+
         st.markdown("---")
         if st.button("Sair 🚪", use_container_width=True, type="primary"):
+            st.cache_data.clear() 
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
-
     page_to_render = st.session_state.page
     page_map = {
         'lancamento_folha': lancamento_folha,
@@ -308,6 +333,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
