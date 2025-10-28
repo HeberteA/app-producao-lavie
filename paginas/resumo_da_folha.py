@@ -84,7 +84,6 @@ def render_page():
         else:
             resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
             
-        # Merge Gratificações
         if not total_gratificacoes_df.empty:
              resumo_df = pd.merge(
                  resumo_df, 
@@ -153,7 +152,6 @@ def render_page():
             df_filtrado_final = df_filtrado_final[df_filtrado_final['NOME'] == funcionario_filtrado]
         
         if st.session_state['role'] == 'admin': 
-             st.markdown("---")
         
         st.markdown("---")
         st.subheader("Totais")
@@ -246,4 +244,5 @@ def render_page():
                             key="pdf_download_resumo_final" 
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
 
