@@ -1,7 +1,16 @@
 import streamlit as st
 import io
 import pandas as pd
-from datetime import date
+from datetime import date 
+import base64 
+
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+
 
 def calcular_salario_final(row):
     """Calcula o salário final a receber."""
@@ -30,18 +39,19 @@ def to_excel(df):
 def format_currency(value):
     try:
         float_value = safe_float(value)
-        return f"R$ {float_value:,.2f}"
+        formatted = f"R$ {float_value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return formatted
     except (ValueError, TypeError):
         return str(value) 
+
 def safe_float(value):
     if value is None:
         return 0.0
     try:
-        s = str(value).replace('R$', '').strip()
         if isinstance(value, (int, float)):
             return float(value)
         elif isinstance(value, str):
-            s = s.replace('.', '').replace(',', '.')
+            s = str(value).replace('R$', '').strip().replace('.', '').replace(',', '.')
             return float(s) if s else 0.0
         else:
             return 0.0
@@ -71,3 +81,116 @@ def style_situacao(situacao):
         return 'color: green; font-weight: bold;'
     else:
         return 'color: gray; font-style: italic;'
+
+def gerar_relatorio_pdf(resumo_df, lancamentos_df, logo_path, mes_referencia, obra_nome=None):
+    """Gera um PDF com o resumo da folha e os lançamentos."""
+    if not WEASYPRINT_AVAILABLE:
+        st.error("A biblioteca 'weasyprint' não está instalada. O download do PDF não está disponível.")
+        st.warning("Para habilitar o PDF, instale com: pip install weasyprint")
+        return None 
+        
+    try:
+        with open(logo_path, "rb") as image_file:
+            logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        logo_base64 = None
+        
+    style = """
+    @page { size: A4 landscape; margin: 1.5cm; }
+    body { font-family: 'Helvetica', sans-serif; font-size: 10px; }
+    .header { text-align: center; margin-bottom: 20px; }
+    .logo { width: 150px; height: auto; }
+    h1 { font-size: 18px; color: #333; }
+    h2 { font-size: 14px; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
+    th, td { border: 1px solid #ddd; padding: 4px; text-align: left; word-wrap: break-word; } /* Adicionado word-wrap */
+    th { background-color: #f2f2f2; font-weight: bold; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .currency, .number { text-align: right; }
+    td:nth-child(1) { width: 20%; } /* Ajuste a largura da coluna Funcionário/Data se necessário */
+    td:nth-child(2) { width: 10%; } /* Ajuste a largura da coluna Obra/Data Serviço se necessário */
+    """
+    
+    resumo_df_html = resumo_df.copy()
+    lancamentos_df_html = lancamentos_df.copy()
+
+    currency_cols_resumo = ['SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 'PRODUÇÃO LÍQUIDA (R$)', 'SALÁRIO A RECEBER (R$)' ]
+    for col in currency_cols_resumo:
+        if col in resumo_df_html.columns:
+            resumo_df_html[col] = resumo_df_html[col].apply(lambda x: f'R$ {safe_float(x):,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."))
+
+    currency_cols_lanc = ['Valor Unitário', 'Valor Parcial']
+    number_cols_lanc = ['Quantidade']
+    date_cols_lanc = ['Data', 'Data do Serviço']
+
+    for col in currency_cols_lanc:
+         if col in lancamentos_df_html.columns:
+            lancamentos_df_html[col] = lancamentos_df_html[col].apply(lambda x: f'R$ {safe_float(x):,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."))
+    for col in number_cols_lanc:
+         if col in lancamentos_df_html.columns:
+             lancamentos_df_html[col] = lancamentos_df_html[col].apply(lambda x: f'{safe_float(x):,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."))
+    for col in date_cols_lanc:
+         if col in lancamentos_df_html.columns:
+             try:
+                 lancamentos_df_html[col] = pd.to_datetime(lancamentos_df_html[col]).dt.strftime('%d/%m/%Y %H:%M')
+             except:
+                  try:
+                      lancamentos_df_html[col] = pd.to_datetime(lancamentos_df_html[col]).dt.strftime('%d/%m/%Y')
+                  except:
+                      pass
+    resumo_html = resumo_df_html.to_html(index=False, na_rep='', classes='table', justify='left', escape=False)
+    lancamentos_html = lancamentos_df_html.to_html(index=False, na_rep='', classes='table', justify='left', escape=False)
+    
+    def add_css_classes_to_td(html_table, df_columns, currency_cols, number_cols):
+        header_row = html_table.split('<thead>')[1].split('</thead>')[0]
+        col_indices = {col: i for i, col in enumerate(df_columns)}
+        
+        currency_indices = {col_indices[col] for col in currency_cols if col in col_indices}
+        number_indices = {col_indices[col] for col in number_cols if col in col_indices}
+
+        body_rows = html_table.split('<tbody>')[1].split('</tbody>')[0].split('<tr>')
+        new_body_rows = []
+        for row in body_rows:
+            if not row.strip(): continue
+            cells = row.split('<td>')
+            new_cells = [cells[0]]
+            for i, cell in enumerate(cells[1:]):
+                if i in currency_indices:
+                    new_cells.append(f'<td class="currency">{cell}')
+                elif i in number_indices:
+                    new_cells.append(f'<td class="number">{cell}')
+                else:
+                     new_cells.append(f'<td>{cell}')
+            new_body_rows.append(''.join(new_cells))
+            
+        new_tbody = '<tbody>' + '<tr>'.join(new_body_rows) + '</tbody>'
+        return html_table.split('<tbody>')[0] + new_tbody + html_table.split('</tbody>')[1]
+
+    resumo_html = add_css_classes_to_td(resumo_html, resumo_df.columns, currency_cols_resumo, [])
+    lancamentos_html = add_css_classes_to_td(lancamentos_html, lancamentos_df.columns, currency_cols_lanc, number_cols_lanc)
+
+
+    html_string = f"""
+    <html>
+    <head><meta charset="UTF-8"><style>{style}</style></head>
+    <body>
+        <div class="header">
+            {f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ''}
+            <h1>Relatório de Produção - {mes_referencia}</h1>
+            {f'<h2>Obra: {obra_nome}</h2>' if obra_nome else ''}
+        </div>
+        <h2>Resumo da Folha</h2>
+        {resumo_html}
+        <h2>Histórico de Lançamentos do Mês</h2>
+        {lancamentos_html}
+    </body>
+    </html>
+    """
+    try:
+        pdf_bytes = HTML(string=html_string).write_pdf()
+        return pdf_bytes
+    except Exception as e:
+         st.error(f"Erro ao gerar PDF com WeasyPrint: {e}")
+         st.info("Verifique se as dependências do WeasyPrint (como Pango, Cairo, GDK-PixBuf) estão instaladas corretamente no sistema.")
+         return None
+# --- FIM DA FUNÇÃO PDF ---
