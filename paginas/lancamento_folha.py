@@ -142,10 +142,11 @@ def render_page():
             with st.expander("Adicionar Gratificação"):
                 st.warning("Observação: Este lançamento aplica-se somente a funcionários enquadrados na modalidade de PRODUÇÃO, que neste mês não atingiram produção suficiente para alcançar o salário base. Por esse motivo, o gestor autoriza o pagamento de um valor complementar, registrado a título de GRATIFICAÇÃO.")
                 desc_grat = st.text_input("Descrição da Gratificação", key="lf_desc_grat")
-                col_val_grat, _ = st.columns(2) 
+                col_val_grat, col_st = st.columns(2) 
                 with col_val_grat:
                     val_grat = st.number_input("Valor da Gratificação (R$)", min_value=0.0, step=50.00, format="%.2f", key="lf_val_grat")
-                st.metric(label="Subtotal Gratificação", value=utils.format_currency(val_grat), label_visibility="collapsed") 
+                with col_st:
+                    st.metric(label="Subtotal Gratificação", value=utils.format_currency(val_grat), label_visibility="collapsed") 
                 col_data_grat, col_obs_grat = st.columns(2)
                 with col_data_grat:
                     data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
@@ -322,6 +323,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
