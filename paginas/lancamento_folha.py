@@ -119,7 +119,7 @@ def render_page():
                     with col_data_princ:
                         data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="lf_data_principal", format="DD/MM/YYYY")
                     with col_obs_princ:
-                        obs_principal = st.text_area("Observação (Serviço)", key="lf_obs_principal")
+                        obs_principal = st.text_area("Observação", key="lf_obs_principal")
             
             with st.expander("Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
@@ -137,14 +137,20 @@ def render_page():
                 with col_data_div:
                     data_servico_diverso = st.date_input("Data Item Diverso", value=datetime.now().date(), key="lf_data_diverso", format="DD/MM/YYYY")
                 with col_obs_div:
-                    obs_diverso = st.text_area("Observação (Item Diverso)", key="lf_obs_diverso")
+                    obs_diverso = st.text_area("Observação", key="lf_obs_diverso")
 
             with st.expander("Adicionar Gratificação"):
                 st.warning("Observação: Este lançamento aplica-se somente a funcionários enquadrados na modalidade de PRODUÇÃO, que neste mês não atingiram produção suficiente para alcançar o salário base. Por esse motivo, o gestor autoriza o pagamento de um valor complementar, registrado a título de GRATIFICAÇÃO.")
                 desc_grat = st.text_input("Descrição da Gratificação", key="lf_desc_grat")
-                val_grat = st.number_input("Valor da Gratificação (R$)", min_value=0.0, step=1.00, format="%.2f", key="lf_val_grat")
-                obs_grat = st.text_area("Observação (Gratificação)", key="lf_obs_grat")
-                data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
+                col_val_grat, _ = st.columns(2) 
+                with col_val_grat:
+                    val_grat = st.number_input("Valor da Gratificação (R$)", min_value=0.0, step=50.00, format="%.2f", key="lf_val_grat")
+                st.metric(label="Subtotal Gratificação", value=utils.format_currency(val_grat), label_visibility="collapsed") 
+                col_data_grat, col_obs_grat = st.columns(2)
+                with col_data_grat:
+                    data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
+                with col_obs_grat:
+                    obs_grat = st.text_area("Observação", key="lf_obs_grat")
                 
             if st.button("Adicionar Lançamento(s)", use_container_width=True, type="primary", key="lf_add_btn"):
                 if not funcionario_selecionado:
@@ -316,6 +322,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
