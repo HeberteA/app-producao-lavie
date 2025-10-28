@@ -152,7 +152,6 @@ def render_page():
         col_t4.metric("Total Gratificações", utils.format_currency(total_grat))
         col_t5.metric("Total a Receber", utils.format_currency(total_receber))
 
-    st.markdown("---") 
     st.subheader("Detalhes da Folha")
 
     if df_filtrado_final.empty:
@@ -163,7 +162,7 @@ def render_page():
             'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)',
             'PRODUÇÃO LÍQUIDA (R$)', 'TOTAL GRATIFICAÇÕES (R$)',
             'SALÁRIO A RECEBER (R$)',
-            'Status', 
+            'Status',
             'Situação'
         ]
 
@@ -172,17 +171,21 @@ def render_page():
 
         colunas_finais_existentes = [col for col in colunas_exibicao if col in df_filtrado_final.columns]
 
+        df_para_exibir = df_filtrado_final[colunas_finais_existentes].style \
+            .apply(lambda x: x.map(utils.style_status), subset=['Status']) \
+            .apply(lambda x: x.map(utils.style_situacao), subset=['Situação'])
+
         st.dataframe(
-            df_filtrado_final[colunas_finais_existentes],
-            use_container_width=True, hide_index=True, height=550,
+            df_para_exibir,
+            use_container_width=True, hide_index=True,
             column_config={
                 "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "PRODUÇÃO LÍQUIDA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "Status": st.column_config.TextColumn("Status Auditoria"), 
-                "Situação": st.column_config.TextColumn("Situação Lançamento")
+                "Status": st.column_config.TextColumn("STATUS"),
+                "Situação": st.column_config.TextColumn("SITUAÇAO")
             }
         )
         
@@ -222,6 +225,7 @@ def render_page():
                             key="pdf_download_resumo_final"
                         )
                         st.info("Seu download está pronto. Clique no botão acima.")
+
 
 
 
