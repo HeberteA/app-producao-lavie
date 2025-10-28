@@ -13,14 +13,9 @@ except ImportError:
 
 
 def calcular_salario_final(row):
-    """
-    Calcula o salário final a receber.
-    1. Determina o pagamento base (Salário Base ou Max(Base, Produção Bruta sem Gratificação)).
-    2. Soma o Total de Gratificações a esse pagamento base.
-    """
     salario_base = row.get('SALÁRIO BASE (R$)', 0.0)
     producao_bruta_sem_grat = row.get('PRODUÇÃO BRUTA (R$)', 0.0) 
-    total_gratificacoes = row.get('TOTAL GRATIFICAÇÕES (R$)', 0.0)
+    total_gratificacoes = row.get('TOTAL GRATIFICAÇÕES (R$)', 0.0) 
     tipo_contrato = str(row.get('TIPO', '')).upper()
 
     pagamento_base = 0.0
@@ -30,24 +25,18 @@ def calcular_salario_final(row):
         pagamento_base = salario_base + producao_bruta_sem_grat 
 
     salario_final = pagamento_base + total_gratificacoes
-    
     return salario_final
 
 def calcular_producao_liquida(row):
-    """
-    Calcula a produção líquida.
-    Usa a PRODUÇÃO BRUTA (R$) que já foi calculada SEM gratificações.
-    - Para tipo 'PRODUCAO': max(0, bruta_sem_grat - base)
-    - Para outros tipos (ex: 'BONUS'): bruta_sem_grat (pois é um adicional sobre a base)
-    """
     salario_base = row.get('SALÁRIO BASE (R$)', 0.0)
-    producao_bruta_sem_grat = row.get('PRODUÇÃO BRUTA (R$)', 0.0)
+    producao_bruta_sem_grat = row.get('PRODUÇÃO BRUTA (R$)', 0.0) 
+    total_gratificacoes = row.get('TOTAL GRATIFICAÇÕES (R$)', 0.0)
     tipo_contrato = str(row.get('TIPO', '')).upper()
 
     if tipo_contrato == 'PRODUCAO':
         return max(0.0, producao_bruta_sem_grat - salario_base)
     else: 
-        return producao_bruta_sem_grat
+        return producao_bruta_sem_grat + total_gratificacoes
 
 def to_excel(df):
     output = io.BytesIO()
@@ -198,4 +187,5 @@ def add_css_classes_to_td(html_table, df_columns, currency_cols, number_cols):
          new_body_rows.append(''.join(new_cells))
      new_tbody = '<tbody>' + '<tr>'.join(new_body_rows) + '</tbody>'
      return html_table.split('<tbody>')[0] + new_tbody + html_table.split('</tbody>')[1]
+
 
