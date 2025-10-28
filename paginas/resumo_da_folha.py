@@ -49,25 +49,37 @@ def render_page():
     else:
         funcionarios_filtrados_df['SALARIO_BASE'] = funcionarios_filtrados_df['SALARIO_BASE'].apply(utils.safe_float)
         
+        producao_bruta_df = pd.DataFrame()
+        total_gratificacoes_df = pd.DataFrame() 
+
         if not lancamentos_filtrados_df.empty:
             lancamentos_filtrados_df['Valor Parcial'] = lancamentos_filtrados_df['Valor Parcial'].apply(utils.safe_float)
-            producao_bruta_df = lancamentos_filtrados_df.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
-            resumo_df = pd.merge(
-                funcionarios_filtrados_df, 
-                producao_bruta_df, 
-                left_on='id',        
-                right_on='funcionario_id', 
-                how='left'
-            )
+            
+            lanc_producao = lancamentos_filtrados_df[lancamentos_filtrados_df['Disciplina'] != 'GRATIFICAÇÃO']
+            if not lanc_producao.empty:
+                producao_bruta_df = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+            
+            lanc_gratificacoes = lancamentos_filtrados_df[lancamentos_filtrados_df['Disciplina'] == 'GRATIFICAÇÃO']
+            if not lanc_gratificacoes.empty:
+                total_gratificacoes_df = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+
+        resumo_df = funcionarios_filtrados_df.copy()
+        if not producao_bruta_df.empty:
+            resumo_df = pd.merge(resumo_df, producao_bruta_df, on='funcionario_id', how='left')
         else:
-            resumo_df = funcionarios_filtrados_df.copy()
             resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
+            
+        if not total_gratificacoes_df.empty:
+             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, on='funcionario_id', how='left')
+        else:
+             resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
 
         resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
         resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
-        resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0)
-
+        resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
+        resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0) 
         resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
         resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
 
@@ -76,39 +88,29 @@ def render_page():
             obra_id_filtrada = obras_df.loc[obras_df['NOME DA OBRA'] == obra_filtrada, 'id'].iloc[0]
             status_obra_filtrada = status_df[status_df['obra_id'] == obra_id_filtrada]
 
-        concluidos_df = status_obra_filtrada[status_obra_filtrada['Lancamentos Concluidos'] == True][['funcionario_id']].drop_duplicates()
-        
+        concluidos_df = status_obra_filtrada[status_obra_filtrada['Lancamentos Concluidos'] == True][['funcionario_id']]
         if not concluidos_df.empty:
-            resumo_df = pd.merge(
-                resumo_df, 
-                concluidos_df, 
-                left_on='id',             
-                right_on='funcionario_id', 
-                how='left', 
-                indicator=True
-            )
+            resumo_df = pd.merge(resumo_df, concluidos_df, on='funcionario_id', how='left', indicator=True)
             resumo_df['Situação'] = resumo_df['_merge'].apply(lambda x: 'Concluído' if x == 'both' else 'Pendente')
-            resumo_df.drop(columns=['_merge', 'funcionario_id_x', 'funcionario_id_y'], errors='ignore', inplace=True) 
+            resumo_df.drop(columns=['_merge'], inplace=True)
         else:
             resumo_df['Situação'] = 'Pendente'
-            resumo_df.drop(columns=['funcionario_id_x', 'funcionario_id_y'], errors='ignore', inplace=True) 
-
+            
         st.markdown("---")
         st.subheader("Totais")
-        col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5) 
         
         total_base = resumo_df['SALÁRIO BASE (R$)'].sum()
-        total_liquida = resumo_df['PRODUÇÃO LÍQUIDA (R$)'].sum()
         total_bruta = resumo_df['PRODUÇÃO BRUTA (R$)'].sum()
+        total_liquida = resumo_df['PRODUÇÃO LÍQUIDA (R$)'].sum()
+        total_grat = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].sum() 
         total_receber = resumo_df['SALÁRIO A RECEBER (R$)'].sum()
         
         col_t1.metric("Total Salário Base", utils.format_currency(total_base))
-        col_t2.metric("Total Produção Líquida", utils.format_currency(total_liquida))
-        col_t3.metric("Total Produção Bruta", utils.format_currency(total_bruta))
-        col_t4.metric("Total a Receber", utils.format_currency(total_receber))
-        
-        st.markdown("---")
-        col_dl1, col_dl2 = st.columns(2)
+        col_t2.metric("Total Prod. Bruta", utils.format_currency(total_bruta))
+        col_t3.metric("Total Prod. Líquida", utils.format_currency(total_liquida))
+        col_t4.metric("Total Gratificações", utils.format_currency(total_grat))
+        col_t5.metric("Total a Receber", utils.format_currency(total_receber))
 
     st.subheader("Detalhes da Folha")
     
@@ -118,25 +120,24 @@ def render_page():
         colunas_exibicao = [
             'NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 
             'SALÁRIO BASE (R$)', 
-            'PRODUÇÃO LÍQUIDA (R$)', 
             'PRODUÇÃO BRUTA (R$)', 
+            'PRODUÇÃO LÍQUIDA (R$)', 
+            'TOTAL GRATIFICAÇÕES (R$)', 
             'SALÁRIO A RECEBER (R$)',
             'Situação' 
         ]
-        
         if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
             if 'OBRA' in colunas_exibicao: colunas_exibicao.remove('OBRA')
 
-        colunas_exibicao_finais = [col for col in colunas_exibicao if col in resumo_df.columns]
-
         st.dataframe(
-            resumo_df[colunas_exibicao_finais],
+            resumo_df[colunas_exibicao],
             use_container_width=True,
             hide_index=True,
             column_config={
                 "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "PRODUÇÃO LÍQUIDA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"), 
                 "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
                 "Situação": st.column_config.TextColumn() 
             }
@@ -194,6 +195,7 @@ def render_page():
                     key="pdf_download_resumo_final", 
                     on_click=lambda: st.session_state.pop('pdf_data_resumo', None) 
                 )
+
 
 
 
