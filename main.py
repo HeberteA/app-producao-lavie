@@ -181,7 +181,7 @@ else:
             options=menu_titles,       
             icons=menu_icons,            
             menu_icon="list-task",       
-            default_index=default_index,
+            default_index=0,
             styles={ 
                 "container": {"padding": "5px !important", "background-color": "transparent"},
                 "icon": {"font-size": "18px"}, 
@@ -359,6 +359,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
