@@ -153,7 +153,7 @@ else:
             'auditoria': ("Auditoria", "pencil-fill"),
             'dashboard_de_analise': ("Dashboard", "graph-up"),
             'resumo_da_folha': ("Resumo da Folha", "file-earmark-text"),
-            'gerenciar_lancamentos': ("Gerenciar Lançamentos", "trash"),
+            'gerenciar_lancamentos': ("Lançamentos", "trash"),
             'gerenciar_funcionarios': ("Funcionários", "people-fill"),
             'gerenciar_funcoes': ("Funções", "gear-fill"),
             'gerenciar_servicos': ("Serviços", "tools"),
@@ -359,6 +359,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
