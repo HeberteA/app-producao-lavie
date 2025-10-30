@@ -25,7 +25,7 @@ def render_page():
     ])
 
     with tab_adicionar:
-        col_add_disc, col_add_serv = st.columns(2)
+        col_add_serv, col_add_disc = st.columns(2)
 
         with col_add_disc:
             with st.container(border=True):
