@@ -354,11 +354,12 @@ else:
         'gerenciar_servicos': gerenciar_servicos,
         'gerenciar_obras': gerenciar_obras,
         'resumo_da_folha': resumo_da_folha,
-        'gerenciar_lancamentos': gerenciar_lancamentos,
+        'gerenciar_lancamentos': remover_lancamentos,
         'dashboard_de_analise': dashboard_de_analise
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
