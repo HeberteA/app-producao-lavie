@@ -2,6 +2,7 @@ import streamlit as st
 import sys
 import os
 from datetime import datetime, timedelta, date
+from streamlit_option_menu import option_menu
 import pandas as pd
 import base64
 import io
@@ -129,6 +130,7 @@ else:
                     aviso_obra = obra_info['aviso'].iloc[0]
                     if aviso_obra and str(aviso_obra).strip():
                         st.warning(f"Aviso: {aviso_obra}")
+                        
         st.markdown("---")
         st.subheader("Mês de Referência")
         current_month_str = datetime.now().strftime('%Y-%m')
@@ -145,27 +147,52 @@ else:
             st.session_state.selected_month = selected_month
             st.rerun() 
         st.markdown("---")
-        st.header("Navegação")
-        if st.session_state.role == 'user':
-            if st.button("📝 Lançamento Folha", use_container_width=True):
-                st.session_state.page = 'lancamento_folha'
-        if st.session_state.role == 'admin':
-            if st.button("✏️ Auditoria", use_container_width=True):
-                st.session_state.page = 'auditoria'
-            if st.button("👥 Gerenciar Funcionários", use_container_width=True):
-                st.session_state.page = 'gerenciar_funcionarios'
-            if st.button("🔧 Gerenciar Funções", use_container_width=True): 
-                st.session_state.page = 'gerenciar_funcoes'
-            if st.button("🛠️ Gerenciar Serviços", use_container_width=True):
-                st.session_state.page = 'gerenciar_servicos'
-            if st.button("🏗️ Gerenciar Obras", use_container_width=True):
-                st.session_state.page = 'gerenciar_obras'
-        if st.button("📊 Resumo da Folha", use_container_width=True):
-            st.session_state.page = 'resumo_da_folha'
-        if st.button("🗑️ Gerenciar Lançamentos", use_container_width=True):
-            st.session_state.page = 'remover_lancamentos'
-        if st.button("📈 Dashboard de Análise", use_container_width=True):
-            st.session_state.page = 'dashboard_de_analise'
+        
+        page_definitions = {
+            'lancamento_folha': ("Lançamento Folha", "pencil-square"),
+            'auditoria': ("Auditoria", "pencil-fill"),
+            'dashboard_de_analise': ("Dashboard", "graph-up"),
+            'resumo_da_folha': ("Resumo da Folha", "file-earmark-text"),
+            'gerenciar_lancamentos': ("Gerenciar Lançamentos", "trash"),
+            'gerenciar_funcionarios': ("Funcionários", "people-fill"),
+            'gerenciar_funcoes': ("Funções", "gear-fill"),
+            'gerenciar_servicos': ("Serviços", "tools"),
+            'gerenciar_obras': ("Obras", "building"),
+        }
+
+        admin_pages = ['auditoria', 'resumo_da_folha', 
+                       'gerenciar_funcionarios', 'gerenciar_funcoes', 'gerenciar_servicos', 
+                       'gerenciar_obras', 'gerenciar_lancamentos', 'dashboard_de_analise']
+        user_pages = ['lancamento_folha', 'resumo_da_folha', 'gerenciar_lancamentos', 'dashboard_de_analise']
+
+        pages_to_show_keys = admin_pages if st.session_state.role == 'admin' else user_pages
+
+        menu_titles = [page_definitions[key][0] for key in pages_to_show_keys]
+        menu_icons = [page_definitions[key][1] for key in pages_to_show_keys]
+
+        current_page_key = st.session_state.get('page', pages_to_show_keys[0])
+        try:
+            default_index = pages_to_show_keys.index(current_page_key)
+        except ValueError:
+            default_index = 0 
+
+        selected_title = option_menu(
+            menu_title="Navegação",       
+            options=menu_titles,       
+            icons=menu_icons,            
+            menu_icon="list-task",       
+            default_index=default_index,
+            styles={ 
+                "container": {"padding": "5px !important", "background-color": "transparent"},
+                "icon": {"font-size": "18px"}, 
+                "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px"},
+                "nav-link-selected": {"background-color": "#E37026"}, 
+            }
+        )
+
+        title_to_key_map = {page_definitions[key][0]: key for key in pages_to_show_keys}
+        st.session_state.page = title_to_key_map[selected_title]
+        
         st.markdown("---")
         
         if st.session_state.role == 'user':
@@ -332,6 +359,7 @@ else:
     }
     if page_to_render in page_map:
         page_map[page_to_render].render_page()
+
 
 
 
