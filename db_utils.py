@@ -390,9 +390,8 @@ def remover_lancamentos_por_id(ids_para_remover, razao="", obra_id=None, mes_ref
                     result = connection.execute(status_query, {'obra_id': obra_id, 'mes_ref': mes_ref_dt}).fetchone()
                     status_atual = result[0] if result else 'Não Enviada'
                     
-                    if status_atual in ['Enviada para Auditoria', 'Finalizada']:
-                        raise FolhaFechadaException(f"Não foi possível remover: A folha (Status: {status_atual}) já foi enviada ou finalizada.")
-
+                    if status_atual == 'Finalizada':
+                        raise FolhaFechadaException(f"Não foi possível remover: A folha está com status 'Finalizada'.")
                 query = text("DELETE FROM lancamentos WHERE id = ANY(:ids)")
                 connection.execute(query, {'ids': ids_para_remover})
         
@@ -829,5 +828,6 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
