@@ -328,7 +328,7 @@ def render_page():
                     if not folhas_enviadas_filtrado.empty:
                         media_atraso_por_obra = folhas_enviadas_filtrado.groupby('Obra')['dias_atraso'].mean().round(1).reset_index()
                         fig_atraso = px.bar(media_atraso_por_obra.sort_values(by='dias_atraso', ascending=False), x='Obra', y='dias_atraso', title="Média de Dias de Atraso na Entrega", text_auto=True, labels={'dias_atraso': 'Média Dias Atraso'})
-                        fig_atraso.update_traces(marker_color='#E37026', textposition='outside', texttemplate='%{y:.1f}')
+                        fig_atraso.update_traces(marker_color='#E37026', textposition='outside', texttemplate='%{y}')
                         fig_atraso.update_layout(xaxis_title=None, uniformtext_minsize=8, uniformtext_mode='hide')
                         st.plotly_chart(fig_atraso, use_container_width=True)
                     else: st.info("Nenhum dado de envio para as obras selecionadas.")
