@@ -61,10 +61,16 @@ def render_page():
                 folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_para_verificar]
                 if not folha_do_mes.empty:
                     status_folha = folha_do_mes['status'].iloc[0]
-                
-                if status_folha in ['Enviada para Auditoria', 'Finalizada']:
+            
+                admin_bloqueado = st.session_state['role'] == 'admin' and status_folha == "Finalizada"
+                user_bloqueado = st.session_state['role'] == 'user' and status_folha in ['Enviada para Auditoria', 'Finalizada']
+
+                if admin_bloqueado:
                     edicao_bloqueada = True
-                    st.error(f"Mês Fechado: A folha da obra selecionada está com status '{status_folha}'. A remoção de lançamentos está bloqueada.")
+                    st.error(f"Mês Fechado: A folha da obra selecionada está com status 'Finalizada'. A remoção está bloqueada.")
+                elif user_bloqueado:
+                     edicao_bloqueada = True
+                     st.error(f"Mês Fechado: A folha da obra selecionada está com status '{status_folha}'. A remoção está bloqueada.")
 
             df_filtrado['Remover'] = False
             colunas_visiveis = ['id', 'Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']
@@ -117,3 +123,4 @@ def render_page():
                         st.success("Lançamentos removidos!")
                         st.cache_data.clear() # Limpa o cache
                         st.rerun()
+
