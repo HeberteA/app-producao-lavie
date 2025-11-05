@@ -121,6 +121,7 @@ def render_page():
                     
                     if db_utils.remover_lancamentos_por_id(ids_a_remover, razao_remocao, obra_id_para_verificar, mes_selecionado):
                         st.success("Lançamentos removidos!")
-                        st.cache_data.clear() # Limpa o cache
+                        st.cache_data.clear() 
                         st.rerun()
+
 
