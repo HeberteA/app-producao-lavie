@@ -35,6 +35,9 @@ def get_funcionarios():
 def get_lancamentos_do_mes(mes_referencia):
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
+    
+    fuso_horario_local = timezone(timedelta(hours=-3))
+
     query = text("""
     SELECT 
         l.id, 
@@ -45,18 +48,17 @@ def get_lancamentos_do_mes(mes_referencia):
         l.funcionario_id, 
         f.nome AS "Funcionário", 
         CASE 
-            WHEN l.servico_id IS NULL AND l.servico_diverso_descricao LIKE '[GRATIFICACAO]%' THEN 'GRATIFICAÇÃO' -- Identifica Gratificação
-            WHEN l.servico_id IS NULL THEN 'Diverso'                                             -- Identifica Item Diverso
-            ELSE d.nome                                                                           -- Disciplina normal do serviço
+            WHEN l.servico_id IS NULL AND l.servico_diverso_descricao LIKE '[GRATIFICACAO]%' THEN 'GRATIFICAÇÃO'
+            WHEN l.servico_id IS NULL THEN 'Diverso'
+            ELSE d.nome
         END AS "Disciplina",
-        -- Remove o prefixo da descrição da gratificação para exibição
         CASE
             WHEN l.servico_id IS NULL AND l.servico_diverso_descricao LIKE '[GRATIFICACAO]%' 
-            THEN TRIM(SUBSTRING(l.servico_diverso_descricao FROM 16)) -- Remove '[GRATIFICACAO] '
+            THEN TRIM(SUBSTRING(l.servico_diverso_descricao FROM 16))
             ELSE COALESCE(s.descricao, l.servico_diverso_descricao)
         END AS "Serviço", 
-        l.quantidade AS "Quantidade", -- Já deve ser NUMERIC
-        COALESCE(s.unidade, 'UN') AS "Unidade", -- Gratificação usará 'UN'
+        l.quantidade AS "Quantidade",
+        COALESCE(s.unidade, 'UN') AS "Unidade", 
         l.valor_unitario AS "Valor Unitário",
         (l.quantidade * l.valor_unitario) AS "Valor Parcial", 
         l.observacao AS "Observação"
@@ -70,12 +72,20 @@ def get_lancamentos_do_mes(mes_referencia):
     df = pd.read_sql(query, engine, params={'mes': mes_referencia})
     if not df.empty:
         df = df.rename(columns={'data_lancamento': 'Data', 'data_servico': 'Data do Serviço'})
+        
         df['Data'] = pd.to_datetime(df['Data'])
+        if df['Data'].dt.tz is None:
+
+            try:
+                df['Data'] = df['Data'].dt.tz_localize(timezone.utc)
+            except Exception as e:
+                df['Data'] = df['Data'].apply(lambda x: pd.Timestamp(x, tzinfo=timezone.utc))
+        df['Data'] = df['Data'].dt.tz_convert(fuso_horario_local)
+
         df['Data do Serviço'] = pd.to_datetime(df['Data do Serviço'])
         if 'Quantidade' in df.columns:
             df['Quantidade'] = df['Quantidade'].astype(float) 
     return df
-
 @st.cache_data
 def get_obras():
     engine = get_db_connection()
@@ -365,7 +375,6 @@ def salvar_novos_lancamentos(df_para_salvar):
                 connection.execute(query, lancamentos_dict)
             
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "SALVAR_LANCAMENTOS", f"{len(lancamentos_dict)} lançamentos salvos.")
-        st.cache_data.clear() 
         return True
 
     except FolhaFechadaException as ffe:
@@ -396,7 +405,6 @@ def remover_lancamentos_por_id(ids_para_remover, razao="", obra_id=None, mes_ref
                 connection.execute(query, {'ids': ids_para_remover})
         
         registrar_log(st.session_state.get('user_identifier', 'unknown'), "REMOVER_LANCAMENTOS", f"IDs: {ids_para_remover}. Razão: {razao}")
-        st.cache_data.clear() 
         return True
 
     except FolhaFechadaException as ffe:
@@ -828,6 +836,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
