@@ -192,17 +192,18 @@ def render_page():
                          erros.append("Gratificação: Observação obrigatória.")
 
                     add_serv = current_servico_selecionado and current_quantidade_principal > 0.0
-                    add_div = current_descricao_diverso.strip() and current_quantidade_diverso > 0.0
+                    add_div = current_descricao_diverso.strip() and current_quantidade_diverso > 0.0 and current_valor_diverso > 0.0 
                     add_grat = current_desc_grat.strip() and current_val_grat > 0.0
 
                     if not any([add_serv, add_div, add_grat]):
-                         st.info("Nenhum item válido foi preenchido.")
+                         st.info("Nenhum item válido foi preenchido (verifique Quantidade e Valor).")
                     elif erros:
                         for erro in erros: st.warning(erro)
                     else:
                         novos_lancamentos = []
                         fuso_horario = timezone(timedelta(hours=-3)) 
-                        agora = datetime.now(fuso_horario)
+                        agora = datetime.now(fuso_horario) 
+                        
                         func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
                         if func_id_info.empty: st.error("Funcionário não encontrado.")
                         else:
@@ -211,15 +212,16 @@ def render_page():
                             if add_serv:
                                 servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == current_servico_selecionado].iloc[0]
                                 novos_lancamentos.append({'data_servico': current_data_servico_principal, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': int(servico_info['id']), 'servico_diverso_descricao': None, 'quantidade': current_quantidade_principal, 'valor_unitario': utils.safe_float(servico_info['VALOR']), 'observacao': current_obs_principal, 'data_lancamento': agora})
-                            if add_div and current_valor_diverso > 0.0: 
+                            if add_div:
                                 novos_lancamentos.append({'data_servico': current_data_servico_diverso, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': current_descricao_diverso, 'quantidade': current_quantidade_diverso, 'valor_unitario': current_valor_diverso, 'observacao': current_obs_diverso, 'data_lancamento': agora})
                             if add_grat:
                                 novos_lancamentos.append({'data_servico': current_data_grat, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': f"[GRATIFICACAO] {current_desc_grat}", 'quantidade': 1, 'valor_unitario': current_val_grat, 'observacao': current_obs_grat, 'data_lancamento': agora})
                             
                             if novos_lancamentos:
-                                if db_utils.salvar_novos_lancamentos(df_para_salvar):
+                                df_para_salvar = pd.DataFrame(novos_lancamentos)
+                                
+                                if db_utils.salvar_novos_lancamentos(df_para_salvar): 
                                     st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
-                                    
                                     st.cache_data.clear() 
 
                                     keys_to_delete = [
@@ -231,7 +233,7 @@ def render_page():
                                     ]
                                     for key in keys_to_delete:
                                         if key in st.session_state:
-                                            del st.session_state[key] 
+                                            del st.session_state[key]
                                     
                                     st.rerun()
                                 
@@ -307,6 +309,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
