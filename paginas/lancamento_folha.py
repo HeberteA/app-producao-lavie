@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta 
 import db_utils
 import utils
 
@@ -18,7 +18,7 @@ def render_page():
         obras_df = db_utils.get_obras()
         lancamentos_do_mes_df = db_utils.get_lancamentos_do_mes(mes)
         status_df = db_utils.get_status_do_mes(mes)
-        folhas_df = db_utils.get_folhas_mensais(mes)
+        folhas_df = db_utils.get_folhas_mensais(mes) 
         return funcionarios_df, precos_df, obras_df, lancamentos_do_mes_df, status_df, folhas_df
 
     funcionarios_df, precos_df, obras_df, lancamentos_do_mes_df, status_df, folhas_df = get_launch_page_data(mes_selecionado)
@@ -35,7 +35,15 @@ def render_page():
         st.stop()
     obra_logada_id = int(obra_logada_id_info.iloc[0])
     
-    folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_logada_id]
+    try:
+        mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
+    except Exception:
+        mes_selecionado_dt = date.today().replace(day=1) 
+
+    folha_do_mes = folhas_df[
+        (folhas_df['obra_id'] == obra_logada_id) &
+        (folhas_df['Mes'] == mes_selecionado_dt)
+    ]
     status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
 
     edicao_bloqueada = status_folha in ['Enviada para Auditoria', 'Finalizada']
@@ -209,15 +217,9 @@ def render_page():
                                 novos_lancamentos.append({'data_servico': current_data_grat, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': f"[GRATIFICACAO] {current_desc_grat}", 'quantidade': 1, 'valor_unitario': current_val_grat, 'observacao': current_obs_grat, 'data_lancamento': agora})
                             
                             if novos_lancamentos:
-                                df_para_salvar = pd.DataFrame(novos_lancamentos)
                                 if db_utils.salvar_novos_lancamentos(df_para_salvar):
                                     st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
-                                    st.cache_data.clear()
-                            
-                            if novos_lancamentos:
-                                df_para_salvar = pd.DataFrame(novos_lancamentos)
-                                if db_utils.salvar_novos_lancamentos(df_para_salvar):
-                                    st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
+                                    
                                     st.cache_data.clear() 
 
                                     keys_to_delete = [
@@ -229,10 +231,9 @@ def render_page():
                                     ]
                                     for key in keys_to_delete:
                                         if key in st.session_state:
-                                            del st.session_state[key]
-                            
+                                            del st.session_state[key] 
                                     
-                                    st.rerun() 
+                                    st.rerun()
                                 
         with col_view:
             if funcionario_selecionado:
@@ -306,6 +307,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
