@@ -201,30 +201,17 @@ def render_page():
                             
                             if add_serv:
                                 servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == current_servico_selecionado].iloc[0]
-                                novos_lancamentos.append({
-                                    'data_servico': current_data_servico_principal, 'obra_id': obra_logada_id, 
-                                    'funcionario_id': func_id, 'servico_id': int(servico_info['id']), 
-                                    'servico_diverso_descricao': None, 'quantidade': current_quantidade_principal, 
-                                    'valor_unitario': utils.safe_float(servico_info['VALOR']), 
-                                    'observacao': current_obs_principal, 'data_lancamento': agora
-                                })
+                                novos_lancamentos.append({'data_servico': current_data_servico_principal, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': int(servico_info['id']), 'servico_diverso_descricao': None, 'quantidade': current_quantidade_principal, 'valor_unitario': utils.safe_float(servico_info['VALOR']), 'observacao': current_obs_principal, 'data_lancamento': agora})
                             if add_div and current_valor_diverso > 0.0: 
-                                novos_lancamentos.append({
-                                    'data_servico': current_data_servico_diverso, 'obra_id': obra_logada_id, 
-                                    'funcionario_id': func_id, 'servico_id': None, 
-                                    'servico_diverso_descricao': current_descricao_diverso,
-                                    'quantidade': current_quantidade_diverso, 'valor_unitario': current_valor_diverso, 
-                                    'observacao': current_obs_diverso, 'data_lancamento': agora
-                                })
+                                novos_lancamentos.append({'data_servico': current_data_servico_diverso, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': current_descricao_diverso, 'quantidade': current_quantidade_diverso, 'valor_unitario': current_valor_diverso, 'observacao': current_obs_diverso, 'data_lancamento': agora})
                             if add_grat:
-                                novos_lancamentos.append({
-                                    'data_servico': current_data_grat, 'obra_id': obra_logada_id, 
-                                    'funcionario_id': func_id, 'servico_id': None, 
-                                    'servico_diverso_descricao': f"[GRATIFICACAO] {current_desc_grat}",
-                                    'quantidade': 1, 
-                                    'valor_unitario': current_val_grat,
-                                    'observacao': current_obs_grat, 'data_lancamento': agora
-                                })
+                                novos_lancamentos.append({'data_servico': current_data_grat, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': f"[GRATIFICACAO] {current_desc_grat}", 'quantidade': 1, 'valor_unitario': current_val_grat, 'observacao': current_obs_grat, 'data_lancamento': agora})
+                            
+                            if novos_lancamentos:
+                                df_para_salvar = pd.DataFrame(novos_lancamentos)
+                                if db_utils.salvar_novos_lancamentos(df_para_salvar):
+                                    st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
+                                    st.cache_data.clear()
                             
                             if novos_lancamentos:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos)
@@ -318,6 +305,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
