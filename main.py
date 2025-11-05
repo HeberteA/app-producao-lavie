@@ -145,6 +145,24 @@ else:
                     aviso_obra = obra_info['aviso'].iloc[0]
                     if aviso_obra and str(aviso_obra).strip():
                         st.warning(f"Aviso: {aviso_obra}")
+
+        st.markdown("---")
+        st.subheader("Mês de Referência")
+        current_month_str = datetime.now().strftime('%Y-%m')
+        last_month_str = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+        available_months = sorted(list(set([current_month_str, last_month_str])), reverse=True)
+        try:
+            current_index = available_months.index(st.session_state.selected_month)
+        except ValueError:
+            available_months.append(st.session_state.selected_month)
+            available_months = sorted(list(set(available_months)), reverse=True)
+            current_index = available_months.index(st.session_state.selected_month)
+            
+        selected_month = st.selectbox("Selecione o Mês", options=available_months, index=current_index, label_visibility="collapsed")
+        if selected_month != st.session_state.selected_month:
+            st.session_state.selected_month = selected_month
+            st.rerun() 
+
         st.markdown("---")
         
         if STREAMLIT_OPTION_MENU_AVAILABLE:
@@ -153,14 +171,14 @@ else:
                 'auditoria': ("Auditoria", "pencil-fill"),
                 'dashboard_de_analise': ("Dashboard", "graph-up"),
                 'resumo_da_folha': ("Resumo da Folha", "file-earmark-text"),
-                'remover_lancamentos': ("Remover Lançamentos", "trash"),
+                'remover_lancamentos': ("Lançamentos", "trash"),
                 'gerenciar_funcionarios': ("Funcionários", "people-fill"),
                 'gerenciar_funcoes': ("Funções", "gear-fill"),
                 'gerenciar_servicos': ("Serviços", "tools"),
                 'gerenciar_obras': ("Obras", "building"),
             }
-            admin_pages = ['auditoria', 'dashboard_de_analise', 'resumo_da_folha', 'gerenciar_funcionarios', 'gerenciar_funcoes', 'gerenciar_servicos', 'gerenciar_obras', 'remover_lancamentos']
-            user_pages = ['lancamento_folha', 'dashboard_de_analise', 'resumo_da_folha', 'remover_lancamentos']
+            admin_pages = ['auditoria', 'resumo_da_folha', 'gerenciar_funcionarios', 'gerenciar_funcoes', 'gerenciar_servicos', 'gerenciar_obras', 'remover_lancamentos', 'dashboard_de_analise']
+            user_pages = ['lancamento_folha', 'resumo_da_folha', 'remover_lancamentos', 'dashboard_de_analise']
             pages_to_show_keys = admin_pages if st.session_state.role == 'admin' else user_pages
             menu_titles = [page_definitions[key][0] for key in pages_to_show_keys]
             menu_icons = [page_definitions[key][1] for key in pages_to_show_keys]
@@ -193,22 +211,7 @@ else:
             if st.button("🗑️ Remover Lançamentos", use_container_width=True): st.session_state.page = 'remover_lancamentos'
             if st.button("📈 Dashboard de Análise", use_container_width=True): st.session_state.page = 'dashboard_de_analise'
         
-        st.markdown("---")
-        st.subheader("Mês de Referência")
-        current_month_str = datetime.now().strftime('%Y-%m')
-        last_month_str = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
-        available_months = sorted(list(set([current_month_str, last_month_str])), reverse=True)
-        try:
-            current_index = available_months.index(st.session_state.selected_month)
-        except ValueError:
-            available_months.append(st.session_state.selected_month)
-            available_months = sorted(list(set(available_months)), reverse=True)
-            current_index = available_months.index(st.session_state.selected_month)
-            
-        selected_month = st.selectbox("Selecione o Mês", options=available_months, index=current_index, label_visibility="collapsed")
-        if selected_month != st.session_state.selected_month:
-            st.session_state.selected_month = selected_month
-            st.rerun() 
+ 
 
         st.markdown("---")
         
@@ -402,3 +405,4 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
