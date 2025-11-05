@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date, timezone, timedeltaimport db_utils
+from datetime import datetime, date, timezone, timedelta
+import db_utils
 import utils
 
 def render_page():
@@ -305,6 +306,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
