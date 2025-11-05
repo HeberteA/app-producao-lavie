@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date
-import db_utils
+from datetime import datetime, date, timezone, timedeltaimport db_utils
 import utils
 
 def render_page():
@@ -188,12 +187,13 @@ def render_page():
                     add_grat = current_desc_grat.strip() and current_val_grat > 0.0
 
                     if not any([add_serv, add_div, add_grat]):
-                         st.info("Nenhum item válido (Serviço, Diverso ou Gratificação com valor/quantidade > 0) foi preenchido.")
+                         st.info("Nenhum item válido foi preenchido.")
                     elif erros:
                         for erro in erros: st.warning(erro)
                     else:
                         novos_lancamentos = []
-                        agora = datetime.now()
+                        fuso_horario = timezone(timedelta(hours=-3)) 
+                        agora = datetime.now(fuso_horario)
                         func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
                         if func_id_info.empty: st.error("Funcionário não encontrado.")
                         else:
@@ -241,12 +241,7 @@ def render_page():
                                     ]
                                     for key in keys_to_delete:
                                         if key in st.session_state:
-                                            if key.endswith(("_select")):
-                                                st.session_state[key] = None
-                                            elif key.startswith(("lf_qty_", "lf_val_")):
-                                                 st.session_state[key] = 0.0
-                                            else: 
-                                                 st.session_state[key] = ""
+                                            del st.session_state[key]
                             
                                     
                                     st.rerun() 
@@ -323,6 +318,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
