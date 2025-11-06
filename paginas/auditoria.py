@@ -144,20 +144,19 @@ def render_page():
                 total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
 
         resumo_df = funcionarios_obra_df.copy()
+        
         if not producao_bruta_df.empty:
             resumo_df = pd.merge(resumo_df, producao_bruta_df, left_on='id', right_on='funcionario_id', how='left')
+            if 'funcionario_id' in resumo_df.columns: resumo_df.drop(columns=['funcionario_id'], inplace=True)
         else:
             resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
             
         if not total_gratificacoes_df.empty:
-             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat')) 
-             if 'funcionario_id_grat' in resumo_df.columns:
-                 resumo_df.drop(columns=['funcionario_id_grat'], inplace=True)
-             if 'funcionario_id' in resumo_df.columns and 'id' in resumo_df.columns and 'funcionario_id' != 'id':
-                  resumo_df.drop(columns=['funcionario_id'], inplace=True) 
+             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
+             if 'funcionario_id_grat' in resumo_df.columns: resumo_df.drop(columns=['funcionario_id_grat'], inplace=True)
+             if 'funcionario_id' in resumo_df.columns and 'id' in resumo_df.columns and 'funcionario_id' != 'id': resumo_df.drop(columns=['funcionario_id'], inplace=True)
         else:
              resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
-
         resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
         resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
         resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
