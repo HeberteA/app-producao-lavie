@@ -36,7 +36,7 @@ def render_page():
         if not lanc_producao.empty:
              producao_bruta_agg = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
              producao_bruta_agg.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
-
+        
         total_gratificacoes_agg = pd.DataFrame()
         if not lanc_gratificacoes.empty:
              total_gratificacoes_agg = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
@@ -46,14 +46,14 @@ def render_page():
         if not producao_bruta_agg.empty:
             resumo_df_merged = pd.merge(resumo_df_merged, producao_bruta_agg, left_on='id', right_on='funcionario_id', how='left')
             if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns: resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
-        else: resumo_df_merged['PRODUÇÃO BRUTA (R$)'] = 0.0
+        else: resumo_df_merged['PRODUÇÃO BRUTA (R$)'] = 0.0 
 
         if not total_gratificacoes_agg.empty:
             resumo_df_merged = pd.merge(resumo_df_merged, total_gratificacoes_agg, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
             if 'funcionario_id_grat' in resumo_df_merged.columns: resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id_grat'])
             if 'funcionario_id' in resumo_df_merged.columns and 'id' in resumo_df_merged.columns and 'funcionario_id' != 'id': resumo_df_merged = resumo_df_merged.drop(columns=['funcionario_id'])
-        else: resumo_df_merged['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
-
+        else: resumo_df_merged['TOTAL GRATIFICAÇÕES (R$)'] = 0.0 
+        
         resumo_df = resumo_df_merged
 
         if not resumo_df.empty:
@@ -61,8 +61,10 @@ def render_page():
             resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0).apply(utils.safe_float)
             resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
             resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
+            
             resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
             resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+            
             resumo_df['EFICIENCIA (Líquida/Base)'] = 0.0
             mask_salario_positivo = resumo_df['SALÁRIO BASE (R$)'] > 0
             if mask_salario_positivo.any():
@@ -72,15 +74,10 @@ def render_page():
 
     except KeyError as e:
          st.error(f"Erro ao calcular resumo: Chave não encontrada - {e}. Verifique nomes das colunas.")
-         resumo_df = pd.DataFrame() 
+         resumo_df = pd.DataFrame()
     except Exception as e:
          st.error(f"Erro inesperado ao calcular resumo: {e}")
-         resumo_df = pd.DataFrame() 
-
-    obra_selecionada_filt = []
-    funcao_selecionada_filt = []
-    tipo_selecionado_filt = []
-    funcionario_selecionado_filt = []
+         resumo_df = pd.DataFrame()
 
     with st.expander("Filtros do Dashboard", expanded=False):
 
