@@ -21,15 +21,15 @@ def calcular_salario_final(row):
     pagamento_base = 0.0
     if tipo_contrato == 'PRODUCAO':
         pagamento_base = max(salario_base, producao_bruta_sem_grat)
-    else: 
+    else:
         pagamento_base = salario_base + producao_bruta_sem_grat 
-
     salario_final = pagamento_base + total_gratificacoes
+    
     return salario_final
 
 def calcular_producao_liquida(row):
     salario_base = row.get('SALÁRIO BASE (R$)', 0.0)
-    producao_bruta_sem_grat = row.get('PRODUÇÃO BRUTA (R$)', 0.0) 
+    producao_bruta_sem_grat = row.get('PRODUÇÃO BRUTA (R$)', 0.0)
     total_gratificacoes = row.get('TOTAL GRATIFICAÇÕES (R$)', 0.0)
     tipo_contrato = str(row.get('TIPO', '')).upper()
 
@@ -187,6 +187,7 @@ def add_css_classes_to_td(html_table, df_columns, currency_cols, number_cols):
          new_body_rows.append(''.join(new_cells))
      new_tbody = '<tbody>' + '<tr>'.join(new_body_rows) + '</tbody>'
      return html_table.split('<tbody>')[0] + new_tbody + html_table.split('</tbody>')[1]
+
 
 
 
