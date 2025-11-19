@@ -36,6 +36,43 @@ st.set_page_config(
     layout="wide"
 )
 
+APP_STYLE_CSS = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background: radial-gradient(circle at 10% 20%, #1e1e24 0%, #050505 90%);
+    background-attachment: fixed;
+}
+/* Ajustes de Inputs para contraste */
+div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+}
+[data-testid="stAppViewContainer"] {
+    /* Opção: Papel Artesanal (Sutil e Elegante) */
+    background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+    background-repeat: repeat;
+}
+div[data-testid="stNumberInput"] input, div[data-testid="stTextInput"] input {
+    color: white !important;
+}
+/* Steps */
+.step-container {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;
+    background: rgba(255,255,255,0.03); padding: 20px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.05);
+}
+.step-item {
+    display: flex; align-items: center; flex-direction: column; color: #666; font-weight: 500; width: 33%; position: relative;
+}
+.step-item .step-number {
+    width: 35px; height: 35px; border-radius: 50%; border: 2px solid #555; display: flex; align-items: center; justify-content: center;
+    font-weight: bold; margin-bottom: 8px; transition: all 0.3s ease; background-color: #111;
+}
+.step-item.active { color: #E37026; }
+.step-item.active .step-number { border-color: #E37026; background-color: #E37026; color: #FFFFFF; box-shadow: 0 0 15px rgba(227, 112, 38, 0.5); }
+</style>
+"""
+st.markdown(APP_STYLE_CSS, unsafe_allow_html=True)
 
 if not hasattr(utils, 'gerar_relatorio_pdf'):
      st.error("Função 'gerar_relatorio_pdf' não encontrada em utils.py! Mova a função de main.py para utils.py.")
@@ -406,6 +443,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
