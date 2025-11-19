@@ -281,7 +281,7 @@ else:
                     else:
                         st.warning("Esta folha de um mês anterior ainda não foi enviada.")
                 elif status_folha == 'Devolvida para Revisão':
-                     st.warning("⚠️ Folha devolvida. Revise e reenvie.")
+                     st.warning("Folha devolvida. Revise e reenvie.")
                 
                 st.info(f"Status do Envio: {status_folha}")
                 if not folha_do_mes.empty and pd.notna(folha_do_mes.iloc[0]['data_lancamento']):
@@ -319,7 +319,7 @@ else:
             obra_pdf_titulo = obra_pdf_selecionada
         
         pdf_download_placeholder = st.empty()
-        if pdf_download_placeholder.button("📄 Gerar Relatório em PDF", use_container_width=True, key="gerar_pdf_sidebar"):
+        if pdf_download_placeholder.button("Gerar Relatório em PDF", use_container_width=True, key="gerar_pdf_sidebar"):
             with st.spinner("Gerando relatório..."):
                 funcionarios_pdf = db_utils.get_funcionarios() 
                 lancamentos_pdf = db_utils.get_lancamentos_do_mes(st.session_state.selected_month) 
@@ -405,7 +405,7 @@ else:
                             
                         if pdf_data: 
                             pdf_download_placeholder.download_button(
-                                label="⬇️ Clique aqui para baixar o Relatório", data=pdf_data,
+                                label="Clique aqui para baixar o Relatório", data=pdf_data,
                                 type="primary",
                                 file_name=f"Relatorio_{st.session_state.selected_month}_{obra_pdf_nome_arquivo}.pdf",
                                 mime="application/pdf", use_container_width=True,
@@ -414,7 +414,7 @@ else:
                             st.info("Seu download está pronto. Clique no botão acima.")
 
         st.markdown("---")
-        if st.button("Sair 🚪", use_container_width=True, type="primary"):
+        if st.button("Sair", use_container_width=True, type="primary"):
             st.cache_data.clear() 
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
@@ -438,6 +438,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
