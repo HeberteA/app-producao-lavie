@@ -36,6 +36,17 @@ st.set_page_config(
     layout="wide"
 )
 
+background_texture_css = """
+<style>
+[data-testid="stAppViewContainer"] {
+    /* Opção: Papel Artesanal (Sutil e Elegante) */
+    background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+    background-repeat: repeat;
+}
+</style>
+"""
+st.markdown(background_texture_css, unsafe_allow_html=True)
+
 if not hasattr(utils, 'gerar_relatorio_pdf'):
      st.error("Função 'gerar_relatorio_pdf' não encontrada em utils.py! Mova a função de main.py para utils.py.")
      def gerar_relatorio_pdf(*args, **kwargs): 
@@ -405,4 +416,5 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
