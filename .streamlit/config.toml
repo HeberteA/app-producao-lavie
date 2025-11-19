@@ -1,6 +1,8 @@
 [theme]
 primaryColor = "#E37026"
-backgroundColor = "#bec8c3"
-secondaryBackgroundColor = "#fefefe"
-textColor = "#000000ff"
+backgroundColor = "rgba(0, 0, 0, 0.9)"
+secondaryBackgroundColor = "rgba(14, 17, 23, 0.9)"
+textColor = "#FFFFFF"
 font = "sans serif"
+borderColor="#E37026"
+showWidgetBorder=true
