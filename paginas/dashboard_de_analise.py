@@ -181,7 +181,6 @@ def render_page():
         st.error(f"Erro ao calcular KPIs operacionais: {e}")
 
     if st.session_state['role'] == 'admin':
-        st.markdown("<div class='admin-box'>", unsafe_allow_html=True)
         st.caption("Indicadores (Visão Gerencial)")
         
         top_obra = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().idxmax() if not df_f.empty and tot_bruta > 0 else "N/A"
@@ -257,16 +256,25 @@ def render_page():
     
     with c_det1:
         if not lancs_f.empty:
+            st.markdown("##### Curva ABC de Serviços (Pareto)")
             pareto = lancs_f[lancs_f['Disciplina']!='GRATIFICAÇÃO'].groupby('Serviço')['Valor Parcial'].sum().reset_index().sort_values('Valor Parcial', ascending=False)
             pareto['Acum'] = pareto['Valor Parcial'].cumsum() / pareto['Valor Parcial'].sum() * 100
-            pareto = pareto.head(15)
-            fig_par = go.Figure()
-            fig_par.add_trace(go.Bar(x=pareto['Serviço'], y=pareto['Valor Parcial'], name='Valor (R$)', marker_color=cor_bruta))
-            fig_par.add_trace(go.Scatter(x=pareto['Serviço'], y=pareto['Acum'], name='Acumulado %', yaxis='y2', mode='lines+markers', line=dict(color=cor_liquida)))
-            fig.update_traces(textposition='outside')
-            fig_par.update_layout(yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), showlegend=False, title="Curva ABC (Pareto)")
-            st.plotly_chart(style_fig(fig_par), use_container_width=True)
             
+            pareto = pareto.head(15)
+            
+            pareto['Serviço_Visual'] = pareto['Serviço'].apply(lambda x: x[:20] + '...' if len(x) > 20 else x)
+
+            fig_par = go.Figure()
+            fig_par.add_trace(go.Bar(x=pareto['Serviço_Visual'], y=pareto['Valor Parcial'], name='Valor (R$)', marker_color=cor_bruta))
+            
+            fig_par.add_trace(go.Scatter(x=pareto['Serviço_Visual'], y=pareto['Acum'], name='Acumulado %', yaxis='y2', mode='lines+markers', line=dict(color=cor_liquida)))
+            
+            fig_par.update_layout(
+                yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), 
+                showlegend=False, 
+                xaxis=dict(tickangle=-45)
+            )
+            st.plotly_chart(style_fig(fig_par), use_container_width=True)
     with c_det2:
         lancs_hier = lancs_f[(lancs_f['Disciplina']!='GRATIFICAÇÃO') & (lancs_f['Valor Parcial'] > 50)]
         if not lancs_hier.empty:
