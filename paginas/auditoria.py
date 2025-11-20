@@ -222,7 +222,7 @@ def render_page():
                     if lanc_concluido:
                         st.success("Lançamentos: OK") 
                     else:
-                        st.warning("Lançamentos: Pendente", icon="⏳")
+                        st.warning("Lançamentos: Pendente")
 
                 with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
                     col_status, col_comment = st.columns(2)
