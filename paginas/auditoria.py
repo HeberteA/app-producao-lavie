@@ -99,11 +99,51 @@ def render_page():
             if st.button("Salvar Status Obra"):
                 db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
                 st.toast("Salvo!", icon="✅"); st.cache_data.clear(); st.rerun()
-        utils.display_status_box("Status Obra", status_auditoria_interno)
-        if st.button("Finalizar Folha", use_container_width=True, type="primary", disabled=not (status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria")):
-            if db_utils.launch_monthly_sheet(obra_id_selecionada, pd.to_datetime(mes_selecionado, format='%Y-%m'), obra_selecionada): st.cache_data.clear(); st.rerun()
-        if st.button("Devolver para Revisão", use_container_width=True, disabled=not (status_auditoria_interno == "Analisar" and status_folha == "Enviada para Auditoria")):
+        utils.display_status_box("Status da Obra", status_auditoria_interno)
+        with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
+            todos_funcionarios_aprovados = True
+            folha_foi_enviada = (status_folha == "Enviada para Auditoria") 
+
+            funcionarios_com_producao_ids = lancamentos_obra_df['funcionario_id'].unique()
+            
+            if len(funcionarios_com_producao_ids) > 0:
+                status_funcionarios_producao = status_df[
+                    (status_df['obra_id'] == obra_id_selecionada) &
+                    (status_df['funcionario_id'].isin(funcionarios_com_producao_ids))
+                ]
+                if not status_funcionarios_producao.empty:
+                    if not status_funcionarios_producao['Status'].eq('Aprovado').all():
+                         todos_funcionarios_aprovados = False
+                else:
+                    todos_funcionarios_aprovados = False 
+            
+            pode_aprovar_obra = todos_funcionarios_aprovados and folha_foi_enviada 
+
+            status_options = ['A Revisar', 'Analisar']
+            if pode_aprovar_obra:
+                status_options.append('Aprovado')
+            else: 
+                if not todos_funcionarios_aprovados:
+                    st.info("Opção 'Aprovado' só disponível quando todos os funcionários com produção estiverem 'Aprovados'.")
+                if not folha_foi_enviada:
+                     st.info("Opção 'Aprovado' só disponível após a folha ser enviada.")
+
+            idx = status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0
+            selected_status_obra = st.radio("Defina o status:", options=status_options, index=idx, horizontal=True)
+            if st.button("Salvar Status da Obra"):
+                if selected_status_obra != status_auditoria_interno:
+                    db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
+                    st.toast("Status da Obra atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
+        
+        pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
+        if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="Status interno 'Aprovado' e folha 'Enviada' necessários."):
+            mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
+            if db_utils.launch_monthly_sheet(obra_id_selecionada, mes_dt, obra_selecionada): st.cache_data.clear(); st.rerun()
+        
+        pode_devolver = status_auditoria_interno == "Analisar" and status_folha == "Enviada para Auditoria"
+        if st.button("Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver, help="Status interno 'Analisar' e folha 'Enviada' necessários."):
             if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado): st.cache_data.clear(); st.rerun()
+
 
     with col_aviso_geral:
         st.markdown("##### Avisos")
