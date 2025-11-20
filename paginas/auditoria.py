@@ -258,7 +258,6 @@ def render_page():
                         lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == nome_funcionario].copy()
                     
                         if not lancs_f.empty:
-                        # Bloqueio de colunas se a folha estiver fechada
                             cols_bloqueadas = ['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial']
                             disabled_config = True if edicao_bloqueada else cols_bloqueadas
                         
@@ -287,7 +286,7 @@ def render_page():
                                                 st.toast("Observações salvas!", icon="✅"); st.cache_data.clear(); st.rerun()
                                         else: 
                                             st.toast("Nenhuma alteração detectada.", icon="🤷")
-                                     except Exception as e:
+                                    except Exception as e:
                                          st.error(f"Erro: {e}")
                         else: 
                             st.info("Sem lançamentos.")
