@@ -130,7 +130,7 @@ def render_page():
                 
                 c1, c2 = st.columns([1, 2])
                 with c1:
-                    disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=disciplina_idx, placeholder="Selecione...", key="lf_disciplina_select")
+                    disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...", key="lf_disciplina_select")
                 
                 opcoes_servico = []
                 servico_idx = None
@@ -139,7 +139,7 @@ def render_page():
                     servico_idx = opcoes_servico.index(st.session_state.get("lf_servico_select")) if st.session_state.get("lf_servico_select") in opcoes_servico else None
 
                 with c2:
-                    servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=servico_idx, placeholder="Selecione disciplina primeiro...", disabled=not disciplina_selecionada, key="lf_servico_select")
+                    servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione disciplina primeiro...", disabled=not disciplina_selecionada, key="lf_servico_select")
                 
                 quantidade_principal = 0.0 
                 valor_parcial_servico = 0.0
@@ -347,3 +347,4 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
