@@ -186,37 +186,35 @@ def render_page():
 
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
         
-        with col_t1: st.markdown(display_card("Salário Base", utils.format_currency(total_base), color="#6c757d", icon="💼"), unsafe_allow_html=True)
-        with col_t2: st.markdown(display_card("Prod. Bruta", utils.format_currency(total_bruta), color="#E37026", icon="⚒️"), unsafe_allow_html=True)
-        with col_t3: st.markdown(display_card("Prod. Líquida", utils.format_currency(total_liquida), color="#3b82f6", icon="💧"), unsafe_allow_html=True)
-        with col_t4: st.markdown(display_card("Gratificações", utils.format_currency(total_grat), color="#8b5cf6", icon="🎁"), unsafe_allow_html=True)
-        with col_t5: st.markdown(display_card("A Receber", utils.format_currency(total_receber), color="#10b981", icon="💰"), unsafe_allow_html=True)
-        # ---------------------------------------------
+        with col_t1: st.markdown(display_card("Salário Base", utils.format_currency(total_base), color="#6c757d"), unsafe_allow_html=True)
+        with col_t2: st.markdown(display_card("Prod. Bruta", utils.format_currency(total_bruta), color="#E37026", unsafe_allow_html=True)
+        with col_t3: st.markdown(display_card("Prod. Líquida", utils.format_currency(total_liquida), color="#3b82f6"), unsafe_allow_html=True)
+        with col_t4: st.markdown(display_card("Gratificações", utils.format_currency(total_grat), color="#8b5cf6"), unsafe_allow_html=True)
+        with col_t5: st.markdown(display_card("A Receber", utils.format_currency(total_receber), color="#10b981"), unsafe_allow_html=True)
 
     st.subheader("Detalhes da Folha")
 
     if df_filtrado_final.empty:
          st.info("Nenhum dado para exibir.")
     else:
-        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA', 'PRODUÇÃO LÍQUIDA', 'TOTAL GRATIFICAÇÕES', 'SALÁRIO A RECEBER', 'STATUS', 'SITUAÇÃO']
-        if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
+        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 'PRODUÇÃO LÍQUIDA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação']        if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
             if 'OBRA' in colunas_exibicao: colunas_exibicao.remove('OBRA')
 
         colunas_finais_existentes = [col for col in colunas_exibicao if col in df_filtrado_final.columns]
         
         df_para_exibir = df_filtrado_final[colunas_finais_existentes].style \
-            .apply(lambda x: x.map(utils.style_status), subset=['Status']) \
-            .apply(lambda x: x.map(utils.style_situacao), subset=['Situação'])
+            .apply(lambda x: x.map(utils.style_status), subset=['STATUS']) \
+            .apply(lambda x: x.map(utils.style_situacao), subset=['SITUAÇÃO'])
 
         st.dataframe(
             df_para_exibir,
             use_container_width=True, hide_index=True,
             column_config={
-                "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO LÍQUIDA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO BASE": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO BRUTA": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO LÍQUIDA": st.column_config.NumberColumn(format="R$ %.2f"),
+                "TOTAL GRATIFICAÇÕES": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO A RECEBER": st.column_config.NumberColumn(format="R$ %.2f"),
             }
         )
         
@@ -224,7 +222,7 @@ def render_page():
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             excel_data = utils.to_excel(df_filtrado_final[colunas_finais_existentes]) 
-            st.download_button(label="📥 Baixar Excel", data=excel_data, file_name=f"resumo_{mes_selecionado}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.download_button(label="Baixar Excel", data=excel_data, file_name=f"resumo_{mes_selecionado}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         with col_dl2:
             lancamentos_para_pdf_final = lancamentos_filtrados_df.copy()
             if funcionario_filtrado != "Todos" and not lancamentos_para_pdf_final.empty:
@@ -237,8 +235,9 @@ def render_page():
             else: lancamentos_para_pdf = pd.DataFrame(columns=colunas_lanc)
 
             pdf_ph = st.empty() 
-            if pdf_ph.button("📄 Baixar PDF", use_container_width=True):
+            if pdf_ph.button("Baixar PDF", use_container_width=True):
                  with st.spinner("Gerando PDF..."):
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
