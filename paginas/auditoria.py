@@ -25,14 +25,14 @@ def render_page():
         background-color: rgba(255, 255, 255, 0.1);
     }
     .audit-stat-label {
-        font-size: 0.75rem; /* Aumentei levemente a fonte do label */
+        font-size: 1rem; /* Aumentei levemente a fonte do label */
         text-transform: uppercase;
         color: #A0A0A0;
         margin-bottom: 4px; /* Mais espaço entre titulo e valor */
         font-weight: 600;
     }
     .audit-stat-value {
-        font-size: 1.1rem; /* Aumentei levemente a fonte do valor */
+        font-size: 1.3rem; /* Aumentei levemente a fonte do valor */
         font-weight: 700;
         color: #EEE;
     }
