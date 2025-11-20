@@ -67,7 +67,7 @@ def get_lancamentos_do_mes(mes_referencia):
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
     LEFT JOIN servicos s ON l.servico_id = s.id
     LEFT JOIN disciplinas d ON s.disciplina_id = d.id 
-    WHERE l.arquivado = FALSE AND to_char(l.data_servico, 'YYYY-MM') = :mes;
+    WHERE
     """)
     df = pd.read_sql(query, engine, params={'mes': mes_referencia})
     if not df.empty:
@@ -836,6 +836,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
