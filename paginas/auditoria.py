@@ -75,6 +75,9 @@ def render_page():
     lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
     funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
     if funcionarios_filtrados_nomes: funcionarios_obra_df = funcionarios_obra_df[funcionarios_obra_df['NOME'].isin(funcionarios_filtrados_nomes)]
+    folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
+    status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
+    edicao_bloqueada = status_folha == "Finalizada"
 
 
     st.markdown("---")
@@ -133,9 +136,6 @@ def render_page():
 
 
     with col_aviso_geral:
-        folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
-        status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
-        edicao_bloqueada = status_folha == "Finalizada"
 
         if edicao_bloqueada: st.success(f"Folha Finalizada.")
         elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando Auditoria.")
