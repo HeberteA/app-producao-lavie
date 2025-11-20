@@ -153,7 +153,7 @@ def render_page():
     with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#3b82f6"), unsafe_allow_html=True)
     with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#8b5cf6"), unsafe_allow_html=True)
     with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "", "#10b981"), unsafe_allow_html=True)
-    with col_kpi[4]: st.markdown(kpi_html("Maior Produtividade", destaque_nome, "#FFFFFF"), unsafe_allow_html=True)
+    with col_kpi[4]: st.markdown(kpi_html("Maior Produtividade", destaque_nome,"",  "#FFFFFF"), unsafe_allow_html=True)
 
    
     try:
