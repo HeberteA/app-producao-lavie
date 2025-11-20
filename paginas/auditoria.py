@@ -178,13 +178,13 @@ def render_page():
 
                     with col_header_status:
                         st.caption("Status Auditoria")
-                        utils.display_status_box("", status_atual_func)
+                        utils.display_status_box(status_atual_func)
                         
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
                         if lanc_concluido:
-                            st.success("Lançamentos: OK", icon="✅") 
+                            st.success("Lançamentos: OK") 
                         else:
-                            st.warning("Lançamentos: Pendente", icon="⏳")
+                            st.warning("Lançamentos: Pendente")
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
                         col_status, col_comment = st.columns(2)
@@ -199,7 +199,7 @@ def render_page():
                                     st.toast(f"Status de {funcionario_nome} atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
                         with col_comment:
                             st.markdown("##### Comentário de Auditoria")
-                            comment_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] # Filtro por obra
+                            comment_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] 
                             current_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
                             new_comment = st.text_area("Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario_nome}", help="Visível na tela de lançamento.", disabled=edicao_bloqueada)
                             if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
