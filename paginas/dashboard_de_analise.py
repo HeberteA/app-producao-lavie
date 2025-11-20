@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import db_utils
 import utils
 import numpy as np
+from datetime import datetime, date
 
 def apply_theme():
     st.markdown("""
@@ -40,6 +41,11 @@ def apply_theme():
         font-weight: 800;
         color: #FFF;
     }
+    .kpi-sub {
+        font-size: 0.75rem;
+        color: #888;
+        margin-top: 4px;
+    }
     
     /* Plotly Transparente */
     .js-plotly-plot .plotly .main-svg { background: rgba(0,0,0,0) !important; }
@@ -71,11 +77,12 @@ def style_fig(fig):
     )
     return fig
 
-def kpi_html(label, value, color="#E37026"):
+def kpi_html(label, value, subtext="", color="#E37026"):
     return f"""
     <div class="kpi-card">
         <div class="kpi-label">{label}</div>
         <div class="kpi-value" style="color: {color}">{value}</div>
+        <div class="kpi-sub">{subtext}</div>
     </div>
     """
 
@@ -96,6 +103,7 @@ def render_page():
 
     lancamentos_df['Valor Parcial'] = pd.to_numeric(lancamentos_df['Valor Parcial'], errors='coerce').fillna(0)
     funcionarios_df['SALARIO_BASE'] = pd.to_numeric(funcionarios_df['SALARIO_BASE'], errors='coerce').fillna(0)
+    lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
     
     prod = lancamentos_df[lancamentos_df['Disciplina']!='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'})
     grat = lancamentos_df[lancamentos_df['Disciplina']=='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'})
@@ -141,15 +149,40 @@ def render_page():
         destaque_nome = df_f.loc[df_f['PRODUÇÃO BRUTA (R$)'].idxmax(), 'Funcionário'].split()[0]
 
     col_kpi = st.columns(5)
-    with col_kpi[0]: st.markdown(kpi_html("Prod. Bruta Total", utils.format_currency(tot_bruta), "#E37026"), unsafe_allow_html=True)
-    with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "#3b82f6"), unsafe_allow_html=True)
-    with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "#8b5cf6"), unsafe_allow_html=True)
-    with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "#10b981"), unsafe_allow_html=True)
-    with col_kpi[4]: st.markdown(kpi_html("Func. Destaque", destaque_nome, "#FFFFFF"), unsafe_allow_html=True)
+    with col_kpi[0]: st.markdown(kpi_html("Prod. Bruta Total", utils.format_currency(tot_bruta), "", "#E37026"), unsafe_allow_html=True)
+    with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#3b82f6"), unsafe_allow_html=True)
+    with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#8b5cf6"), unsafe_allow_html=True)
+    with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "", "#10b981"), unsafe_allow_html=True)
+    with col_kpi[4]: st.markdown(kpi_html("Top Performer", destaque_nome, "Maior Produtividade", "#FFFFFF"), unsafe_allow_html=True)
+
+   
+    try:
+        dias_com_dados = lancs_f['Data do Serviço'].dt.date.nunique()
+        ultimo_dia = lancs_f['Data do Serviço'].max().day if not lancs_f.empty else 1
+        projecao = (tot_bruta / ultimo_dia) * 30 if ultimo_dia > 0 else 0
+        media_diaria = tot_bruta / dias_com_dados if dias_com_dados > 0 else 0
+        equipe_ativa = df_f[df_f['PRODUÇÃO BRUTA (R$)'] > 0]['id'].count()
+        total_equipe = df_f['id'].count()
+        
+        recorde_dia = 0
+        data_recorde = "-"
+        if not lancs_f.empty:
+            daily_sum = lancs_f.groupby(lancs_f['Data do Serviço'].dt.date)['Valor Parcial'].sum()
+            recorde_dia = daily_sum.max()
+            data_recorde = daily_sum.idxmax().strftime('%d/%m')
+
+        st.markdown(" ") 
+        col_op = st.columns(4)
+        with col_op[0]: st.markdown(kpi_html("Projeção (Mês)", utils.format_currency(projecao), f"Baseado em {ultimo_dia} dias", "#F59E0B"), unsafe_allow_html=True)
+        with col_op[1]: st.markdown(kpi_html("Média Diária", utils.format_currency(media_diaria), "Ritmo atual", "#10B981"), unsafe_allow_html=True)
+        with col_op[2]: st.markdown(kpi_html("Recorde Diário", utils.format_currency(recorde_dia), f"Em {data_recorde}", "#EC4899"), unsafe_allow_html=True)
+        with col_op[3]: st.markdown(kpi_html("Equipe Ativa", f"{equipe_ativa}/{total_equipe}", "Funcionários produzindo", "#6366F1"), unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Erro ao calcular KPIs operacionais: {e}")
 
     if st.session_state['role'] == 'admin':
         st.markdown("<div class='admin-box'>", unsafe_allow_html=True)
-        st.caption("Indicadores Admin (Visão Gerencial)")
+        st.caption("Indicadores (Visão Gerencial)")
         
         top_obra = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().idxmax() if not df_f.empty and tot_bruta > 0 else "N/A"
         top_efic = df_f.groupby('OBRA')['PRODUÇÃO LÍQUIDA (R$)'].mean().idxmax() if not df_f.empty else "N/A"
@@ -159,10 +192,10 @@ def render_page():
         if len(str(top_serv)) > 20: top_serv = str(top_serv)[:20] + "..."
 
         ak1, ak2, ak3, ak4 = st.columns(4)
-        with ak1: st.markdown(kpi_html("Maior Obra (Volume)", top_obra), unsafe_allow_html=True)
-        with ak2: st.markdown(kpi_html("Obra Mais Eficiente", top_efic), unsafe_allow_html=True)
-        with ak3: st.markdown(kpi_html("Serviço Mais Caro", top_serv), unsafe_allow_html=True)
-        with ak4: st.markdown(kpi_html("Ticket Médio/Serviço", utils.format_currency(lancs_prod['Valor Parcial'].mean() if not lancs_prod.empty else 0)), unsafe_allow_html=True)
+        with ak1: st.markdown(kpi_html("Maior Obra (Volume)", top_obra, "", "#E37026"), unsafe_allow_html=True)
+        with ak2: st.markdown(kpi_html("Obra Mais Eficiente", top_efic, "", "#E37026"), unsafe_allow_html=True)
+        with ak3: st.markdown(kpi_html("Serviço Mais Caro", top_serv, "", "#E37026"), unsafe_allow_html=True)
+        with ak4: st.markdown(kpi_html("Ticket Médio/Serviço", utils.format_currency(lancs_prod['Valor Parcial'].mean() if not lancs_prod.empty else 0), "", "#E37026"), unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     cor_bruta = '#E37026'
@@ -170,7 +203,7 @@ def render_page():
 
     if st.session_state['role'] == 'admin' and sel_obras: 
         st.markdown("---")
-        st.subheader("Comparativo de Obras (Admin)")
+        st.subheader("Comparativo de Obras")
         c_o1, c_o2 = st.columns(2)
         with c_o1:
             g_obr_b = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().reset_index().sort_values('PRODUÇÃO BRUTA (R$)', ascending=False)
@@ -260,7 +293,7 @@ def render_page():
 
     if st.session_state['role'] == 'admin':
         st.markdown("---")
-        st.subheader("Admin: Detalhes e Prazos")
+        st.subheader("Detalhes e Prazos")
         
         c_d1, c_d2 = st.columns(2)
         lancs_prod = lancs_f[lancs_f['Disciplina']!='GRATIFICAÇÃO']
@@ -285,13 +318,23 @@ def render_page():
                 if not folhas_env.empty:
                     folhas_env['dt_envio'] = pd.to_datetime(folhas_env['data_lancamento'])
                     folhas_env['limite'] = pd.to_datetime(folhas_env['Mes']).apply(lambda x: x.replace(day=23) if pd.notna(x) else pd.NaT)
-                    folhas_env['atraso'] = folhas_env.apply(lambda x: (x['dt_envio'].date() - x['limite']).days if x['dt_envio'].date() > x['limite'] else 0, axis=1)
+                    
+                    def calc_delay(row):
+                        try:
+                            if pd.isna(row['limite']) or pd.isna(row['dt_envio']): return 0
+                            d_env = row['dt_envio'].date()
+                            d_lim = row['limite'].date()
+                            if d_env > d_lim: return (d_env - d_lim).days
+                            return 0
+                        except: return 0
+
+                    folhas_env['atraso'] = folhas_env.apply(calc_delay, axis=1)
                     
                     atraso_med = folhas_env.groupby('Obra')['atraso'].mean().reset_index()
                     fig = px.bar(atraso_med, x='Obra', y='atraso', title="Dias de Atraso (Média)", text_auto=True)
                     fig.update_traces(marker_color='#ef4444', textposition='outside')
                     st.plotly_chart(style_fig(fig), use_container_width=True)
-                else: st.info("Sem dados de atraso.")
+                else: st.info("Sem dados de envio para cálculo de atraso.")
             
             with c_p2:
                 folhas_count = folhas_df.copy()
