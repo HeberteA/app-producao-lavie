@@ -153,7 +153,7 @@ def render_page():
     with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#3b82f6"), unsafe_allow_html=True)
     with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#8b5cf6"), unsafe_allow_html=True)
     with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "", "#10b981"), unsafe_allow_html=True)
-    with col_kpi[4]: st.markdown(kpi_html("Top Performer", destaque_nome, "Maior Produtividade", "#FFFFFF"), unsafe_allow_html=True)
+    with col_kpi[4]: st.markdown(kpi_html("Maior Produtividade", "#FFFFFF"), unsafe_allow_html=True)
 
    
     try:
@@ -257,14 +257,16 @@ def render_page():
     
     with c_det1:
         if not lancs_f.empty:
+            st.markdown("##### Curva ABC de Serviços (Pareto)")
             pareto = lancs_f[lancs_f['Disciplina']!='GRATIFICAÇÃO'].groupby('Serviço')['Valor Parcial'].sum().reset_index().sort_values('Valor Parcial', ascending=False)
             pareto['Acum'] = pareto['Valor Parcial'].cumsum() / pareto['Valor Parcial'].sum() * 100
-            pareto = pareto.head(15)
+            pareto = pareto.head(15) 
+        
             fig_par = go.Figure()
             fig_par.add_trace(go.Bar(x=pareto['Serviço'], y=pareto['Valor Parcial'], name='Valor (R$)', marker_color=cor_bruta))
             fig_par.add_trace(go.Scatter(x=pareto['Serviço'], y=pareto['Acum'], name='Acumulado %', yaxis='y2', mode='lines+markers', line=dict(color=cor_liquida)))
-            fig_par.update_layout(yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), showlegend=False, title="Curva ABC (Pareto)")
-            st.plotly_chart(style_fig(fig_par), use_container_width=True)
+            fig_par.update_layout(yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), showlegend=False, title="Top Serviços Impactantes")
+           st.plotly_chart(style_fig(fig_par), use_container_width=Tr
 
     with c_det2:
         lancs_hier = lancs_f[(lancs_f['Disciplina']!='GRATIFICAÇÃO') & (lancs_f['Valor Parcial'] > 50)]
