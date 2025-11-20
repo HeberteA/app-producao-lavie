@@ -253,7 +253,7 @@ def render_page():
                         
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
-                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == row['NOME']].copy()
+                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == row['Funcionário']].copy()
                     
                         if not lancs_f.empty:
                         
