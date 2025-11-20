@@ -256,10 +256,6 @@ def render_page():
     c_det1, c_det2 = st.columns(2)
     
     with c_det1:
-        fig_scat = px.scatter(df_f[df_f['PRODUÇÃO BRUTA (R$)']>0], x='SALARIO_BASE', y='PRODUÇÃO BRUTA (R$)', 
-                              size='ROI', color='FUNÇÃO', hover_name='Funcionário',
-                              title="Matriz Custo (Base) x Benefício (Produção)")
-        st.plotly_chart(style_fig(fig_scat), use_container_width=True)
 
     if not lancs_f.empty:
         st.markdown("##### Curva ABC de Serviços (Pareto)")
