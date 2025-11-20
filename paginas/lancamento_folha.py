@@ -240,7 +240,7 @@ def render_page():
 
             st.markdown("---")
             
-            if st.button("Confirmar e Adicionar Lançamento(s)", use_container_width=True, type="primary", key="lf_add_btn"):
+            if st.button("Adicionar Lançamento(s)", use_container_width=True, type="primary", key="lf_add_btn"):
 
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
@@ -337,7 +337,7 @@ def render_page():
                         else:
                              st.caption("Sem pendências de auditoria.")
             
-            st.write("") # Spacer
+            st.write("") 
             st.markdown("**Histórico Recente**")
             lancamentos_da_obra = lancamentos_do_mes_df[lancamentos_do_mes_df['Obra'] == st.session_state['obra_logada']]
             if funcionario_selecionado: 
@@ -392,3 +392,4 @@ def render_page():
                         st.toast("Status reiniciado.")
                         st.cache_data.clear()
                         st.rerun()
+
