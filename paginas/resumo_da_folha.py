@@ -178,11 +178,11 @@ def render_page():
             
         st.markdown("---")
         
-        total_base = df_filtrado_final['SALÁRIO BASE (R$)'].sum()
-        total_bruta = df_filtrado_final['PRODUÇÃO BRUTA (R$)'].sum()
-        total_liquida = df_filtrado_final['PRODUÇÃO LÍQUIDA (R$)'].sum()
-        total_grat = df_filtrado_final['TOTAL GRATIFICAÇÕES (R$)'].sum()
-        total_receber = df_filtrado_final['SALÁRIO A RECEBER (R$)'].sum()
+        total_base = df_filtrado_final['SALÁRIO BASE'].sum()
+        total_bruta = df_filtrado_final['PRODUÇÃO BRUTA'].sum()
+        total_liquida = df_filtrado_final['PRODUÇÃO LÍQUIDA'].sum()
+        total_grat = df_filtrado_final['TOTAL GRATIFICAÇÕES'].sum()
+        total_receber = df_filtrado_final['SALÁRIO A RECEBER'].sum()
 
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
         
@@ -191,7 +191,6 @@ def render_page():
         with col_t3: st.markdown(display_card("Prod. Líquida", utils.format_currency(total_liquida), color="#3b82f6"), unsafe_allow_html=True)
         with col_t4: st.markdown(display_card("Gratificações", utils.format_currency(total_grat), color="#8b5cf6"), unsafe_allow_html=True)
         with col_t5: st.markdown(display_card("A Receber", utils.format_currency(total_receber), color="#10b981"), unsafe_allow_html=True)
-        # ---------------------------------------------
 
     st.subheader("Detalhes da Folha")
 
@@ -242,4 +241,5 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
 
