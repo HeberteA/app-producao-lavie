@@ -142,7 +142,7 @@ def render_page():
         else:
             st.info("Dados insuficientes para gráfico hierárquico de produção.")
 
-cor_bruta = '#E37026'
+    cor_bruta = '#E37026'
     cor_liquida = '#1E88E5'
 
     def format_label_brl(value):
