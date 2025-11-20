@@ -75,6 +75,11 @@ def render_page():
             df_filtrado['Remover'] = False
             colunas_visiveis = ['id', 'Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']
             
+            if edicao_bloqueada:
+                config_disabled = True
+            else:
+                config_disabled = df_filtrado.columns.drop(['Remover'])
+
             df_modificado = st.data_editor(
                 df_filtrado[colunas_visiveis],
                 hide_index=True,
@@ -92,7 +97,7 @@ def render_page():
                         format="R$ %.2f" 
                     )
                 },
-                disabled=df_filtrado.columns.drop(['Remover']) 
+                disabled=config_disabled 
             )
           
             linhas_para_remover = df_modificado[df_modificado['Remover']]
@@ -123,5 +128,6 @@ def render_page():
                         st.success("Lançamentos removidos!")
                         st.cache_data.clear() 
                         st.rerun()
+
 
 
