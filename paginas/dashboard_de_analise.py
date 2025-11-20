@@ -263,6 +263,7 @@ def render_page():
             fig_par = go.Figure()
             fig_par.add_trace(go.Bar(x=pareto['Serviço'], y=pareto['Valor Parcial'], name='Valor (R$)', marker_color=cor_bruta))
             fig_par.add_trace(go.Scatter(x=pareto['Serviço'], y=pareto['Acum'], name='Acumulado %', yaxis='y2', mode='lines+markers', line=dict(color=cor_liquida)))
+            fig.update_traces(textposition='outside')
             fig_par.update_layout(yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), showlegend=False, title="Curva ABC (Pareto)")
             st.plotly_chart(style_fig(fig_par), use_container_width=True)
             
