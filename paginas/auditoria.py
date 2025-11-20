@@ -12,24 +12,27 @@ def render_page():
         align-items: flex-start;
         justify-content: center;
         background-color: rgba(255, 255, 255, 0.05);
-        padding: 8px 12px;
+        
+        padding: 16px 12px; 
+        
+        min-height: 70px;
+
         border-radius: 6px;
         border-left: 3px solid #444;
         transition: background-color 0.3s;
     }
     .audit-stat-container:hover {
         background-color: rgba(255, 255, 255, 0.1);
-        weight: 150;
     }
     .audit-stat-label {
-        font-size: 1rem;
+        font-size: 0.75rem; /* Aumentei levemente a fonte do label */
         text-transform: uppercase;
         color: #A0A0A0;
-        margin-bottom: 2px;
+        margin-bottom: 4px; /* Mais espaço entre titulo e valor */
         font-weight: 600;
     }
     .audit-stat-value {
-        font-size: 1.5rem;
+        font-size: 1.1rem; /* Aumentei levemente a fonte do valor */
         font-weight: 700;
         color: #EEE;
     }
