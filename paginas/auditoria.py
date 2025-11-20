@@ -19,6 +19,7 @@ def render_page():
     }
     .audit-stat-container:hover {
         background-color: rgba(255, 255, 255, 0.1);
+        weight: 100;
     }
     .audit-stat-label {
         font-size: 0.7rem;
