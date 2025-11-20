@@ -4,67 +4,94 @@ import db_utils
 import utils
 
 def render_page():
+    st.markdown("""
+    <style>
+    .audit-stat-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        background-color: rgba(255, 255, 255, 0.05);
+        
+        padding: 16px 12px; 
+        
+        min-height: 70px;
+
+        border-radius: 6px;
+        border-left: 3px solid #444;
+        transition: background-color 0.3s;
+    }
+    .audit-stat-container:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    .audit-stat-label {
+        font-size: 0.8rem; /* Aumentei levemente a fonte do label */
+        text-transform: uppercase;
+        color: #A0A0A0;
+        margin-bottom: 4px; /* Mais espaço entre titulo e valor */
+        font-weight: 600;
+    }
+    .audit-stat-value {
+        font-size: 1.1rem; /* Aumentei levemente a fonte do valor */
+        font-weight: 700;
+        color: #EEE;
+    }
+    /* Cores de Destaque */
+    .border-blue { border-left-color: #3b82f6 !important; }
+    .border-orange { border-left-color: #E37026 !important; }
+    .border-green { border-left-color: #10b981 !important; }
+    .border-purple { border-left-color: #8b5cf6 !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    def make_audit_stat(label, value, color_class=""):
+        return f"""
+        <div class="audit-stat-container {color_class}">
+            <div class="audit-stat-label">{label}</div>
+            <div class="audit-stat-value">{value}</div>
+        </div>
+        """
+
     mes_selecionado = st.session_state.selected_month
 
     @st.cache_data
     def get_audit_data(mes):
-        lancamentos_df = db_utils.get_lancamentos_do_mes(mes)
-        funcionarios_df = db_utils.get_funcionarios()
-        obras_df = db_utils.get_obras()
-        status_df = db_utils.get_status_do_mes(mes) 
-        folhas_df = db_utils.get_folhas_mensais(mes)
-        return lancamentos_df, funcionarios_df, obras_df, status_df, folhas_df
+        return db_utils.get_lancamentos_do_mes(mes), db_utils.get_funcionarios(), db_utils.get_obras(), db_utils.get_status_do_mes(mes), db_utils.get_folhas_mensais(mes)
 
     lancamentos_df, funcionarios_df, obras_df, status_df, folhas_df = get_audit_data(mes_selecionado)
 
     st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
 
     col_filtro1, col_filtro2 = st.columns(2)
-    nomes_obras_disponiveis = sorted(obras_df['NOME DA OBRA'].unique())
-    obra_selecionada = col_filtro1.selectbox(
-        "1. Selecione a Obra para auditar",
-        options=nomes_obras_disponiveis, index=None,
-        placeholder="Selecione uma obra...", key="aud_obra_select"
-    )
+    obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra", options=sorted(obras_df['NOME DA OBRA'].unique()), index=None, placeholder="Selecione...", key="aud_obra_select")
+    
+    if not obra_selecionada: st.info("Selecione uma obra para começar."); st.stop()
+
     funcionarios_filtrados_nomes = []
-    if obra_selecionada:
-        funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
-        funcionarios_filtrados_nomes = col_filtro2.multiselect(
-            "2. Filtre por Funcionário (Opcional)",
-            options=funcionarios_da_obra, key="aud_func_multiselect"
-        )
-    if not obra_selecionada:
-        st.info("Por favor, selecione uma obra no menu acima para iniciar a auditoria."); st.stop()
+    funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
+    funcionarios_filtrados_nomes = col_filtro2.multiselect("2. Filtrar Funcionário (Opcional)", options=funcionarios_da_obra, key="aud_func_multiselect")
 
-    obra_id_selecionada_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id']
-    if obra_id_selecionada_info.empty: st.error("Obra selecionada não encontrada."); st.stop()
-    obra_id_selecionada = int(obra_id_selecionada_info.iloc[0])
-
+    obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
     lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
     funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
-    if funcionarios_filtrados_nomes:
-        funcionarios_obra_df = funcionarios_obra_df[funcionarios_obra_df['NOME'].isin(funcionarios_filtrados_nomes)]
-
-
+    if funcionarios_filtrados_nomes: funcionarios_obra_df = funcionarios_obra_df[funcionarios_obra_df['NOME'].isin(funcionarios_filtrados_nomes)]
     folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
     status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
     edicao_bloqueada = status_folha == "Finalizada"
 
-    if edicao_bloqueada: st.success(f"✅ Folha finalizada. Nenhuma edição permitida.")
-    elif status_folha == "Enviada para Auditoria": st.info(f"ℹ️ Aguardando auditoria.")
-    elif status_folha == 'Devolvida para Revisão': st.warning("⚠️ Folha devolvida para revisão.")
 
     st.markdown("---")
-    st.subheader("Gerenciamento Geral da Obra")
+    st.subheader("Gerenciamento da Obra")
 
     status_geral_row = status_df[(status_df['obra_id'] == obra_id_selecionada) & (status_df['funcionario_id'] == 0)]
     status_auditoria_interno = status_geral_row['Status'].iloc[0] if not status_geral_row.empty else "A Revisar"
 
     col_status_geral, col_aviso_geral = st.columns(2)
-
     with col_status_geral:
-        st.markdown("##### Status da Obra e Ações")
+        st.markdown("##### Ações")
+        
         utils.display_status_box("Status da Obra", status_auditoria_interno)
+        st.markdown("")
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_funcionarios_aprovados = True
             folha_foi_enviada = (status_folha == "Enviada para Auditoria") 
@@ -99,7 +126,7 @@ def render_page():
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
                     st.toast("Status da Obra atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
-        
+        st.space("medium")
         pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
         if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="Status interno 'Aprovado' e folha 'Enviada' necessários."):
             mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
@@ -109,18 +136,19 @@ def render_page():
         if st.button("Devolver Folha para Revisão", use_container_width=True, disabled=not pode_devolver, help="Status interno 'Analisar' e folha 'Enviada' necessários."):
             if db_utils.devolver_folha_para_revisao(obra_id_selecionada, mes_selecionado): st.cache_data.clear(); st.rerun()
 
+
     with col_aviso_geral:
-        st.markdown("##### Status de Envio e Aviso")
-        if not folha_do_mes.empty:
-            data_envio = pd.to_datetime(folha_do_mes['data_lancamento'].iloc[0]); contador = folha_do_mes['contador_envios'].iloc[0]
-            st.info(f"Status: **{status_folha}** | Envios: **{contador}**")
-            st.caption(f"Último envio: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
-        else: st.warning("⚠️ Aguardando envio da folha.")
-        aviso_atual_info = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso']
-        aviso_atual = aviso_atual_info.iloc[0] if not aviso_atual_info.empty and pd.notna(aviso_atual_info.iloc[0]) else ""
-        novo_aviso = st.text_area("Aviso para a Obra:", value=aviso_atual or "", key=f"aviso_{obra_selecionada}", help="Aparecerá na sidebar do usuário.")
-        if st.button("Salvar Aviso", key=f"btn_aviso_{obra_selecionada}", disabled=edicao_bloqueada):
-            if db_utils.save_aviso_data(obra_id_selecionada, novo_aviso): st.toast("Aviso salvo!", icon="✅"); st.cache_data.clear(); st.rerun()
+        st.markdown("##### Situação")
+
+        if edicao_bloqueada: st.success(f"Folha Finalizada.")
+        elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando Auditoria.")
+        elif status_folha == 'Devolvida para Revisão': st.warning("Devolvida para Revisão.")
+            
+        st.markdown("##### Avisos")
+        aviso_val = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso'].iloc[0]
+        novo_aviso = st.text_area("Aviso aos Engenheiros:", value=aviso_val if pd.notna(aviso_val) else "", key=f"aviso_{obra_selecionada}")
+        if st.button("Salvar Aviso"):
+             db_utils.save_aviso_data(obra_id_selecionada, novo_aviso); st.toast("Salvo!"); st.cache_data.clear(); st.rerun()
 
     st.markdown("---")
 
@@ -167,84 +195,88 @@ def render_page():
 
         st.subheader("Análise por Funcionário")
 
-        if resumo_df.empty:
-            st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
-        else:
-            for index, row in resumo_df.iterrows():
-                with st.container(border=True):
-                    funcionario_nome = row['Funcionário']
-                    func_id = row['id']
+        for _, row in resumo_df.iterrows():
+            with st.container(border=True):
+                funcionario_nome = row['Funcionário'] 
+                
+                c_info, c_stat = st.columns([5, 2])
+                
+                with c_info:
+                    st.markdown(f"### {funcionario_nome} <span style='color:#E37026; font-size:0.8em'>| {row['FUNÇÃO']}</span>", unsafe_allow_html=True)
+                    
+                    c1, c2, c3, c4, c5 = st.columns(5)
+                    with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)'])), unsafe_allow_html=True)
+                    with c2: st.markdown(make_audit_stat("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']), "border-orange"), unsafe_allow_html=True)
+                    with c3: st.markdown(make_audit_stat("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']), "border-blue"), unsafe_allow_html=True)
+                    with c4: st.markdown(make_audit_stat("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)']), "border-purple"), unsafe_allow_html=True)
+                    with c5: st.markdown(make_audit_stat("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']), "border-green"), unsafe_allow_html=True)
 
-                    header_cols = st.columns([2, 1.7, 1.5, 1.5, 1.5, 1.7, 1.2, 1.2]) 
-                    header_cols[0].markdown(f"**Funcionário:** {funcionario_nome} ({row['FUNÇÃO']})")
-                    header_cols[1].metric("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
-                    header_cols[2].metric("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']))
-                    header_cols[3].metric("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']))
-                    header_cols[4].metric("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)'])) 
-                    header_cols[5].metric("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
-                    status_func_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] 
-                    status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+                with c_stat:
+                    st.caption("Status Auditoria")
+                    status_func_row = status_df[(status_df['funcionario_id'] == row['id']) & (status_df['obra_id'] == obra_id_selecionada)]
+                    status_f = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+                    
+                    utils.display_status_box("Status", status_f)
+                    
+                    lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
+                    if lanc_concluido:
+                        st.success("Lançamentos: OK") 
+                    else:
+                        st.warning("Lançamentos: Pendente")
 
-                    with header_cols[6]:
-                        utils.display_status_box("Auditoria", status_atual_func)
-
-                    with header_cols[7]:
-                        lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
-                        if lanc_concluido:
-                            st.success("Lançamento: Concluído") 
-                        else:
-                            st.warning("Lançamento: Pendente")
-
-                    with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
-                        col_status, col_comment = st.columns(2)
-                        with col_status:
-                            st.markdown("##### Status de Auditoria")
-                            status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
-                            idx_func = status_options_func.index(status_atual_func) if status_atual_func in status_options_func else 0
-                            selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada)
-                            if st.button("Salvar Status", key=f"btn_func_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
-                                if selected_status_func != status_atual_func:
-                                    db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, mes_selecionado, status=selected_status_func)
-                                    st.toast(f"Status de {funcionario_nome} atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
-                        with col_comment:
-                            st.markdown("##### Comentário de Auditoria")
-                            comment_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] # Filtro por obra
-                            current_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
-                            new_comment = st.text_area("Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario_nome}", help="Visível na tela de lançamento.", disabled=edicao_bloqueada)
-                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
-                                db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, mes_selecionado, comentario=new_comment)
-                                st.toast("Comentário salvo!", icon="💬"); st.cache_data.clear(); st.rerun()
+                with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
+                    col_status, col_comment = st.columns(2)
+                    with col_status:
+                        st.markdown("##### Status de Auditoria")
+                        status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
+                        idx_func = status_options_func.index(status_f) if status_f in status_options_func else 0
                         
-                        st.markdown("---")
-                        st.markdown("##### Lançamentos e Observações")
-                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario_nome].copy()
-                        if lancamentos_do_funcionario.empty:
-                            st.info("Nenhum lançamento de produção para este funcionário.")
-                        else:
-                            colunas_visiveis_lanc = ['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
-                            
-                            edited_df = st.data_editor(
-                                lancamentos_do_funcionario[colunas_visiveis_lanc], 
-                                key=f"editor_{obra_selecionada}_{funcionario_nome}", 
-                                hide_index=True, 
-                                column_config={
-                                    "id": None, 
-                                    "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"), 
-                                    "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
-                                    "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium"),
-                                    "Quantidade": st.column_config.NumberColumn(format="%.2f"),
-                                    "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
-                                    "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
-                                }, 
-                                disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial'] 
-                            )
-                            
-                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario_nome}", type="primary", disabled=edicao_bloqueada):
+                        selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada)
+                        
+                        if st.button("Salvar Status", key=f"btn_func_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
+                            if selected_status_func != status_f:
+                                db_utils.upsert_status_auditoria(obra_id_selecionada, row['id'], mes_selecionado, status=selected_status_func)
+                                st.toast(f"Status de {funcionario_nome} atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
+                    
+                    with col_comment:
+                        st.markdown("##### Comentário de Auditoria")
+                        comment_row = status_df[(status_df['funcionario_id'] == row['id']) & (status_df['obra_id'] == obra_id_selecionada)]
+                        curr_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
+                        new_comment = st.text_area("Observação:", value=curr_comment, key=f"comm_{row['id']}", disabled=edicao_bloqueada, height=100)
+                    
+                        if not edicao_bloqueada:
+                            if st.button("Salvar Comentário", key=f"b_comm_{row['id']}"):
+                                db_utils.upsert_status_auditoria(obra_id_selecionada, row['id'], mes_selecionado, comentario=new_comment)
+                                st.toast("Comentário salvo!", icon="💬")
+                                st.rerun()
+                    
+                    st.markdown("---")
+                    st.markdown("##### Lançamentos e Observações")
+                    lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario_nome].copy()
+                
+                    if not lancs_f.empty:
+                        cols_bloqueadas = ['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial']
+                        disabled_config = True if edicao_bloqueada else cols_bloqueadas
+                    
+                        edited_df = st.data_editor(
+                            lancs_f[['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']], 
+                            key=f"ed_{row['id']}", 
+                            disabled=disabled_config, 
+                            hide_index=True,
+                            use_container_width=True,
+                            column_config={
+                                "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f"),
+                                "Data do Serviço": st.column_config.DateColumn(format="DD/MM/YYYY")
+                            }
+                        )
+                    
+                        if not edicao_bloqueada:
+                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{row['id']}", type="primary"):
                                 try:
-                                    original_obs = lancamentos_do_funcionario.set_index('id')['Observação'].fillna('') 
+                                    original_obs = lancs_f.set_index('id')['Observação'].fillna('') 
                                     edited_obs = edited_df.set_index('id')['Observação'].fillna('') 
                                     alteracoes = edited_obs[original_obs != edited_obs]
-                                    
+                                
                                     if not alteracoes.empty:
                                         updates_list = [{'id': int(lanc_id), 'obs': str(nova_obs)} for lanc_id, nova_obs in alteracoes.items()]
                                         if db_utils.atualizar_observacoes(updates_list):
@@ -252,7 +284,6 @@ def render_page():
                                     else: 
                                         st.toast("Nenhuma alteração detectada.", icon="🤷")
                                 except Exception as e:
-                                     st.error(f"Erro ao processar alterações: {e}")
-
-    else:
-         st.info("Nenhum funcionário encontrado para a obra selecionada ou filtros aplicados.")
+                                        st.error(f"Erro: {e}")
+                    else: 
+                        st.info("Sem lançamentos.")
