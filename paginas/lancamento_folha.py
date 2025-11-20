@@ -11,42 +11,16 @@ def render_page():
    
     st.markdown("""
     <style>
-        /* Estilo geral dos cards */
+        /* Estilo "Glass" para os containers */
         .stContainer {
             background-color: rgba(255, 255, 255, 0.03);
             border-radius: 12px;
             padding: 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         
-        /* Destaque para valores monetários (Subtotais) */
-        .subtotal-box {
-            background-color: rgba(46, 125, 50, 0.1);
-            border: 1px solid rgba(46, 125, 50, 0.3);
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-        }
-        .subtotal-label {
-            font-size: 0.8rem;
-            color: #a0a0a0;
-            text-transform: uppercase;
-            margin-bottom: 0;
-        }
-        .subtotal-value {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: #4caf50; /* Verde Material Design */
-        }
-
-        /* Melhoria nos Expanders */
-        .streamlit-expanderHeader {
-            font-weight: 600;
-            background-color: rgba(255, 255, 255, 0.02);
-            border-radius: 8px;
-        }
-        
-        /* Header de Seção */
+        /* Header de Seção Estilizado */
         .section-header {
             font-size: 1.1rem;
             font-weight: 600;
@@ -55,6 +29,12 @@ def render_page():
             margin-bottom: 10px;
             border-left: 4px solid #E37026;
             padding-left: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Ajuste sutil nos inputs para combinar com o tema */
+        .stSelectbox, .stNumberInput, .stDateInput, .stTextInput, .stTextArea {
+            margin-bottom: 10px;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -105,7 +85,7 @@ def render_page():
         if status_folha == 'Devolvida para Revisão':
             st.warning("Atenção: A folha foi devolvida pela auditoria. Você pode adicionar ou remover lançamentos antes de reenviar.")
 
-        col_form, col_view = st.columns([2, 1], gap="large") 
+        col_form, col_view = st.columns([2, 1], gap="medium") 
         
         with col_form:
             st.markdown(f"<div class='section-header'>Obra Ativa: {st.session_state['obra_logada']}</div>", unsafe_allow_html=True)
@@ -126,29 +106,24 @@ def render_page():
                 concluidos_df = funcionarios_status_df[funcionarios_status_df['Lancamentos Concluidos']]
                 
                 pendentes = sorted(pendentes_df['NOME'].unique())
-                concluidos_marcados = sorted([f"{nome}" for nome in concluidos_df['NOME'].unique()])
+                concluidos_marcados = sorted([f"✅ {nome}" for nome in concluidos_df['NOME'].unique()])
                 
                 opcoes_finais = pendentes + concluidos_marcados
                 
-                col_sel_func, col_cargo = st.columns([2, 1])
-                with col_sel_func:
-                    selected_option = st.selectbox(
-                        "Selecione o Funcionário", options=opcoes_finais, index=None,
-                        placeholder="Digite para buscar...", key="lf_func_select" 
-                    )
+                selected_option = st.selectbox(
+                    "Selecione o Funcionário", options=opcoes_finais, index=None,
+                    placeholder="Selecione um funcionário...", key="lf_func_select" 
+                )
                 
                 funcionario_selecionado = None
-                funcao_selecionada = "---"
                 if selected_option:
                     funcionario_selecionado = selected_option.replace("✅ ", "")
-                    funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
                 
-                with col_cargo:
-                    st.markdown(f"**Função:**")
-                    st.info(f"{funcao_selecionada}")
+                if funcionario_selecionado:
+                    funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
+                    st.metric(label="Função do Colaborador", value=funcao_selecionada)
 
             st.markdown("<div class='section-header'>Detalhes do Serviço</div>", unsafe_allow_html=True)
-            
             with st.container(border=True):
                 disciplinas = sorted(precos_df['DISCIPLINA'].unique())
                 disciplina_idx = disciplinas.index(st.session_state.get("lf_disciplina_select")) if st.session_state.get("lf_disciplina_select") in disciplinas else None
@@ -168,80 +143,63 @@ def render_page():
                 
                 quantidade_principal = 0.0 
                 valor_parcial_servico = 0.0
-                
                 if servico_selecionado:
-                    st.markdown("---")
                     servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
-                    valor_unitario = utils.safe_float(servico_info.get('VALOR'))
                     
-                    kpi1, kpi2, kpi3 = st.columns([1, 1, 2])
-                    kpi1.caption("Unidade")
-                    kpi1.markdown(f"**{servico_info['UNIDADE']}**")
+                    kpi1, kpi2 = st.columns(2)
+                    kpi1.metric(label="Unidade", value=servico_info['UNIDADE'])
+                    kpi2.metric(label="Valor Unitário", value=utils.format_currency(servico_info['VALOR']))
                     
-                    kpi2.caption("Valor Unit.")
-                    kpi2.markdown(f"**{utils.format_currency(servico_info['VALOR'])}**")
-                    
-                    with kpi3:
+                    col_qtd, col_parcial = st.columns(2)
+                    with col_qtd:
                         quantidade_principal = st.number_input(
-                            "Quantidade Executada", min_value=0.0, step=0.1, format="%.2f", 
+                            "Quantidade", min_value=0.0, step=0.1, format="%.2f", 
                             key="lf_qty_principal" 
                         )
+                    with col_parcial:
+                        valor_unitario = utils.safe_float(servico_info.get('VALOR'))
+                        valor_parcial_servico = quantidade_principal * valor_unitario
+                        st.metric(label="Subtotal do Serviço", value=utils.format_currency(valor_parcial_servico))
                     
-                    valor_parcial_servico = quantidade_principal * valor_unitario
-                    
-                    st.markdown(f"""
-                    <div class="subtotal-box">
-                        <p class="subtotal-label">Subtotal do Serviço</p>
-                        <p class="subtotal-value">{utils.format_currency(valor_parcial_servico)}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    col_data_princ, col_obs_princ = st.columns([1, 2])
+                    col_data_princ, col_obs_princ = st.columns(2)
                     with col_data_princ:
-                        data_servico_principal = st.date_input("Data Realização", value=datetime.now().date(), key="lf_data_principal", format="DD/MM/YYYY")
+                        data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="lf_data_principal", format="DD/MM/YYYY")
                     with col_obs_princ:
-                        obs_principal = st.text_input("Observação (Opcional)", key="lf_obs_principal", placeholder="Detalhes do local ou especificidade...")
+                        obs_principal = st.text_area("Observação", key="lf_obs_principal")
             
-            with st.expander("Lançar Item Diverso", expanded=False):
-                descricao_diverso = st.text_input("Descrição do Item", key="lf_desc_diverso", placeholder="Ex: Transporte de material extra...")
-                
-                col_valor_div, col_qtd_div, col_total_div = st.columns([1, 1, 1])
+            with st.expander("Lançar Item Diverso"):
+                descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
+                col_valor_div, col_qtd_div = st.columns(2)
                 with col_valor_div:
-                    valor_diverso = st.number_input("Valor Unit. (R$)", min_value=0.0, step=1.00, format="%.2f", key="lf_valor_diverso")
+                    valor_diverso = st.number_input("Valor Unitário (R$)", min_value=0.0, step=1.00, format="%.2f", key="lf_valor_diverso")
                 with col_qtd_div:
                     quantidade_diverso = st.number_input(
-                        "Qtd.", min_value=0.0, step=0.1, format="%.2f", 
+                        "Quantidade", min_value=0.0, step=0.1, format="%.2f", 
                         key="lf_qty_diverso"
                     )
-                
                 valor_parcial_diverso = quantidade_diverso * valor_diverso
-                with col_total_div:
-                     st.markdown(f"<div style='text-align:right; padding-top: 30px;'><b>Total: {utils.format_currency(valor_parcial_diverso)}</b></div>", unsafe_allow_html=True)
-
-                col_data_div, col_obs_div = st.columns([1, 2])
+                st.metric(label="Subtotal Item Diverso", value=utils.format_currency(valor_parcial_diverso))
+                col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
-                    data_servico_diverso = st.date_input("Data", value=datetime.now().date(), key="lf_data_diverso", format="DD/MM/YYYY")
+                    data_servico_diverso = st.date_input("Data Item Diverso", value=datetime.now().date(), key="lf_data_diverso", format="DD/MM/YYYY")
                 with col_obs_div:
-                    obs_diverso = st.text_input("Obs.", key="lf_obs_diverso")
+                    obs_diverso = st.text_area("Observação", key="lf_obs_diverso")
 
-            with st.expander("Adicionar Gratificação (Complementar)", expanded=False):
-                st.info("Use apenas para complementar o salário base de funcionários de PRODUÇÃO que não atingiram a meta.")
-                desc_grat = st.text_input("Motivo da Gratificação", key="lf_desc_grat")
-                
-                col_val_grat, col_data_grat = st.columns(2) 
+            with st.expander("Adicionar Gratificação"):
+                st.warning("Observação: Este lançamento aplica-se somente a funcionários enquadrados na modalidade de PRODUÇÃO, que neste mês não atingiram produção suficiente para alcançar o salário base. Por esse motivo, o gestor autoriza o pagamento de um valor complementar, registrado a título de GRATIFICAÇÃO.")
+                desc_grat = st.text_input("Descrição da Gratificação", key="lf_desc_grat")
+                col_val_grat, col_st = st.columns(2) 
                 with col_val_grat:
-                    val_grat = st.number_input("Valor (R$)", min_value=0.0, step=50.00, format="%.2f", key="lf_val_grat")
+                    val_grat = st.number_input("Valor da Gratificação (R$)", min_value=0.0, step=50.00, format="%.2f", key="lf_val_grat")
+                with col_st:
+                    st.metric(label="Subtotal Gratificação", value=utils.format_currency(val_grat)) 
+                col_data_grat, col_obs_grat = st.columns(2)
                 with col_data_grat:
-                    data_grat = st.date_input("Data Ref.", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
+                    data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
+                with col_obs_grat:
+                    obs_grat = st.text_area("Observação", key="lf_obs_grat")
                 
-                obs_grat = st.text_area("Justificativa Detalhada", key="lf_obs_grat", height=68)
-                if val_grat > 0:
-                    st.markdown(f"**Total a lançar: {utils.format_currency(val_grat)}**")
-
-            st.markdown("---")
-            
             if st.button("Adicionar Lançamento(s)", use_container_width=True, type="primary", key="lf_add_btn"):
-
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
                 else:
@@ -263,7 +221,6 @@ def render_page():
 
                     erros = []
                     if current_servico_selecionado and current_quantidade_principal > 0.0 and not current_obs_principal.strip():
-
                         erros.append("Serviço Principal: Observação obrigatória.")
                     if current_descricao_diverso.strip() and current_quantidade_diverso > 0.0 and not current_obs_diverso.strip():
                         erros.append("Item Diverso: Observação obrigatória.")
@@ -328,17 +285,16 @@ def render_page():
                     comentario = status_row['Comentario'].iloc[0] if not status_row.empty and pd.notna(status_row['Comentario'].iloc[0]) else ""
                     
                     with st.container(border=True):
-                        st.markdown("**Status de Auditoria**")
+                        st.markdown("##### Status de Auditoria")
                         utils.display_status_box(f"{funcionario_selecionado}", status_atual)
-                        
                         if comentario:
-                            st.caption("Nota do Auditor:")
+                            st.caption("Comentário:")
                             st.warning(f"{comentario}")
                         else:
-                             st.caption("Sem pendências de auditoria.")
-            
-            st.write("") 
-            st.markdown("**Histórico Recente**")
+                             st.caption("Nenhum comentário da auditoria.")
+                    st.markdown("---")
+
+            st.markdown("##### Lançamentos Recentes")
             lancamentos_da_obra = lancamentos_do_mes_df[lancamentos_do_mes_df['Obra'] == st.session_state['obra_logada']]
             if funcionario_selecionado: 
                  lancamentos_da_obra = lancamentos_da_obra[lancamentos_da_obra['Funcionário'] == funcionario_selecionado]
@@ -350,23 +306,22 @@ def render_page():
                 st.dataframe(
                     lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[cols_existentes], 
                     column_config={
-                        'Data': st.column_config.DatetimeColumn("Data", format="DD/MM", width='small'), 
-                        'Valor Parcial': st.column_config.NumberColumn("R$", format="%.2f", width='small'),
-                        'Quantidade': st.column_config.NumberColumn("Qtd", format="%.1f", width='small'),
+                        'Data': st.column_config.DatetimeColumn("Data", format="DD/MM HH:mm", width='small'), 
+                        'Valor Parcial': st.column_config.NumberColumn("Vlr Parcial", format="R$ %.2f", width='small'),
+                        'Quantidade': st.column_config.NumberColumn("Qtd", format="%.2f", width='small'),
                         'Disciplina': st.column_config.TextColumn(width='small'),
-                        'Funcionário': None, 
+                        'Funcionário': st.column_config.TextColumn(width='medium'),
                         'Serviço': st.column_config.TextColumn(width='medium'),
                         'Observação': st.column_config.TextColumn(width='large'),
                     },
                     use_container_width=True, 
                     hide_index=True,
-                    height=400 
+                    height=350 
                  )
             else:
-                st.info("Nenhum lançamento recente.")
+                st.info("Nenhum lançamento para exibir.")
 
             st.markdown("---")
-            
             if funcionario_selecionado:
                 func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
                 if not func_id_info.empty:
@@ -375,9 +330,9 @@ def render_page():
                     status_row = status_df[(status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] == func_id)]
                     is_concluded = status_row['Lancamentos Concluidos'].iloc[0] if not status_row.empty and 'Lancamentos Concluidos' in status_row.columns and pd.notna(status_row['Lancamentos Concluidos'].iloc[0]) else False
 
-                    if st.button("Marcar como Concluído", use_container_width=True, disabled=is_concluded, help="Finaliza os lançamentos deste funcionário no mês."):
+                    if st.button("Concluir Lançamentos", use_container_width=True, disabled=is_concluded, help="Marca este funcionário como concluído para este mês."):
                         if db_utils.upsert_status_auditoria(obra_logada_id, func_id, mes_selecionado, lancamentos_concluidos=True):
-                            st.toast(f"'{funcionario_selecionado}' marcado como concluído.")
+                            st.toast(f"'{funcionario_selecionado}' marcado como concluído.", icon="👍")
                             st.cache_data.clear() 
                             st.rerun()
         
@@ -387,9 +342,8 @@ def render_page():
                 (status_df['funcionario_id'] != 0) 
             ]
             if not funcionarios_concluidos_db.empty:
-                 if st.button("Resetar Todos Concluídos", use_container_width=True, help="Reabre edição para todos da obra."):
+                 if st.button("Limpar Concluídos", use_container_width=True, help="Remove a marcação de 'Concluído' de TODOS os funcionários desta obra para este mês."):
                     if db_utils.limpar_concluidos_obra_mes(obra_logada_id, mes_selecionado):
-                        st.toast("Status reiniciado.")
+                        st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
-
