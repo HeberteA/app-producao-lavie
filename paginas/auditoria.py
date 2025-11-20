@@ -112,44 +112,138 @@ def render_page():
 
     if not funcionarios_obra_df.empty:
         funcionarios_obra_df['SALARIO_BASE'] = funcionarios_obra_df['SALARIO_BASE'].apply(utils.safe_float)
-        lancamentos_obra_df['Valor Parcial'] = lancamentos_obra_df['Valor Parcial'].apply(utils.safe_float)
         
-        prod_bruta = lancamentos_obra_df[lancamentos_obra_df['Disciplina']!='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'})
-        gratif = lancamentos_obra_df[lancamentos_obra_df['Disciplina']=='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'})
+        producao_bruta_df = pd.DataFrame()
+        total_gratificacoes_df = pd.DataFrame()
+
+        if not lancamentos_obra_df.empty:
+            lancamentos_obra_df['Valor Parcial'] = lancamentos_obra_df['Valor Parcial'].apply(utils.safe_float)
+            
+            lanc_producao = lancamentos_obra_df[lancamentos_obra_df['Disciplina'] != 'GRATIFICAÇÃO']
+            if not lanc_producao.empty:
+                producao_bruta_df = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+            
+            lanc_gratificacoes = lancamentos_obra_df[lancamentos_obra_df['Disciplina'] == 'GRATIFICAÇÃO']
+            if not lanc_gratificacoes.empty:
+                total_gratificacoes_df = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
+                total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+
+        resumo_df = funcionarios_obra_df.copy()
         
-        resumo_df = funcionarios_obra_df.merge(prod_bruta, left_on='id', right_on='funcionario_id', how='left').merge(gratif, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
-        resumo_df[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']] = resumo_df[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']].fillna(0.0)
+        if not producao_bruta_df.empty:
+            resumo_df = pd.merge(resumo_df, producao_bruta_df, left_on='id', right_on='funcionario_id', how='left')
+            if 'funcionario_id' in resumo_df.columns: resumo_df.drop(columns=['funcionario_id'], inplace=True)
+        else:
+            resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
+            
+        if not total_gratificacoes_df.empty:
+             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left', suffixes=('', '_grat'))
+             if 'funcionario_id_grat' in resumo_df.columns: resumo_df.drop(columns=['funcionario_id_grat'], inplace=True)
+             if 'funcionario_id' in resumo_df.columns and 'id' in resumo_df.columns and 'funcionario_id' != 'id': resumo_df.drop(columns=['funcionario_id'], inplace=True)
+        else:
+             resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
+        resumo_df.rename(columns={'NOME': 'Funcionário', 'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
+        resumo_df['PRODUÇÃO BRUTA (R$)'] = resumo_df['PRODUÇÃO BRUTA (R$)'].fillna(0.0).apply(utils.safe_float)
+        resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = resumo_df['TOTAL GRATIFICAÇÕES (R$)'].fillna(0.0).apply(utils.safe_float)
+        resumo_df['SALÁRIO BASE (R$)'] = resumo_df['SALÁRIO BASE (R$)'].fillna(0.0)
+
         resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
         resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
 
-        st.subheader("Análise Individual")
-        for _, row in resumo_df.iterrows():
-            with st.container(border=True):
-                c_info, c_stat = st.columns([5, 2])
-                with c_info:
-                    st.markdown(f"### {row['NOME']} <span style='color:#E37026; font-size:0.8em'>| {row['FUNÇÃO']}</span>", unsafe_allow_html=True)
-                    c1, c2, c3, c4, c5 = st.columns(5)
-                    with c1: st.markdown(make_audit_stat("Base", utils.format_currency(row['SALARIO_BASE'])), unsafe_allow_html=True)
-                    with c2: st.markdown(make_audit_stat("Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']), "border-orange"), unsafe_allow_html=True)
-                    with c3: st.markdown(make_audit_stat("Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']), "border-blue"), unsafe_allow_html=True)
-                    with c4: st.markdown(make_audit_stat("Gratif.", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)']), "border-purple"), unsafe_allow_html=True)
-                    with c5: st.markdown(make_audit_stat("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']), "border-green"), unsafe_allow_html=True)
-                
-                with c_stat:
-                    st.caption("Auditoria")
-                    status_f = status_df[(status_df['funcionario_id']==row['id']) & (status_df['obra_id']==obra_id_selecionada)]['Status'].iloc[0] if not status_df[(status_df['funcionario_id']==row['id']) & (status_df['obra_id']==obra_id_selecionada)].empty else "A Revisar"
-                    utils.display_status_box("", status_f)
+        st.subheader("Análise por Funcionário")
 
-                with st.expander("Detalhes e Edição"):
-                    col_act, col_obs = st.columns(2)
-                    with col_act:
-                         st.markdown("##### Status")
-                         new_st = st.radio("Status:", ['A Revisar', 'Aprovado', 'Analisar'], index=['A Revisar', 'Aprovado', 'Analisar'].index(status_f) if status_f in ['A Revisar', 'Aprovado', 'Analisar'] else 0, key=f"s_{row['id']}", horizontal=True, disabled=edicao_bloqueada)
-                         if st.button("Salvar Status", key=f"b_s_{row['id']}", disabled=edicao_bloqueada):
-                             db_utils.upsert_status_auditoria(obra_id_selecionada, row['id'], mes_selecionado, status=new_st); st.toast("Ok!"); st.rerun()
+        if resumo_df.empty:
+            st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
+        else:
+            for index, row in resumo_df.iterrows():
+                with st.container(border=True):
+                    funcionario_nome = row['Funcionário']
+                    func_id = row['id']
+
+                    col_header_info, col_header_status = st.columns([5, 2])
                     
-                    lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == row['NOME']].copy()
-                    if not lancs_f.empty:
-                        st.data_editor(lancs_f[['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']], key=f"ed_{row['id']}", disabled=['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial'], hide_index=True)
-                    else: st.info("Sem lançamentos.")
-    else: st.warning("Sem funcionários.")
+                    with col_header_info:
+                        st.markdown(f"**{funcionario_nome}** <span style='color:#666; font-size:0.9em'>({row['FUNÇÃO']})</span>", unsafe_allow_html=True)
+                        
+                        c1, c2, c3, c4, c5 = st.columns(5)
+                        with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)'])), unsafe_allow_html=True)
+                        with c2: st.markdown(make_audit_stat("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']), "border-orange"), unsafe_allow_html=True)
+                        with c3: st.markdown(make_audit_stat("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']), "border-blue"), unsafe_allow_html=True)
+                        with c4: st.markdown(make_audit_stat("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)']), "border-purple"), unsafe_allow_html=True)
+                        with c5: st.markdown(make_audit_stat("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']), "border-green"), unsafe_allow_html=True)
+
+                    status_func_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] 
+                    status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
+
+                    with col_header_status:
+                        st.caption("Status Auditoria")
+                        utils.display_status_box("", status_atual_func)
+                        
+                        lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
+                        if lanc_concluido:
+                            st.success("Lançamentos: OK", icon="✅") 
+                        else:
+                            st.warning("Lançamentos: Pendente", icon="⏳")
+
+                    with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
+                        col_status, col_comment = st.columns(2)
+                        with col_status:
+                            st.markdown("##### Status de Auditoria")
+                            status_options_func = ['A Revisar', 'Aprovado', 'Analisar']
+                            idx_func = status_options_func.index(status_atual_func) if status_atual_func in status_options_func else 0
+                            selected_status_func = st.radio("Definir Status:", options=status_options_func, index=idx_func, horizontal=True, key=f"status_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada)
+                            if st.button("Salvar Status", key=f"btn_func_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
+                                if selected_status_func != status_atual_func:
+                                    db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, mes_selecionado, status=selected_status_func)
+                                    st.toast(f"Status de {funcionario_nome} atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
+                        with col_comment:
+                            st.markdown("##### Comentário de Auditoria")
+                            comment_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] # Filtro por obra
+                            current_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
+                            new_comment = st.text_area("Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario_nome}", help="Visível na tela de lançamento.", disabled=edicao_bloqueada)
+                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
+                                db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, mes_selecionado, comentario=new_comment)
+                                st.toast("Comentário salvo!", icon="💬"); st.cache_data.clear(); st.rerun()
+                        
+                        st.markdown("---")
+                        st.markdown("##### Lançamentos e Observações")
+                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario_nome].copy()
+                        if lancamentos_do_funcionario.empty:
+                            st.info("Nenhum lançamento de produção para este funcionário.")
+                        else:
+                            colunas_visiveis_lanc = ['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
+                            
+                            edited_df = st.data_editor(
+                                lancamentos_do_funcionario[colunas_visiveis_lanc], 
+                                key=f"editor_{obra_selecionada}_{funcionario_nome}", 
+                                hide_index=True, 
+                                column_config={
+                                    "id": None, 
+                                    "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"), 
+                                    "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
+                                    "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium"),
+                                    "Quantidade": st.column_config.NumberColumn(format="%.2f"),
+                                    "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
+                                    "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
+                                }, 
+                                disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial'] 
+                            )
+                            
+                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario_nome}", type="primary", disabled=edicao_bloqueada):
+                                try:
+                                    original_obs = lancamentos_do_funcionario.set_index('id')['Observação'].fillna('') 
+                                    edited_obs = edited_df.set_index('id')['Observação'].fillna('') 
+                                    alteracoes = edited_obs[original_obs != edited_obs]
+                                    
+                                    if not alteracoes.empty:
+                                        updates_list = [{'id': int(lanc_id), 'obs': str(nova_obs)} for lanc_id, nova_obs in alteracoes.items()]
+                                        if db_utils.atualizar_observacoes(updates_list):
+                                            st.toast("Observações salvas!", icon="✅"); st.cache_data.clear(); st.rerun()
+                                    else: 
+                                        st.toast("Nenhuma alteração detectada.", icon="🤷")
+                                except Exception as e:
+                                     st.error(f"Erro ao processar alterações: {e}")
+
+    else:
+         st.info("Nenhum funcionário encontrado para a obra selecionada ou filtros aplicados.")
