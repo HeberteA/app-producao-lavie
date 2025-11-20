@@ -104,7 +104,6 @@ def render_page():
     resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']] = resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']].fillna(0)
     resumo['PRODUÇÃO LÍQUIDA (R$)'] = resumo.apply(utils.calcular_producao_liquida, axis=1)
     resumo['Funcionário'] = resumo['NOME']
-    
     resumo['ROI'] = np.where(resumo['SALARIO_BASE']>0, resumo['PRODUÇÃO BRUTA (R$)']/resumo['SALARIO_BASE'], 0)
 
     with st.expander("Filtros", expanded=False):
@@ -150,7 +149,7 @@ def render_page():
 
     if st.session_state['role'] == 'admin':
         st.markdown("<div class='admin-box'>", unsafe_allow_html=True)
-        st.caption("Indicadores Admin")
+        st.caption("Indicadores Admin (Visão Gerencial)")
         
         top_obra = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().idxmax() if not df_f.empty and tot_bruta > 0 else "N/A"
         top_efic = df_f.groupby('OBRA')['PRODUÇÃO LÍQUIDA (R$)'].mean().idxmax() if not df_f.empty else "N/A"
@@ -160,18 +159,18 @@ def render_page():
         if len(str(top_serv)) > 20: top_serv = str(top_serv)[:20] + "..."
 
         ak1, ak2, ak3, ak4 = st.columns(4)
-        with ak1: st.markdown(kpi_html("Obra (Volume)", top_obra), unsafe_allow_html=True)
-        with ak2: st.markdown(kpi_html("Obra (Eficiência)", top_efic), unsafe_allow_html=True)
-        with ak3: st.markdown(kpi_html("Serviço + Custo", top_serv), unsafe_allow_html=True)
-        with ak4: st.markdown(kpi_html("Ticket Médio", utils.format_currency(lancs_prod['Valor Parcial'].mean() if not lancs_prod.empty else 0)), unsafe_allow_html=True)
+        with ak1: st.markdown(kpi_html("Maior Obra (Volume)", top_obra), unsafe_allow_html=True)
+        with ak2: st.markdown(kpi_html("Obra Mais Eficiente", top_efic), unsafe_allow_html=True)
+        with ak3: st.markdown(kpi_html("Serviço Mais Caro", top_serv), unsafe_allow_html=True)
+        with ak4: st.markdown(kpi_html("Ticket Médio/Serviço", utils.format_currency(lancs_prod['Valor Parcial'].mean() if not lancs_prod.empty else 0)), unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     cor_bruta = '#E37026'
     cor_liquida = '#1E88E5'
 
-    if st.session_state['role'] == 'admin' and len(sel_obras) > 1:
+    if st.session_state['role'] == 'admin' and sel_obras: 
         st.markdown("---")
-        st.subheader("Comparativo de Obras")
+        st.subheader("Comparativo de Obras (Admin)")
         c_o1, c_o2 = st.columns(2)
         with c_o1:
             g_obr_b = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().reset_index().sort_values('PRODUÇÃO BRUTA (R$)', ascending=False)
@@ -205,7 +204,7 @@ def render_page():
     st.plotly_chart(style_fig(fig_hist), use_container_width=True)
 
     st.markdown("---")
-    st.subheader("Análise Avançada (Senior Insights)")
+    st.subheader("Análise Avançada (Insights)")
     
     c_adv1, c_adv2 = st.columns(2)
     with c_adv1:
@@ -219,23 +218,26 @@ def render_page():
                               title="Matriz Custo (Base) x Benefício (Produção)")
         st.plotly_chart(style_fig(fig_scat), use_container_width=True)
 
-    if not lancs_f.empty:
-        st.markdown("##### Curva ABC de Serviços (Pareto)")
-        pareto = lancs_f[lancs_f['Disciplina']!='GRATIFICAÇÃO'].groupby('Serviço')['Valor Parcial'].sum().reset_index().sort_values('Valor Parcial', ascending=False)
-        pareto['Acum'] = pareto['Valor Parcial'].cumsum() / pareto['Valor Parcial'].sum() * 100
-        pareto = pareto.head(15)
-        
-        fig_par = go.Figure()
-        fig_par.add_trace(go.Bar(x=pareto['Serviço'], y=pareto['Valor Parcial'], name='Valor (R$)', marker_color=cor_bruta))
-        fig_par.add_trace(go.Scatter(x=pareto['Serviço'], y=pareto['Acum'], name='Acumulado %', yaxis='y2', mode='lines+markers', line=dict(color=cor_liquida)))
-        fig_par.update_layout(yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), showlegend=False, title="Top Serviços Impactantes")
-        st.plotly_chart(style_fig(fig_par), use_container_width=True)
+    st.markdown("---")
+    st.subheader("Detalhamento de Custos")
+    c_det1, c_det2 = st.columns(2)
+    
+    with c_det1:
+        if not lancs_f.empty:
+            pareto = lancs_f[lancs_f['Disciplina']!='GRATIFICAÇÃO'].groupby('Serviço')['Valor Parcial'].sum().reset_index().sort_values('Valor Parcial', ascending=False)
+            pareto['Acum'] = pareto['Valor Parcial'].cumsum() / pareto['Valor Parcial'].sum() * 100
+            pareto = pareto.head(15)
+            fig_par = go.Figure()
+            fig_par.add_trace(go.Bar(x=pareto['Serviço'], y=pareto['Valor Parcial'], name='Valor (R$)', marker_color=cor_bruta))
+            fig_par.add_trace(go.Scatter(x=pareto['Serviço'], y=pareto['Acum'], name='Acumulado %', yaxis='y2', mode='lines+markers', line=dict(color=cor_liquida)))
+            fig_par.update_layout(yaxis2=dict(overlaying='y', side='right', range=[0, 110], showgrid=False), showlegend=False, title="Curva ABC (Pareto)")
+            st.plotly_chart(style_fig(fig_par), use_container_width=True)
 
-    st.markdown("##### Hierarquia de Custos (Sunburst)")
-    lancs_hier = lancs_f[(lancs_f['Disciplina']!='GRATIFICAÇÃO') & (lancs_f['Valor Parcial'] > 50)]
-    if not lancs_hier.empty:
-        fig_sun = px.sunburst(lancs_hier, path=['Obra', 'Disciplina', 'Serviço'], values='Valor Parcial', color='Valor Parcial', color_continuous_scale='Oranges', title="Obra > Disciplina > Serviço")
-        st.plotly_chart(style_fig(fig_sun), use_container_width=True)
+    with c_det2:
+        lancs_hier = lancs_f[(lancs_f['Disciplina']!='GRATIFICAÇÃO') & (lancs_f['Valor Parcial'] > 50)]
+        if not lancs_hier.empty:
+            fig_sun = px.sunburst(lancs_hier, path=['Obra', 'Disciplina', 'Serviço'], values='Valor Parcial', color='Valor Parcial', color_continuous_scale='Oranges', title="Hierarquia (Sunburst)")
+            st.plotly_chart(style_fig(fig_sun), use_container_width=True)
 
     st.markdown("---")
     st.subheader("Evolução Temporal")
@@ -287,9 +289,9 @@ def render_page():
                     
                     atraso_med = folhas_env.groupby('Obra')['atraso'].mean().reset_index()
                     fig = px.bar(atraso_med, x='Obra', y='atraso', title="Dias de Atraso (Média)", text_auto=True)
-                    fig.update_traces(marker_color='#ef4444', textposition='outside') # Vermelho para atraso
+                    fig.update_traces(marker_color='#ef4444', textposition='outside')
                     st.plotly_chart(style_fig(fig), use_container_width=True)
-                else: st.info("Sem dados de envio para cálculo de atraso.")
+                else: st.info("Sem dados de atraso.")
             
             with c_p2:
                 folhas_count = folhas_df.copy()
