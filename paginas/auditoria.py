@@ -126,7 +126,7 @@ def render_page():
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
                     st.toast("Status da Obra atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
-        st.markdown("")
+        st.space("small")
         pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
         if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="Status interno 'Aprovado' e folha 'Enviada' necessários."):
             mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
