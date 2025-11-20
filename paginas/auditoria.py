@@ -250,42 +250,42 @@ def render_page():
                         
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
-                        lancamentos_do_funcionario = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario_nome].copy()
-                        if lancamentos_do_funcionario.empty:
-                            st.info("Nenhum lançamento de produção para este funcionário.")
-                        else:
-                            colunas_visiveis_lanc = ['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial', 'Observação']
-                            
+                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == row['NOME']].copy()
+                    
+                        if not lancs_f.empty:
+                        
+                            colunas_proibidas = ['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial']
+                            config_bloqueio = True if edicao_bloqueada else colunas_proibidas
+                          
                             edited_df = st.data_editor(
-                                lancamentos_do_funcionario[colunas_visiveis_lanc], 
-                                key=f"editor_{obra_selecionada}_{funcionario_nome}", 
-                                hide_index=True, 
+                                lancs_f[['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']], 
+                                key=f"ed_{row['id']}", 
+                                disabled=config_bloqueio, # <--- AQUI ESTÁ A MÁGICA
+                                hide_index=True,
+                                use_container_width=True,
                                 column_config={
-                                    "id": None, 
-                                    "Data": st.column_config.DatetimeColumn("Data Lançamento", format="DD/MM/YYYY HH:mm"), 
-                                    "Data do Serviço": st.column_config.DateColumn("Data Serviço", format="DD/MM/YYYY"),
-                                    "Observação": st.column_config.TextColumn("Observação (Editável)", width="medium"),
-                                    "Quantidade": st.column_config.NumberColumn(format="%.2f"),
-                                    "Valor Unitário": st.column_config.NumberColumn(format="R$ %.2f"),
-                                    "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f")
-                                }, 
-                                disabled=['id', 'Data', 'Data do Serviço', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Unitário', 'Valor Parcial'] 
+                                    "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f"),
+                                    "Data do Serviço": st.column_config.DateColumn(format="DD/MM/YYYY"),
+                                }
                             )
-                            
-                            if st.button("Salvar Alterações nas Observações", key=f"save_obs_{obra_selecionada}_{funcionario_nome}", type="primary", disabled=edicao_bloqueada):
-                                try:
-                                    original_obs = lancamentos_do_funcionario.set_index('id')['Observação'].fillna('') 
-                                    edited_obs = edited_df.set_index('id')['Observação'].fillna('') 
-                                    alteracoes = edited_obs[original_obs != edited_obs]
-                                    
-                                    if not alteracoes.empty:
-                                        updates_list = [{'id': int(lanc_id), 'obs': str(nova_obs)} for lanc_id, nova_obs in alteracoes.items()]
-                                        if db_utils.atualizar_observacoes(updates_list):
-                                            st.toast("Observações salvas!", icon="✅"); st.cache_data.clear(); st.rerun()
-                                    else: 
-                                        st.toast("Nenhuma alteração detectada.", icon="🤷")
-                                except Exception as e:
-                                     st.error(f"Erro ao processar alterações: {e}")
 
-    else:
-         st.info("Nenhum funcionário encontrado para a obra selecionada ou filtros aplicados.")
+                        # Botão de salvar só aparece se NÃO estiver bloqueado
+                            if not edicao_bloqueada:
+                                if st.button("Salvar Alterações nas Observações", key=f"save_obs_{row['id']}", type="primary"):
+                                # ... (Sua lógica de salvar observações aqui) ...
+                                    try:
+                                        original_obs = lancs_f.set_index('id')['Observação'].fillna('') 
+                                        edited_obs = edited_df.set_index('id')['Observação'].fillna('') 
+                                        alteracoes = edited_obs[original_obs != edited_obs]
+                                    
+                                        if not alteracoes.empty:
+                                            updates_list = [{'id': int(lanc_id), 'obs': str(nova_obs)} for lanc_id, nova_obs in alteracoes.items()]
+                                            if db_utils.atualizar_observacoes(updates_list):
+                                                st.toast("Observações salvas!", icon="✅"); st.cache_data.clear(); st.rerun()
+                                        else: 
+                                            st.toast("Nenhuma alteração detectada.", icon="🤷")
+                                    except Exception as e:
+                                        st.error(f"Erro: {e}")
+
+                        else: 
+                            st.info("Sem lançamentos de produção.")
