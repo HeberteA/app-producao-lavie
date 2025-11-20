@@ -181,7 +181,6 @@ def render_page():
         st.error(f"Erro ao calcular KPIs operacionais: {e}")
 
     if st.session_state['role'] == 'admin':
-        st.caption("Indicadores (Visão Gerencial)")
         
         top_obra = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().idxmax() if not df_f.empty and tot_bruta > 0 else "N/A"
         top_efic = df_f.groupby('OBRA')['PRODUÇÃO LÍQUIDA (R$)'].mean().idxmax() if not df_f.empty else "N/A"
