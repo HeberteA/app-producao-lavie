@@ -258,25 +258,24 @@ def render_page():
                         lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == nome_funcionario].copy()
                     
                         if not lancs_f.empty:
+                        # Bloqueio de colunas se a folha estiver fechada
+                            cols_bloqueadas = ['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial']
+                            disabled_config = True if edicao_bloqueada else cols_bloqueadas
                         
-                            colunas_proibidas = ['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial']
-                            config_bloqueio = True if edicao_bloqueada else colunas_proibidas
-                          
                             edited_df = st.data_editor(
                                 lancs_f[['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']], 
                                 key=f"ed_{row['id']}", 
-                                disabled=config_bloqueio, 
+                                disabled=disabled_config, 
                                 hide_index=True,
                                 use_container_width=True,
                                 column_config={
                                     "Valor Parcial": st.column_config.NumberColumn(format="R$ %.2f"),
-                                    "Data do Serviço": st.column_config.DateColumn(format="DD/MM/YYYY"),
+                                    "Data do Serviço": st.column_config.DateColumn(format="DD/MM/YYYY")
                                 }
                             )
-                            
+                        
                             if not edicao_bloqueada:
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{row['id']}", type="primary"):
-    
                                     try:
                                         original_obs = lancs_f.set_index('id')['Observação'].fillna('') 
                                         edited_obs = edited_df.set_index('id')['Observação'].fillna('') 
@@ -288,8 +287,7 @@ def render_page():
                                                 st.toast("Observações salvas!", icon="✅"); st.cache_data.clear(); st.rerun()
                                         else: 
                                             st.toast("Nenhuma alteração detectada.", icon="🤷")
-                                    except Exception as e:
-                                        st.error(f"Erro: {e}")
-
+                                     except Exception as e:
+                                         st.error(f"Erro: {e}")
                         else: 
-                            st.info("Sem lançamentos de produção.")
+                            st.info("Sem lançamentos.")
