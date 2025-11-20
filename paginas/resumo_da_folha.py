@@ -187,17 +187,18 @@ def render_page():
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
         
         with col_t1: st.markdown(display_card("Salário Base", utils.format_currency(total_base), color="#6c757d"), unsafe_allow_html=True)
-        with col_t2: st.markdown(display_card("Prod. Bruta", utils.format_currency(total_bruta), color="#E37026", unsafe_allow_html=True)
+        with col_t2: st.markdown(display_card("Prod. Bruta", utils.format_currency(total_bruta), color="#E37026"), unsafe_allow_html=True)
         with col_t3: st.markdown(display_card("Prod. Líquida", utils.format_currency(total_liquida), color="#3b82f6"), unsafe_allow_html=True)
         with col_t4: st.markdown(display_card("Gratificações", utils.format_currency(total_grat), color="#8b5cf6"), unsafe_allow_html=True)
         with col_t5: st.markdown(display_card("A Receber", utils.format_currency(total_receber), color="#10b981"), unsafe_allow_html=True)
+
 
     st.subheader("Detalhes da Folha")
 
     if df_filtrado_final.empty:
          st.info("Nenhum dado para exibir.")
     else:
-        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 'PRODUÇÃO LÍQUIDA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação']        if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
+        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 'PRODUÇÃO LÍQUIDA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação']
         if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
             if 'OBRA' in colunas_exibicao: colunas_exibicao.remove('OBRA')
 
@@ -218,6 +219,7 @@ def render_page():
                 "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
             }
         )
+        
         st.markdown("---")
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
@@ -239,7 +241,4 @@ def render_page():
                  with st.spinner("Gerando PDF..."):
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
-                        pdf_ph.download_button(label="Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
-
-
-
+                        pdf_ph.download_button(label="⬇️ Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
