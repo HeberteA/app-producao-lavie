@@ -76,13 +76,6 @@ def render_page():
     funcionarios_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]
     if funcionarios_filtrados_nomes: funcionarios_obra_df = funcionarios_obra_df[funcionarios_obra_df['NOME'].isin(funcionarios_filtrados_nomes)]
 
-    folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
-    status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
-    edicao_bloqueada = status_folha == "Finalizada"
-
-    if edicao_bloqueada: st.success(f"Folha Finalizada.")
-    elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando Auditoria.")
-    elif status_folha == 'Devolvida para Revisão': st.warning("Devolvida para Revisão.")
 
     st.markdown("---")
     st.subheader("Gerenciamento da Obra")
@@ -128,7 +121,7 @@ def render_page():
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
                     st.toast("Status da Obra atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
-        
+        st.space("small")
         pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
         if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="Status interno 'Aprovado' e folha 'Enviada' necessários."):
             mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
@@ -140,6 +133,13 @@ def render_page():
 
 
     with col_aviso_geral:
+        folha_do_mes = folhas_df[folhas_df['obra_id'] == obra_id_selecionada]
+        status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
+        edicao_bloqueada = status_folha == "Finalizada"
+
+        if edicao_bloqueada: st.success(f"Folha Finalizada.")
+        elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando Auditoria.")
+        elif status_folha == 'Devolvida para Revisão': st.warning("Devolvida para Revisão.")
         st.markdown("##### Avisos")
         aviso_val = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso'].iloc[0]
         novo_aviso = st.text_area("Aviso aos Engenheiros:", value=aviso_val if pd.notna(aviso_val) else "", key=f"aviso_{obra_selecionada}")
