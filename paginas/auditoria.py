@@ -195,19 +195,13 @@ def render_page():
 
         st.subheader("Análise por Funcionário")
 
-        if resumo_df.empty:
-            st.warning("Nenhum funcionário encontrado para os filtros selecionados.")
-        else:
-            for index, row in resumo_df.iterrows():
-                with st.container(border=True):
-                    nome_funcionario = row['Funcionário']
-                    func_id = row['id']
-
-                    col_header_info, col_header_status = st.columns([5, 2])
-                    
-                    with col_header_info:
-                        st.markdown(f"### {funcionario_nome} <span style='color:#E37026; font-size:0.8em'>| {row['FUNÇÃO']}</span>", unsafe_allow_html=True)
-                        
+        for _, row in resumo_df.iterrows():
+            with st.container(border=True):
+                funcionario_nome = row['Funcionário'] 
+                
+                c_info, c_stat = st.columns([5, 2])
+                with c_info:
+                    st.markdown(f"### {funcionario_nome} <span style='color:#E37026; font-size:0.8em'>| {row['FUNÇÃO']}</span>", unsafe_allow_html=True)
                         c1, c2, c3, c4, c5 = st.columns(5)
                         with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)'])), unsafe_allow_html=True)
                         with c2: st.markdown(make_audit_stat("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']), "border-orange"), unsafe_allow_html=True)
@@ -255,7 +249,7 @@ def render_page():
                         
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
-                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == nome_funcionario].copy()
+                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == funcionario_nome].copy()
                     
                         if not lancs_f.empty:
                             cols_bloqueadas = ['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial']
