@@ -4,6 +4,47 @@ import db_utils
 import utils
 
 def render_page():
+    st.markdown("""
+    <style>
+    .audit-stat-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        background-color: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border-left: 3px solid #e0e0e0;
+    }
+    .audit-stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: #777;
+        margin-bottom: 2px;
+        font-weight: 600;
+    }
+    .audit-stat-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #333;
+    }
+    /* Cores Específicas por Borda */
+    .border-blue { border-left-color: #3b82f6 !important; }
+    .border-orange { border-left-color: #f59e0b !important; }
+    .border-green { border-left-color: #10b981 !important; }
+    .border-purple { border-left-color: #8b5cf6 !important; }
+    
+    </style>
+    """, unsafe_allow_html=True)
+
+    def make_audit_stat(label, value, color_class=""):
+        return f"""
+        <div class="audit-stat-container {color_class}">
+            <div class="audit-stat-label">{label}</div>
+            <div class="audit-stat-value">{value}</div>
+        </div>
+        """
+
     mes_selecionado = st.session_state.selected_month
 
     @st.cache_data
@@ -50,9 +91,9 @@ def render_page():
     status_folha = folha_do_mes['status'].iloc[0] if not folha_do_mes.empty else "Não Enviada"
     edicao_bloqueada = status_folha == "Finalizada"
 
-    if edicao_bloqueada: st.success(f"✅ Folha finalizada. Nenhuma edição permitida.")
-    elif status_folha == "Enviada para Auditoria": st.info(f"ℹ️ Aguardando auditoria.")
-    elif status_folha == 'Devolvida para Revisão': st.warning("⚠️ Folha devolvida para revisão.")
+    if edicao_bloqueada: st.success(f"Folha finalizada. Nenhuma edição permitida.")
+    elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando auditoria.")
+    elif status_folha == 'Devolvida para Revisão': st.warning("Folha devolvida para revisão.")
 
     st.markdown("---")
     st.subheader("Gerenciamento Geral da Obra")
@@ -115,7 +156,7 @@ def render_page():
             data_envio = pd.to_datetime(folha_do_mes['data_lancamento'].iloc[0]); contador = folha_do_mes['contador_envios'].iloc[0]
             st.info(f"Status: **{status_folha}** | Envios: **{contador}**")
             st.caption(f"Último envio: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
-        else: st.warning("⚠️ Aguardando envio da folha.")
+        else: st.warning("Aguardando envio da folha.")
         aviso_atual_info = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso']
         aviso_atual = aviso_atual_info.iloc[0] if not aviso_atual_info.empty and pd.notna(aviso_atual_info.iloc[0]) else ""
         novo_aviso = st.text_area("Aviso para a Obra:", value=aviso_atual or "", key=f"aviso_{obra_selecionada}", help="Aparecerá na sidebar do usuário.")
@@ -175,25 +216,31 @@ def render_page():
                     funcionario_nome = row['Funcionário']
                     func_id = row['id']
 
-                    header_cols = st.columns([2, 1.7, 1.5, 1.5, 1.5, 1.7, 1.2, 1.2]) 
-                    header_cols[0].markdown(f"**Funcionário:** {funcionario_nome} ({row['FUNÇÃO']})")
-                    header_cols[1].metric("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)']))
-                    header_cols[2].metric("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']))
-                    header_cols[3].metric("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']))
-                    header_cols[4].metric("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)'])) 
-                    header_cols[5].metric("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']))
+                    col_header_info, col_header_status = st.columns([5, 2])
+                    
+                    with col_header_info:
+                        st.markdown(f"**{funcionario_nome}** <span style='color:#666; font-size:0.9em'>({row['FUNÇÃO']})</span>", unsafe_allow_html=True)
+                        
+                        c1, c2, c3, c4, c5 = st.columns(5)
+                        with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)'])), unsafe_allow_html=True)
+                        with c2: st.markdown(make_audit_stat("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']), "border-orange"), unsafe_allow_html=True)
+                        with c3: st.markdown(make_audit_stat("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']), "border-blue"), unsafe_allow_html=True)
+                        with c4: st.markdown(make_audit_stat("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)']), "border-purple"), unsafe_allow_html=True)
+                        with c5: st.markdown(make_audit_stat("A Receber", utils.format_currency(row['SALÁRIO A RECEBER (R$)']), "border-green"), unsafe_allow_html=True)
+
+
                     status_func_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] 
                     status_atual_func = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
 
-                    with header_cols[6]:
-                        utils.display_status_box("Auditoria", status_atual_func)
-
-                    with header_cols[7]:
+                    with col_header_status:
+                        st.caption("Status Auditoria")
+                        utils.display_status_box("", status_atual_func)
+                        
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
                         if lanc_concluido:
-                            st.success("Lançamento: Concluído") 
+                            st.success("Lançamentos: OK", icon="✅") 
                         else:
-                            st.warning("Lançamento: Pendente")
+                            st.warning("Lançamentos: Pendente", icon="⏳")
 
                     with st.expander("Ver Lançamentos, Alterar Status e Editar Observações"):
                         col_status, col_comment = st.columns(2)
