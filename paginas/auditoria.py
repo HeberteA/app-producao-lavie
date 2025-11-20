@@ -96,7 +96,6 @@ def render_page():
                 db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
                 st.toast("Salvo!", icon="✅"); st.cache_data.clear(); st.rerun()
         utils.display_status_box("Status Obra", status_auditoria_interno)
-        st.space("medium")
         if st.button("Finalizar Folha", use_container_width=True, type="primary", disabled=not (status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria")):
             if db_utils.launch_monthly_sheet(obra_id_selecionada, pd.to_datetime(mes_selecionado, format='%Y-%m'), obra_selecionada): st.cache_data.clear(); st.rerun()
         if st.button("Devolver para Revisão", use_container_width=True, disabled=not (status_auditoria_interno == "Analisar" and status_folha == "Enviada para Auditoria")):
