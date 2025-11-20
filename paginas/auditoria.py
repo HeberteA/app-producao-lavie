@@ -93,12 +93,6 @@ def render_page():
     col_status_geral, col_aviso_geral = st.columns(2)
     with col_status_geral:
         st.markdown("##### Ações")
-        with st.popover("Alterar Status Obra", disabled=edicao_bloqueada):
-            status_options = ['A Revisar', 'Analisar', 'Aprovado']
-            selected_status_obra = st.radio("Novo Status:", options=status_options, index=status_options.index(status_auditoria_interno) if status_auditoria_interno in status_options else 0)
-            if st.button("Salvar Status Obra"):
-                db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
-                st.toast("Salvo!", icon="✅"); st.cache_data.clear(); st.rerun()
         utils.display_status_box("Status da Obra", status_auditoria_interno)
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_funcionarios_aprovados = True
