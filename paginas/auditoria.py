@@ -195,12 +195,12 @@ def render_page():
 
         st.subheader("Análise por Funcionário")
 
-        for _, row in resumo_df.iterrows():
-            with st.container(border=True):
-                funcionario_nome = row['Funcionário'] 
+            for _, row in resumo_df.iterrows():
+                with st.container(border=True):
+                    funcionario_nome = row['Funcionário'] 
                 
-                c_info, c_stat = st.columns([5, 2])
-                with c_info:
+                    c_info, c_stat = st.columns([5, 2])
+                    with c_info:
                     st.markdown(f"### {funcionario_nome} <span style='color:#E37026; font-size:0.8em'>| {row['FUNÇÃO']}</span>", unsafe_allow_html=True)
                         c1, c2, c3, c4, c5 = st.columns(5)
                         with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)'])), unsafe_allow_html=True)
