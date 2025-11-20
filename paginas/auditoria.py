@@ -89,7 +89,9 @@ def render_page():
     col_status_geral, col_aviso_geral = st.columns(2)
     with col_status_geral:
         st.markdown("##### Ações")
+        
         utils.display_status_box("Status da Obra", status_auditoria_interno)
+        st.markdown("")
         with st.popover("Alterar Status da Obra", disabled=edicao_bloqueada):
             todos_funcionarios_aprovados = True
             folha_foi_enviada = (status_folha == "Enviada para Auditoria") 
@@ -124,7 +126,7 @@ def render_page():
                 if selected_status_obra != status_auditoria_interno:
                     db_utils.upsert_status_auditoria(obra_id_selecionada, 0, mes_selecionado, status=selected_status_obra) 
                     st.toast("Status da Obra atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
-        st.space("small")
+        st.markdown("")
         pode_finalizar = status_auditoria_interno == "Aprovado" and status_folha == "Enviada para Auditoria"
         if st.button("Finalizar e Arquivar Folha", use_container_width=True, type="primary", disabled=not pode_finalizar, help="Status interno 'Aprovado' e folha 'Enviada' necessários."):
             mes_dt = pd.to_datetime(mes_selecionado, format='%Y-%m')
@@ -136,6 +138,7 @@ def render_page():
 
 
     with col_aviso_geral:
+        st.markdown("##### Situação")
 
         if edicao_bloqueada: st.success(f"Folha Finalizada.")
         elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando Auditoria.")
