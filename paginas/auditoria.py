@@ -241,12 +241,15 @@ def render_page():
                                     st.toast(f"Status de {funcionario_nome} atualizado!", icon="✅"); st.cache_data.clear(); st.rerun()
                         with col_comment:
                             st.markdown("##### Comentário de Auditoria")
-                            comment_row = status_df[(status_df['funcionario_id'] == func_id) & (status_df['obra_id'] == obra_id_selecionada)] 
-                            current_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
-                            new_comment = st.text_area("Adicionar/Editar Comentário:", value=str(current_comment), key=f"comment_{obra_selecionada}_{funcionario_nome}", help="Visível na tela de lançamento.", disabled=edicao_bloqueada)
-                            if st.button("Salvar Comentário", key=f"btn_comment_{obra_selecionada}_{funcionario_nome}", disabled=edicao_bloqueada):
-                                db_utils.upsert_status_auditoria(obra_id_selecionada, func_id, mes_selecionado, comentario=new_comment)
-                                st.toast("Comentário salvo!", icon="💬"); st.cache_data.clear(); st.rerun()
+                            comment_row = status_df[(status_df['funcionario_id'] == row['id']) & (status_df['obra_id'] == obra_id_selecionada)]
+                            curr_comment = comment_row['Comentario'].iloc[0] if not comment_row.empty and pd.notna(comment_row['Comentario'].iloc[0]) else ""
+                            new_comment = st.text_area("Observação:", value=curr_comment, key=f"comm_{row['id']}", disabled=edicao_bloqueada, height=100)
+                        
+                            if not edicao_bloqueada:
+                                if st.button("Salvar Comentário", key=f"b_comm_{row['id']}"):
+                                    db_utils.upsert_status_auditoria(obra_id_selecionada, row['id'], mes_selecionado, comentario=new_comment)
+                                    st.toast("Comentário salvo!", icon="💬")
+                                    st.rerun()
                         
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
@@ -260,7 +263,7 @@ def render_page():
                             edited_df = st.data_editor(
                                 lancs_f[['id', 'Data do Serviço', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']], 
                                 key=f"ed_{row['id']}", 
-                                disabled=config_bloqueio, # <--- AQUI ESTÁ A MÁGICA
+                                disabled=config_bloqueio, 
                                 hide_index=True,
                                 use_container_width=True,
                                 column_config={
@@ -268,11 +271,10 @@ def render_page():
                                     "Data do Serviço": st.column_config.DateColumn(format="DD/MM/YYYY"),
                                 }
                             )
-
-                        # Botão de salvar só aparece se NÃO estiver bloqueado
+                            
                             if not edicao_bloqueada:
                                 if st.button("Salvar Alterações nas Observações", key=f"save_obs_{row['id']}", type="primary"):
-                                # ... (Sua lógica de salvar observações aqui) ...
+    
                                     try:
                                         original_obs = lancs_f.set_index('id')['Observação'].fillna('') 
                                         edited_obs = edited_df.set_index('id')['Observação'].fillna('') 
