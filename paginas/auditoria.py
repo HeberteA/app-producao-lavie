@@ -200,7 +200,7 @@ def render_page():
         else:
             for index, row in resumo_df.iterrows():
                 with st.container(border=True):
-                    funcionario_nome = row['Funcionário']
+                    nome_funcionario = row['Funcionário']
                     func_id = row['id']
 
                     col_header_info, col_header_status = st.columns([5, 2])
@@ -220,6 +220,8 @@ def render_page():
 
                     with col_header_status:
                         st.caption("Status Auditoria")
+                        status_func_row = status_df[(status_df['funcionario_id'] == row['id']) & (status_df['obra_id'] == obra_id_selecionada)]
+                        status_f = status_func_row['Status'].iloc[0] if not status_func_row.empty else "A Revisar"
                         utils.display_status_box("Status", status_atual_func)
                         
                         lanc_concluido = status_func_row['Lancamentos Concluidos'].iloc[0] if not status_func_row.empty and 'Lancamentos Concluidos' in status_func_row.columns and pd.notna(status_func_row['Lancamentos Concluidos'].iloc[0]) else False
@@ -253,7 +255,7 @@ def render_page():
                         
                         st.markdown("---")
                         st.markdown("##### Lançamentos e Observações")
-                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == row['Funcionário']].copy()
+                        lancs_f = lancamentos_obra_df[lancamentos_obra_df['Funcionário'] == nome_funcionario].copy()
                     
                         if not lancs_f.empty:
                         
