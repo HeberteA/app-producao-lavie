@@ -22,14 +22,14 @@ def render_page():
         weight: 150;
     }
     .audit-stat-label {
-        font-size: 0.7rem;
+        font-size: 1rem;
         text-transform: uppercase;
         color: #A0A0A0;
         margin-bottom: 2px;
         font-weight: 600;
     }
     .audit-stat-value {
-        font-size: 1rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: #EEE;
     }
