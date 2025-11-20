@@ -126,29 +126,29 @@ def render_page():
         lanc_producao = lancamentos_filtrados_df[lancamentos_filtrados_df['Disciplina'] != 'GRATIFICAÇÃO']
         if not lanc_producao.empty:
             producao_bruta_df = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
+            producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA'}, inplace=True)
         lanc_gratificacoes = lancamentos_filtrados_df[lancamentos_filtrados_df['Disciplina'] == 'GRATIFICAÇÃO']
         if not lanc_gratificacoes.empty:
             total_gratificacoes_df = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
+            total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES'}, inplace=True)
 
     resumo_df = funcionarios_filtrados_df.copy()
     if not producao_bruta_df.empty:
         resumo_df = pd.merge(resumo_df, producao_bruta_df, left_on='id', right_on='funcionario_id', how='left')
         if 'funcionario_id' in resumo_df.columns and 'funcionario_id' != 'id': resumo_df = resumo_df.drop(columns=['funcionario_id'])
-    else: resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
+    else: resumo_df['PRODUÇÃO BRUTA'] = 0.0
 
     if not total_gratificacoes_df.empty:
             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left')
             if 'funcionario_id' in resumo_df.columns and 'funcionario_id' != 'id': resumo_df = resumo_df.drop(columns=['funcionario_id'])
-    else: resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
+    else: resumo_df['TOTAL GRATIFICAÇÕES'] = 0.0
 
-    resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
-    cols_to_fix = ['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 'SALÁRIO BASE (R$)']
+    resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE'}, inplace=True)
+    cols_to_fix = ['PRODUÇÃO BRUTA', 'TOTAL GRATIFICAÇÕES', 'SALÁRIO BASE']
     for col in cols_to_fix: resumo_df[col] = resumo_df[col].fillna(0.0).apply(utils.safe_float)
 
-    resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
-    resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+    resumo_df['PRODUÇÃO LÍQUIDA'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
+    resumo_df['SALÁRIO A RECEBER'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
 
     status_funcionarios_df = status_filtrado_df[status_filtrado_df['funcionario_id'] != 0][['funcionario_id', 'Status', 'Lancamentos Concluidos']].drop_duplicates()
     if not status_funcionarios_df.empty:
@@ -211,11 +211,11 @@ def render_page():
             df_para_exibir,
             use_container_width=True, hide_index=True,
             column_config={
-                "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO LÍQUIDA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
-                "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO BASE": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO BRUTA": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO LÍQUIDA": st.column_config.NumberColumn(format="R$ %.2f"),
+                "TOTAL GRATIFICAÇÕES": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO A RECEBER": st.column_config.NumberColumn(format="R$ %.2f"),
             }
         )
         
@@ -241,6 +241,7 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
 
 
 
