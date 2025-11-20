@@ -126,29 +126,29 @@ def render_page():
         lanc_producao = lancamentos_filtrados_df[lancamentos_filtrados_df['Disciplina'] != 'GRATIFICAÇÃO']
         if not lanc_producao.empty:
             producao_bruta_df = lanc_producao.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA'}, inplace=True)
+            producao_bruta_df.rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'}, inplace=True)
         lanc_gratificacoes = lancamentos_filtrados_df[lancamentos_filtrados_df['Disciplina'] == 'GRATIFICAÇÃO']
         if not lanc_gratificacoes.empty:
             total_gratificacoes_df = lanc_gratificacoes.groupby('funcionario_id')['Valor Parcial'].sum().reset_index()
-            total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES'}, inplace=True)
+            total_gratificacoes_df.rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'}, inplace=True)
 
     resumo_df = funcionarios_filtrados_df.copy()
     if not producao_bruta_df.empty:
         resumo_df = pd.merge(resumo_df, producao_bruta_df, left_on='id', right_on='funcionario_id', how='left')
         if 'funcionario_id' in resumo_df.columns and 'funcionario_id' != 'id': resumo_df = resumo_df.drop(columns=['funcionario_id'])
-    else: resumo_df['PRODUÇÃO BRUTA'] = 0.0
+    else: resumo_df['PRODUÇÃO BRUTA (R$)'] = 0.0
 
     if not total_gratificacoes_df.empty:
             resumo_df = pd.merge(resumo_df, total_gratificacoes_df, left_on='id', right_on='funcionario_id', how='left')
             if 'funcionario_id' in resumo_df.columns and 'funcionario_id' != 'id': resumo_df = resumo_df.drop(columns=['funcionario_id'])
-    else: resumo_df['TOTAL GRATIFICAÇÕES'] = 0.0
+    else: resumo_df['TOTAL GRATIFICAÇÕES (R$)'] = 0.0
 
-    resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE'}, inplace=True)
-    cols_to_fix = ['PRODUÇÃO BRUTA', 'TOTAL GRATIFICAÇÕES', 'SALÁRIO BASE']
+    resumo_df.rename(columns={'SALARIO_BASE': 'SALÁRIO BASE (R$)'}, inplace=True)
+    cols_to_fix = ['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 'SALÁRIO BASE (R$)']
     for col in cols_to_fix: resumo_df[col] = resumo_df[col].fillna(0.0).apply(utils.safe_float)
 
-    resumo_df['PRODUÇÃO LÍQUIDA'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
-    resumo_df['SALÁRIO A RECEBER'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
+    resumo_df['PRODUÇÃO LÍQUIDA (R$)'] = resumo_df.apply(utils.calcular_producao_liquida, axis=1)
+    resumo_df['SALÁRIO A RECEBER (R$)'] = resumo_df.apply(utils.calcular_salario_final, axis=1)
 
     status_funcionarios_df = status_filtrado_df[status_filtrado_df['funcionario_id'] != 0][['funcionario_id', 'Status', 'Lancamentos Concluidos']].drop_duplicates()
     if not status_funcionarios_df.empty:
@@ -178,26 +178,27 @@ def render_page():
             
         st.markdown("---")
         
-        total_base = df_filtrado_final['SALÁRIO BASE'].sum()
-        total_bruta = df_filtrado_final['PRODUÇÃO BRUTA'].sum()
-        total_liquida = df_filtrado_final['PRODUÇÃO LÍQUIDA'].sum()
-        total_grat = df_filtrado_final['TOTAL GRATIFICAÇÕES'].sum()
-        total_receber = df_filtrado_final['SALÁRIO A RECEBER'].sum()
+        total_base = df_filtrado_final['SALÁRIO BASE (R$)'].sum()
+        total_bruta = df_filtrado_final['PRODUÇÃO BRUTA (R$)'].sum()
+        total_liquida = df_filtrado_final['PRODUÇÃO LÍQUIDA (R$)'].sum()
+        total_grat = df_filtrado_final['TOTAL GRATIFICAÇÕES (R$)'].sum()
+        total_receber = df_filtrado_final['SALÁRIO A RECEBER (R$)'].sum()
 
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
         
-        with col_t1: st.markdown(display_card("Salário Base", utils.format_currency(total_base), color="#6c757d"), unsafe_allow_html=True)
-        with col_t2: st.markdown(display_card("Prod. Bruta", utils.format_currency(total_bruta), color="#E37026"), unsafe_allow_html=True)
-        with col_t3: st.markdown(display_card("Prod. Líquida", utils.format_currency(total_liquida), color="#3b82f6"), unsafe_allow_html=True)
-        with col_t4: st.markdown(display_card("Gratificações", utils.format_currency(total_grat), color="#8b5cf6"), unsafe_allow_html=True)
-        with col_t5: st.markdown(display_card("A Receber", utils.format_currency(total_receber), color="#10b981"), unsafe_allow_html=True)
+        with col_t1: st.markdown(display_card("Salário Base", utils.format_currency(total_base), color="#6c757d", icon="💼"), unsafe_allow_html=True)
+        with col_t2: st.markdown(display_card("Prod. Bruta", utils.format_currency(total_bruta), color="#E37026", icon="⚒️"), unsafe_allow_html=True)
+        with col_t3: st.markdown(display_card("Prod. Líquida", utils.format_currency(total_liquida), color="#3b82f6", icon="💧"), unsafe_allow_html=True)
+        with col_t4: st.markdown(display_card("Gratificações", utils.format_currency(total_grat), color="#8b5cf6", icon="🎁"), unsafe_allow_html=True)
+        with col_t5: st.markdown(display_card("A Receber", utils.format_currency(total_receber), color="#10b981", icon="💰"), unsafe_allow_html=True)
+        # ---------------------------------------------
 
     st.subheader("Detalhes da Folha")
 
     if df_filtrado_final.empty:
          st.info("Nenhum dado para exibir.")
     else:
-        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE', 'PRODUÇÃO BRUTA', 'PRODUÇÃO LÍQUIDA', 'TOTAL GRATIFICAÇÕES', 'SALÁRIO A RECEBER', 'STATUS', 'SITUAÇÃO']
+        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA', 'PRODUÇÃO LÍQUIDA', 'TOTAL GRATIFICAÇÕES', 'SALÁRIO A RECEBER', 'STATUS', 'SITUAÇÃO']
         if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
             if 'OBRA' in colunas_exibicao: colunas_exibicao.remove('OBRA')
 
@@ -211,11 +212,11 @@ def render_page():
             df_para_exibir,
             use_container_width=True, hide_index=True,
             column_config={
-                "SALÁRIO BASE": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO BRUTA": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO LÍQUIDA": st.column_config.NumberColumn(format="R$ %.2f"),
-                "TOTAL GRATIFICAÇÕES": st.column_config.NumberColumn(format="R$ %.2f"),
-                "SALÁRIO A RECEBER": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO BRUTA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO LÍQUIDA (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
             }
         )
         
@@ -223,7 +224,7 @@ def render_page():
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
             excel_data = utils.to_excel(df_filtrado_final[colunas_finais_existentes]) 
-            st.download_button(label="Baixar Excel", data=excel_data, file_name=f"resumo_{mes_selecionado}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            st.download_button(label="📥 Baixar Excel", data=excel_data, file_name=f"resumo_{mes_selecionado}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
         with col_dl2:
             lancamentos_para_pdf_final = lancamentos_filtrados_df.copy()
             if funcionario_filtrado != "Todos" and not lancamentos_para_pdf_final.empty:
@@ -241,7 +242,3 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
-
-
-
-
