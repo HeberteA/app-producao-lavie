@@ -197,7 +197,7 @@ def render_page():
     if df_filtrado_final.empty:
          st.info("Nenhum dado para exibir.")
     else:
-        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE (R$)', 'PRODUÇÃO BRUTA (R$)', 'PRODUÇÃO LÍQUIDA (R$)', 'TOTAL GRATIFICAÇÕES (R$)', 'SALÁRIO A RECEBER (R$)', 'Status', 'Situação']
+        colunas_exibicao = ['NOME', 'OBRA', 'FUNÇÃO', 'TIPO', 'SALÁRIO BASE', 'PRODUÇÃO BRUTA', 'PRODUÇÃO LÍQUIDA', 'TOTAL GRATIFICAÇÕES', 'SALÁRIO A RECEBER', 'STATUS', 'SITUAÇÃO']
         if st.session_state['role'] != 'admin' or (obra_filtrada and obra_filtrada != "Todas"):
             if 'OBRA' in colunas_exibicao: colunas_exibicao.remove('OBRA')
 
@@ -241,5 +241,6 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
 
 
