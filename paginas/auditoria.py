@@ -141,7 +141,7 @@ def render_page():
         st.markdown("##### Situação")
 
         if edicao_bloqueada: st.success(f"Folha Finalizada.")
-            if not folha_do_mes.empty:
+            if not edicao_bloqueada.empty:
             data_envio = pd.to_datetime(folha_do_mes['data_lancamento'].iloc[0]); contador = folha_do_mes['contador_envios'].iloc[0]
             st.info(f"Status: **{status_folha}** | Envios: **{contador}**")
             st.caption(f"Último envio: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
