@@ -189,7 +189,39 @@ def get_folhas_mensais(mes_referencia=None):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
-
+def atualizar_lancamento_completo(lancamento_id, data_servico, servico_id, servico_diverso_desc, quantidade, valor_unitario, observacao):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE lancamentos 
+                    SET data_servico = :data, 
+                        servico_id = :serv_id, 
+                        servico_diverso_descricao = :serv_div, 
+                        quantidade = :qtd, 
+                        valor_unitario = :val, 
+                        observacao = :obs 
+                    WHERE id = :id
+                """)
+                connection.execute(query, {
+                    'data': data_servico,
+                    'serv_id': servico_id,
+                    'serv_div': servico_diverso_desc,
+                    'qtd': quantidade,
+                    'val': valor_unitario,
+                    'obs': observacao,
+                    'id': lancamento_id
+                })
+        
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "EDITAR_LANCAMENTO", f"Lançamento ID {lancamento_id} editado completamente.")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao atualizar lançamento: {e}")
+        return False
+        
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
     if engine is None: return
@@ -836,6 +868,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
