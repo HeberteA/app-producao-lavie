@@ -129,7 +129,6 @@ def render_page():
                         lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
                         producao_atual = lancs_func['Valor Parcial'].sum()
 
-                    st.markdown("---")
                     col_info1, col_info2, col_info3 = st.columns(3)
                     
                     with col_info1:
@@ -369,6 +368,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
