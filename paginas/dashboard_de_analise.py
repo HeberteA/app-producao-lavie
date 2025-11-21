@@ -149,9 +149,9 @@ def render_page():
         destaque_nome = df_f.loc[df_f['PRODUÇÃO BRUTA (R$)'].idxmax(), 'Funcionário'].split()[0]
 
     col_kpi = st.columns(5)
-    with col_kpi[0]: st.markdown(kpi_html("Prod. Bruta Total", utils.format_currency(tot_bruta), "", "#328c11"), unsafe_allow_html=True)
-    with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#328c11"), unsafe_allow_html=True)
-    with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#328c11"), unsafe_allow_html=True)
+    with col_kpi[0]: st.markdown(kpi_html("Prod. Bruta Total", utils.format_currency(tot_bruta), "", "#E37026"), unsafe_allow_html=True)
+    with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#1E88E5"), unsafe_allow_html=True)
+    with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#8b5cf6"), unsafe_allow_html=True)
     with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "", "#328c11"), unsafe_allow_html=True)
     with col_kpi[4]: st.markdown(kpi_html("Maior Produtividade", destaque_nome, "",  "#FFFFFF"), unsafe_allow_html=True)
 
