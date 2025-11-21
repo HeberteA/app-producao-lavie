@@ -8,58 +8,91 @@ from datetime import datetime
 def abrir_modal_edicao(row, precos_df):
     id_lanc = row['id']
     data_atual = pd.to_datetime(row['Data']).date()
-    servico_atual_nome = row['Serviço']
     obs_atual = row['Observação']
     qtd_atual = float(row['Quantidade'])
+    
+    valor_unit_atual = float(row['Valor Unitário']) if pd.notna(row['Valor Unitário']) else 0.0
     valor_total_atual = float(row['Valor Parcial'])
-    valor_unit_atual_calculado = valor_total_atual / qtd_atual if qtd_atual > 0 else 0
+    
+    tipo_lancamento = row['Disciplina']
+    nome_servico_atual = row['Serviço']
 
-    st.write(f"Editando lançamento **#{id_lanc}** de **{row['Funcionário']}**")
-    
-    disciplina_atual_guess = None
-    servico_row = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_atual_nome]
-    
-    if not servico_row.empty:
-        disciplina_atual_guess = servico_row.iloc[0]['DISCIPLINA']
-    
-    disciplinas = sorted(precos_df['DISCIPLINA'].unique())
-    
-    idx_disc = disciplines.index(disciplina_atual_guess) if disciplina_atual_guess in disciplinas else None
-    disciplina_sel = st.selectbox("Disciplina", options=disciplinas, index=idx_disc, key="edit_disc")
-    
-    opcoes_servico = []
-    if disciplina_sel:
-        opcoes_servico = sorted(precos_df[precos_df['DISCIPLINA'] == disciplina_sel]['DESCRIÇÃO DO SERVIÇO'].unique())
-    
-    idx_serv = opcoes_servico.index(servico_atual_nome) if servico_atual_nome in opcoes_servico else None
-    servico_sel = st.selectbox("Serviço", options=opcoes_servico, index=idx_serv, key="edit_serv")
-    
-    col_q, col_v = st.columns(2)
-    with col_q:
-        nova_qtd = st.number_input("Quantidade", value=qtd_atual, step=0.1, min_value=0.01, format="%.2f")
-    with col_v:
-        novo_valor_unit = valor_unit_atual_calculado
+    st.markdown(f"**Tipo:** `{tipo_lancamento}` | **Original:** {nome_servico_atual}")
+    st.markdown("---")
+
+    if tipo_lancamento == 'GRATIFICAÇÃO':
+        nova_descricao = st.text_input("Descrição da Gratificação", value=nome_servico_atual)
+        
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            nova_qtd = st.number_input("Quantidade", value=1.0, disabled=True) 
+        with col_g2:
+            novo_valor_unit = st.number_input("Valor (R$)", value=valor_total_atual, step=50.0, format="%.2f")
+        
+        novo_servico_id = None
+        novo_servico_diverso_desc = f"[GRATIFICACAO] {nova_descricao}"
+
+    elif tipo_lancamento == 'Diverso':
+        nova_descricao = st.text_input("Descrição do Item", value=nome_servico_atual)
+        
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            nova_qtd = st.number_input("Quantidade", value=qtd_atual, step=0.1, min_value=0.01, format="%.2f")
+        with col_d2:
+            novo_valor_unit = st.number_input("Valor Unitário (R$)", value=valor_unit_atual, step=1.0, format="%.2f")
+            
+        novo_servico_id = None
+        novo_servico_diverso_desc = nova_descricao
+
+    else:
+        disciplinas = sorted(precos_df['DISCIPLINA'].unique())
+
+        idx_disc = disciplines.index(tipo_lancamento) if tipo_lancamento in disciplines else 0
+        disciplina_sel = st.selectbox("Disciplina", options=disciplinas, index=idx_disc, key="edit_disc")
+        
+        opcoes_servico = []
+        if disciplina_sel:
+            opcoes_servico = sorted(precos_df[precos_df['DISCIPLINA'] == disciplina_sel]['DESCRIÇÃO DO SERVIÇO'].unique())
+        
+        idx_serv = opcoes_servico.index(nome_servico_atual) if nome_servico_atual in opcoes_servico else 0
+        servico_sel = st.selectbox("Serviço", options=opcoes_servico, index=idx_serv, key="edit_serv")
+        
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            nova_qtd = st.number_input("Quantidade", value=qtd_atual, step=0.1, min_value=0.01, format="%.2f")
+        with col_s2:
+            preco_sugerido = valor_unit_atual
+            if servico_sel != nome_servico_atual and servico_sel:
+                 preco_tab = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_sel].iloc[0]['VALOR']
+                 preco_sugerido = float(preco_tab)
+            
+            novo_valor_unit = st.number_input("Valor Unitário (R$)", value=preco_sugerido, step=0.5, format="%.2f")
+
+        novo_servico_diverso_desc = None
+        novo_servico_id = None
         if servico_sel:
-            preco_tab = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_sel].iloc[0]['VALOR']
-            novo_valor_unit = st.number_input("Valor Unitário", value=float(preco_tab), step=0.5, format="%.2f")
-    
-    nova_data = st.date_input("Data do Serviço", value=data_atual)
+             novo_servico_id = int(precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_sel].iloc[0]['id'])
+
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        nova_data = st.date_input("Data do Serviço", value=data_atual)
+    with col_c2:
+        st.metric("Novo Total", utils.format_currency(nova_qtd * novo_valor_unit))
+
     nova_obs = st.text_area("Observação", value=obs_atual)
 
-    st.markdown("---")
-    col_b1, col_b2 = st.columns(2)
-    
-    if col_b2.button("Salvar Alterações", type="primary", use_container_width=True):
-        if servico_sel:
-            servico_id_novo = int(precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_sel].iloc[0]['id'])
-            
-            if db_utils.atualizar_lancamento_completo(
-                id_lanc, nova_data, servico_id_novo, None, nova_qtd, novo_valor_unit, nova_obs
-            ):
-                st.success("Atualizado com sucesso!")
-                st.rerun()
-        else:
+    # Botão Salvar
+    if st.button("Salvar Alterações", type="primary", use_container_width=True):
+        if tipo_lancamento not in ['GRATIFICAÇÃO', 'Diverso'] and not novo_servico_id:
             st.error("Selecione um serviço válido.")
+        else:
+            sucesso = db_utils.atualizar_lancamento_completo(
+                id_lanc, nova_data, novo_servico_id, novo_servico_diverso_desc, 
+                nova_qtd, novo_valor_unit, nova_obs
+            )
+            if sucesso:
+                st.success("Lançamento atualizado!")
+                st.rerun()
 
 def render_page():
     mes_selecionado = st.session_state.selected_month
@@ -69,7 +102,7 @@ def render_page():
         lancamentos_df = db_utils.get_lancamentos_do_mes(mes)
         obras_df = db_utils.get_obras() 
         folhas_df = db_utils.get_folhas_mensais(mes)
-        precos_df = db_utils.get_precos() 
+        precos_df = db_utils.get_precos()
         return lancamentos_df, obras_df, folhas_df, precos_df
 
     lancamentos_df, obras_df, folhas_df, precos_df = get_remove_page_data(mes_selecionado)
@@ -124,14 +157,14 @@ def render_page():
                     st.error(f"Mês Fechado: Status '{status_folha}'. Edição/Remoção bloqueada.")
 
             df_filtrado['Remover'] = False
-            df_filtrado['Editar'] = False 
+            df_filtrado['Editar'] = False
             
-            colunas_visiveis = ['id', 'Editar', 'Remover', 'Data', 'Obra', 'Funcionário', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']
+            colunas_visiveis = ['id', 'Editar', 'Remover', 'Data', 'Obra', 'Funcionário', 'Disciplina', 'Serviço', 'Quantidade', 'Valor Parcial', 'Observação']
             
             if edicao_bloqueada:
                 config_disabled = True
             else:
-                config_disabled = df_filtrado.columns.drop(['Remover', 'Editar']) 
+                config_disabled = df_filtrado.columns.drop(['Remover', 'Editar'])
 
             df_modificado = st.data_editor(
                 df_filtrado[colunas_visiveis],
@@ -143,7 +176,9 @@ def render_page():
                     "Editar": st.column_config.CheckboxColumn(width="small"),
                     "Data": st.column_config.DatetimeColumn("Data", format="DD/MM HH:mm"),
                     "Quantidade": st.column_config.NumberColumn("Qtd", format="%.2f"),
-                    "Valor Parcial": st.column_config.NumberColumn("Valor", format="R$ %.2f")
+                    "Valor Parcial": st.column_config.NumberColumn("Valor", format="R$ %.2f"),
+                    "Disciplina": st.column_config.TextColumn(width="medium"), 
+                    "Serviço": st.column_config.TextColumn(width="large"),
                 },
                 disabled=config_disabled
             )
