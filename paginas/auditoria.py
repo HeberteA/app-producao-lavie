@@ -39,7 +39,7 @@ def render_page():
     /* Cores de Destaque */
     .border-blue { border-left-color: #3b82f6 !important; }
     .border-orange { border-left-color: #E37026 !important; }
-    .border-green { border-left-color: #10b981 !important; }
+    .border-green { border-left-color: #328c11 !important; }
     .border-purple { border-left-color: #8b5cf6 !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -141,8 +141,11 @@ def render_page():
         st.markdown("##### Situação")
 
         if edicao_bloqueada: st.success(f"Folha Finalizada.")
-        elif status_folha == "Enviada para Auditoria": st.info(f"Aguardando Auditoria.")
-        elif status_folha == 'Devolvida para Revisão': st.warning("Devolvida para Revisão.")
+            if not folha_do_mes.empty:
+            data_envio = pd.to_datetime(folha_do_mes['data_lancamento'].iloc[0]); contador = folha_do_mes['contador_envios'].iloc[0]
+            st.info(f"Status: **{status_folha}** | Envios: **{contador}**")
+            st.caption(f"Último envio: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
+        else: st.warning("Aguardando envio da folha.")
             
         st.markdown("##### Avisos")
         aviso_val = obras_df.loc[obras_df['id'] == obra_id_selecionada, 'aviso'].iloc[0]
