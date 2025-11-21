@@ -120,8 +120,30 @@ def render_page():
                     funcionario_selecionado = selected_option.replace("✅ ", "")
                 
                 if funcionario_selecionado:
-                    funcao_selecionada = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'FUNÇÃO'].iloc[0]
-                    st.metric(label="Função do Colaborador", value=funcao_selecionada)
+                    func_row = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado].iloc[0]
+                    funcao_selecionada = func_row['FUNÇÃO']
+                    salario_base = utils.safe_float(func_row['SALARIO_BASE'])
+
+                    producao_atual = 0.0
+                    if not lancamentos_do_mes_df.empty:
+                        lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
+                        producao_atual = lancs_func['Valor Parcial'].sum()
+
+                    st.markdown("---")
+                    col_info1, col_info2, col_info3 = st.columns(3)
+                    
+                    with col_info1:
+                        st.markdown("**Função**")
+                        st.caption(funcao_selecionada)
+                    
+                    with col_info2:
+                        st.markdown("**Salário Base**")
+                        st.markdown(f"<span style='color: #a0a0a0'>{utils.format_currency(salario_base)}</span>", unsafe_allow_html=True)
+                    
+                    with col_info3:
+                        cor_prod = "#4caf50" if producao_atual >= salario_base else "#ff9800"
+                        st.markdown("**Produção Mês**")
+                        st.markdown(f"<span style='color: {cor_prod}; font-weight:bold'>{utils.format_currency(producao_atual)}</span>", unsafe_allow_html=True)
 
             st.markdown("<div class='section-header'>Detalhes do Serviço</div>", unsafe_allow_html=True)
             with st.container(border=True):
@@ -347,5 +369,6 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
