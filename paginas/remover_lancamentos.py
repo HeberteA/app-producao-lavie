@@ -6,7 +6,8 @@ from datetime import datetime
 
 @st.dialog("Editar Lançamento")
 def abrir_modal_edicao(row, precos_df):
-    id_lanc = row['id']
+    id_lanc = int(row['id']) 
+    
     data_atual = pd.to_datetime(row['Data']).date()
     obs_atual = row['Observação'] if row['Observação'] else ""
     qtd_atual = float(row['Quantidade'])
@@ -20,6 +21,7 @@ def abrir_modal_edicao(row, precos_df):
     st.markdown(f"**Tipo:** `{tipo_lancamento}` | **Original:** {nome_servico_atual}")
     st.markdown("---")
 
+  
     if tipo_lancamento == 'GRATIFICAÇÃO':
         nova_descricao = st.text_input("Descrição da Gratificação", value=nome_servico_atual)
         
@@ -53,7 +55,10 @@ def abrir_modal_edicao(row, precos_df):
         if disciplina_sel:
             opcoes_servico = sorted(precos_df[precos_df['DISCIPLINA'] == disciplina_sel]['DESCRIÇÃO DO SERVIÇO'].unique())
         
-        idx_serv = opcoes_servico.index(nome_servico_atual) if nome_servico_atual in opcoes_servico else 0
+        idx_serv = 0
+        if nome_servico_atual in opcoes_servico:
+            idx_serv = opcoes_servico.index(nome_servico_atual)
+            
         servico_sel = st.selectbox("Serviço", options=opcoes_servico, index=idx_serv, key="edit_serv")
         
         col_s1, col_s2 = st.columns(2)
@@ -75,7 +80,6 @@ def abrir_modal_edicao(row, precos_df):
              try:
                 novo_servico_id = int(precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_sel].iloc[0]['id'])
              except: pass
-
     col_c1, col_c2 = st.columns(2)
     with col_c1:
         nova_data = st.date_input("Data do Serviço", value=data_atual)
@@ -86,7 +90,7 @@ def abrir_modal_edicao(row, precos_df):
     
     justificativa_admin = ""
     if st.session_state['role'] == 'admin':
-        st.warning("👮 Edição de Auditoria: Justificativa Obrigatória")
+        st.warning("Edição de Auditoria: Justificativa Obrigatória")
         justificativa_admin = st.text_area("Motivo da Alteração (Aparecerá no comentário)", placeholder="Ex: Quantidade corrigida conforme medição in loco...")
 
     if st.button("Salvar Alterações", type="primary", use_container_width=True):
@@ -247,3 +251,4 @@ def render_page():
                             st.success("Removido com sucesso!")
                             st.cache_data.clear() 
                             st.rerun()
+
