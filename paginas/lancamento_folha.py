@@ -148,7 +148,6 @@ def render_page():
                         lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
                         producao_atual = lancs_func['Valor Parcial'].sum()
 
-                    st.markdown("---")
                     c1, c2, c3 = st.columns(3)
                     
                     if salario_base > 0 and producao_atual >= salario_base:
@@ -156,7 +155,7 @@ def render_page():
                     else:
                         cor_prod = "#ff9800" 
                     
-                    with c1:=
+                    with c1:
                         st.markdown(display_info_card("Função", funcao_selecionada, color="#A0A0A0"), unsafe_allow_html=True)
                     with c2:
                         st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#4caf50"), unsafe_allow_html=True)
@@ -388,5 +387,6 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
