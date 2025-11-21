@@ -153,11 +153,12 @@ def render_page():
                     cor_prod = "#4caf50" if producao_atual >= salario_base else "#ff9800"
                     
                     with c1:
-                        st.markdown(display_info_card("Função", funcao_selecionada, color="#6c757d", icon="👷"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Função", funcao_selecionada, color="#6c757d"), unsafe_allow_html=True)
                     with c2:
-                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#3b82f6", icon="💼"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#3b82f6"), unsafe_allow_html=True)
                     with c3:
-                        st.markdown(display_info_card("Produção Mês", utils.format_currency(producao_atual), color=cor_prod, icon="📈"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Produção Mês", utils.format_currency(producao_atual), color=cor_prod), unsafe_allow_html=True)
+                    st.markdown("")
 
             st.markdown("<div class='section-header'>Detalhes do Serviço</div>", unsafe_allow_html=True)
             with st.container(border=True):
@@ -383,6 +384,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
