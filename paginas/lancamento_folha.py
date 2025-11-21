@@ -11,33 +11,52 @@ def render_page():
    
     st.markdown("""
     <style>
-        /* Estilo "Glass" para os containers */
-        .stContainer {
-            background-color: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        /* Header de Seção Estilizado */
-        .section-header {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #e0e0e0;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            border-left: 4px solid #E37026;
-            padding-left: 10px;
-            letter-spacing: 0.5px;
-        }
-
-        /* Ajuste sutil nos inputs para combinar com o tema */
-        .stSelectbox, .stNumberInput, .stDateInput, .stTextInput, .stTextArea {
-            margin-bottom: 10px;
-        }
+    .info-card {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+    .info-card:hover {
+        border-color: #E37026;
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+    .info-label {
+        color: #A0A0A0;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .info-value {
+        color: #FFFFFF;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+    .info-indicator {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+    }
     </style>
     """, unsafe_allow_html=True)
+
+    def display_info_card(label, value, color="#E37026", icon=""):
+        return f"""
+        <div class="info-card">
+            <div class="info-indicator" style="background-color: {color};"></div>
+            <div class="info-label">{icon} {label}</div>
+            <div class="info-value">{value}</div>
+        </div>
+        """
 
     mes_selecionado = st.session_state.selected_month
     
@@ -368,6 +387,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
