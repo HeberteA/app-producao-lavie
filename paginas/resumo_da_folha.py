@@ -212,11 +212,16 @@ def render_page():
             df_para_exibir,
             use_container_width=True, hide_index=True,
             column_config={
-                "SALÁRIO BASE (R$)": "SALÁRIO BASE" st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO BRUTA (R$)":"PRODUÇÃO BRUTA" st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO LÍQUIDA (R$)":"PRODUÇÃO LÍQUIDA" st.column_config.NumberColumn(format="R$ %.2f"),
-                "TOTAL GRATIFICAÇÕES (R$)":"TOTAL GRATIFICAÇÕES" st.column_config.NumberColumn(format="R$ %.2f"),
-                "SALÁRIO A RECEBER (R$)":"SALÁRIO A RECEBER" st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO BASE (R$)": "SALÁRIO BASE", 
+                "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO BRUTA (R$)":"PRODUÇÃO BRUTA", 
+                "PRODUÇÃO BRUTA (R$)":st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO LÍQUIDA (R$)":"PRODUÇÃO LÍQUIDA", 
+                "PRODUÇÃO LÍQUIDA (R$)":st.column_config.NumberColumn(format="R$ %.2f"),
+                "TOTAL GRATIFICAÇÕES (R$)":"TOTAL GRATIFICAÇÕES",
+                "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO A RECEBER (R$)":"SALÁRIO A RECEBER",
+                "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
             }
         )
         
@@ -242,6 +247,7 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="⬇️ Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
 
 
 
