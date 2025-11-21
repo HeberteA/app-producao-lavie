@@ -149,10 +149,10 @@ def render_page():
         destaque_nome = df_f.loc[df_f['PRODUÇÃO BRUTA (R$)'].idxmax(), 'Funcionário'].split()[0]
 
     col_kpi = st.columns(5)
-    with col_kpi[0]: st.markdown(kpi_html("Prod. Bruta Total", utils.format_currency(tot_bruta), "", "#E37026"), unsafe_allow_html=True)
-    with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#3b82f6"), unsafe_allow_html=True)
-    with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#8b5cf6"), unsafe_allow_html=True)
-    with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "", "#10b981"), unsafe_allow_html=True)
+    with col_kpi[0]: st.markdown(kpi_html("Prod. Bruta Total", utils.format_currency(tot_bruta), "", "#328c11"), unsafe_allow_html=True)
+    with col_kpi[1]: st.markdown(kpi_html("Prod. Líquida Total", utils.format_currency(tot_liq), "", "#328c11"), unsafe_allow_html=True)
+    with col_kpi[2]: st.markdown(kpi_html("Total Gratificações", utils.format_currency(tot_grat), "", "#328c11"), unsafe_allow_html=True)
+    with col_kpi[3]: st.markdown(kpi_html("Média Líq./Func.", utils.format_currency(med_liq), "", "#328c11"), unsafe_allow_html=True)
     with col_kpi[4]: st.markdown(kpi_html("Maior Produtividade", destaque_nome, "",  "#FFFFFF"), unsafe_allow_html=True)
 
    
@@ -173,10 +173,10 @@ def render_page():
 
         st.markdown(" ") 
         col_op = st.columns(4)
-        with col_op[0]: st.markdown(kpi_html("Projeção (Mês)", utils.format_currency(projecao), f"Baseado em {ultimo_dia} dias", "#F59E0B"), unsafe_allow_html=True)
-        with col_op[1]: st.markdown(kpi_html("Média Diária", utils.format_currency(media_diaria), "Ritmo atual", "#10B981"), unsafe_allow_html=True)
-        with col_op[2]: st.markdown(kpi_html("Recorde Diário", utils.format_currency(recorde_dia), f"Em {data_recorde}", "#EC4899"), unsafe_allow_html=True)
-        with col_op[3]: st.markdown(kpi_html("Equipe Ativa", f"{equipe_ativa}/{total_equipe}", "Funcionários produzindo", "#6366F1"), unsafe_allow_html=True)
+        with col_op[0]: st.markdown(kpi_html("Projeção (Mês)", utils.format_currency(projecao), f"Baseado em {ultimo_dia} dias", "#FFFFFF"), unsafe_allow_html=True)
+        with col_op[1]: st.markdown(kpi_html("Média Diária", utils.format_currency(media_diaria), "Ritmo atual", "#328c11"), unsafe_allow_html=True)
+        with col_op[2]: st.markdown(kpi_html("Recorde Diário", utils.format_currency(recorde_dia), f"Em {data_recorde}", "#328c11"), unsafe_allow_html=True)
+        with col_op[3]: st.markdown(kpi_html("Equipe Ativa", f"{equipe_ativa}/{total_equipe}", "Funcionários produzindo", "#FFFFFF"), unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Erro ao calcular KPIs operacionais: {e}")
 
@@ -190,10 +190,10 @@ def render_page():
         if len(str(top_serv)) > 20: top_serv = str(top_serv)[:20] + "..."
 
         ak1, ak2, ak3, ak4 = st.columns(4)
-        with ak1: st.markdown(kpi_html("Maior Obra (Volume)", top_obra, "", "#E37026"), unsafe_allow_html=True)
-        with ak2: st.markdown(kpi_html("Obra Mais Eficiente", top_efic, "", "#E37026"), unsafe_allow_html=True)
-        with ak3: st.markdown(kpi_html("Serviço Mais Caro", top_serv, "", "#E37026"), unsafe_allow_html=True)
-        with ak4: st.markdown(kpi_html("Ticket Médio/Serviço", utils.format_currency(lancs_prod['Valor Parcial'].mean() if not lancs_prod.empty else 0), "", "#E37026"), unsafe_allow_html=True)
+        with ak1: st.markdown(kpi_html("Maior Obra (Volume)", top_obra, "", "#FFFFFF"), unsafe_allow_html=True)
+        with ak2: st.markdown(kpi_html("Obra Mais Eficiente", top_efic, "", "#FFFFFF"), unsafe_allow_html=True)
+        with ak3: st.markdown(kpi_html("Serviço Mais Caro", top_serv, "", "#FFFFFF"), unsafe_allow_html=True)
+        with ak4: st.markdown(kpi_html("Ticket Médio/Serviço", utils.format_currency(lancs_prod['Valor Parcial'].mean() if not lancs_prod.empty else 0), "", "#328c11"), unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     cor_bruta = '#E37026'
