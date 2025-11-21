@@ -37,7 +37,7 @@ def render_page():
         color: #EEE;
     }
     /* Cores de Destaque */
-    .border-blue { border-left-color: #3b82f6 !important; }
+    .border-blue { border-left-color: #1E88E5 !important; }
     .border-orange { border-left-color: #E37026 !important; }
     .border-green { border-left-color: #328c11 !important; }
     .border-purple { border-left-color: #8b5cf6 !important; }
