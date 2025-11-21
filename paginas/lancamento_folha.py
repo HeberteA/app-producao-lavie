@@ -49,12 +49,12 @@ def render_page():
     </style>
     """, unsafe_allow_html=True)
 
-    def display_info_card(label, value, color="#E37026", icon=""):
+    def display_info_card(value, color="#E37026", icon=""):
         return f"""
         <div class="info-card">
             <div class="info-indicator" style="background-color: {color};"></div>
-            <div class="info-label">{icon} {label}</div>
-            <div class="info-value">{value}</div>
+            <div class="info-label">{icon} </div>
+            <div class="info-value" style="color: {color};">{value}</div>
         </div>
         """
 
@@ -139,10 +139,13 @@ def render_page():
                     funcionario_selecionado = selected_option.replace("✅ ", "")
                 
                 if funcionario_selecionado:
+                    # 1. Buscar dados
                     func_row = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado].iloc[0]
                     funcao_selecionada = func_row['FUNÇÃO']
-                    salario_base = utils.safe_float(func_row['SALARIO_BASE'])
+                    # Garante que é float para a comparação funcionar
+                    salario_base = utils.safe_float(func_row['SALARIO_BASE']) 
 
+                    # 2. Calcular produção do mês
                     producao_atual = 0.0
                     if not lancamentos_do_mes_df.empty:
                         lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
@@ -150,12 +153,15 @@ def render_page():
 
                     c1, c2, c3 = st.columns(3)
                     
-                    cor_prod = "#4caf50" if producao_atual >= salario_base else "#ff9800"
+                    if salario_base > 0 and producao_atual >= salario_base:
+                        cor_prod = "#4caf50"
+                    else:
+                        cor_prod = "#ff9800" 
                     
                     with c1:
-                        st.markdown(display_info_card("Função", funcao_selecionada, color="#6c757d"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Função", funcao_selecionada, color="#A0A0A0"), unsafe_allow_html=True)
                     with c2:
-                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#3b82f6"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#FFFFFF"), unsafe_allow_html=True)
                     with c3:
                         st.markdown(display_info_card("Produção Mês", utils.format_currency(producao_atual), color=cor_prod), unsafe_allow_html=True)
                     st.markdown("")
@@ -384,6 +390,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
