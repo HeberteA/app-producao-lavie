@@ -222,11 +222,11 @@ def render_page():
             df_renomeado,
             use_container_width=True, hide_index=True,
             column_config={
-                "SALÁRIO BASE": st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO BRUTA":st.column_config.NumberColumn(format="R$ %.2f"),
-                "PRODUÇÃO LÍQUIDA":st.column_config.NumberColumn(format="R$ %.2f"),
-                "TOTAL GRATIFICAÇÕES": st.column_config.NumberColumn(format="R$ %.2f"),
-                "SALÁRIO A RECEBER": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO BASE (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO BRUTA (R$)":st.column_config.NumberColumn(format="R$ %.2f"),
+                "PRODUÇÃO LÍQUIDA (R$)":st.column_config.NumberColumn(format="R$ %.2f"),
+                "TOTAL GRATIFICAÇÕES (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                "SALÁRIO A RECEBER (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
             }
         )
         
@@ -252,6 +252,7 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="⬇️ Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
 
 
 
