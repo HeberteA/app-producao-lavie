@@ -151,14 +151,14 @@ def render_page():
                     c1, c2, c3 = st.columns(3)
                     
                     if salario_base > 0 and producao_atual >= salario_base:
-                        cor_prod = "#4caf50" 
+                        cor_prod = "#328c11" 
                     else:
                         cor_prod = "#ff9800" 
                     
                     with c1:
                         st.markdown(display_info_card("Função", funcao_selecionada, color="#A0A0A0"), unsafe_allow_html=True)
                     with c2:
-                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#328c11"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#A0A0A0"), unsafe_allow_html=True)
                     with c3:
                         st.markdown(display_info_card("Produção Mês", utils.format_currency(producao_atual), color=cor_prod), unsafe_allow_html=True)
                     st.markdown("")
@@ -387,6 +387,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
