@@ -208,7 +208,7 @@ def render_page():
             .apply(lambda x: x.map(utils.style_status), subset=['STATUS']) \
             .apply(lambda x: x.map(utils.style_situacao), subset=['SITUAÇÃO'])
         
-        df_renomeado = df.rename(columns={
+        df_renomeado = df_filtrado_final.rename(columns={
             "SALÁRIO BASE (R$)": "SALÁRIO BASE", 
             "PRODUÇÃO BRUTA (R$)":"PRODUÇÃO BRUTA", 
             "PRODUÇÃO LÍQUIDA (R$)":"PRODUÇÃO LÍQUIDA",
@@ -252,6 +252,7 @@ def render_page():
                     pdf_data = utils.gerar_relatorio_pdf(df_filtrado_final[colunas_finais_existentes], lancamentos_para_pdf, "Lavie.png", mes_selecionado, obra_relatorio_nome)
                     if pdf_data:
                         pdf_ph.download_button(label="⬇️ Download PDF", data=pdf_data, file_name=f"resumo_{mes_selecionado}.pdf", mime="application/pdf", use_container_width=True)
+
 
 
 
