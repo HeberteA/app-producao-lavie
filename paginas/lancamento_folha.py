@@ -1,4 +1,4 @@
-import streamlit as st
+mport streamlit as st
 import pandas as pd
 from datetime import datetime, date, timezone, timedelta 
 import db_utils
@@ -8,7 +8,7 @@ def render_page():
     if st.session_state['role'] != 'user':
         st.error("Acesso negado.")
         st.stop()
-   
+
     st.markdown("""
     <style>
     .info-card {
@@ -49,17 +49,17 @@ def render_page():
     </style>
     """, unsafe_allow_html=True)
 
-    def display_info_card(value, color="#E37026", icon=""):
+    def display_info_card(label, value, color="#E37026", icon=""):
         return f"""
         <div class="info-card">
             <div class="info-indicator" style="background-color: {color};"></div>
-            <div class="info-label">{icon} </div>
-            <div class="info-value" style="color: {color};">{value}</div>
+            <div class="info-label">{icon} {label}</div>
+            <div class="info-value">{value}</div>
         </div>
         """
 
     mes_selecionado = st.session_state.selected_month
-    
+
     @st.cache_data
     def get_launch_page_data(mes):
         funcionarios_df = db_utils.get_funcionarios()
@@ -76,14 +76,14 @@ def render_page():
         st.session_state.current_month_for_concluded = mes_selecionado
 
     st.header(f"Lançamentos de Produção • {mes_selecionado}")
-    
+
     obra_logada = st.session_state['obra_logada']
     obra_logada_id_info = obras_df.loc[obras_df['NOME DA OBRA'] == obra_logada, 'id']
     if obra_logada_id_info.empty:
         st.error("Não foi possível identificar a obra logada. Por favor, faça login novamente.")
         st.stop()
     obra_logada_id = int(obra_logada_id_info.iloc[0])
-    
+
     try:
         mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
     except Exception:
@@ -105,13 +105,13 @@ def render_page():
             st.warning("Atenção: A folha foi devolvida pela auditoria. Você pode adicionar ou remover lançamentos antes de reenviar.")
 
         col_form, col_view = st.columns([2, 1], gap="medium") 
-        
+
         with col_form:
             st.markdown(f"<div class='section-header'>Obra Ativa: {st.session_state['obra_logada']}</div>", unsafe_allow_html=True)
-            
+
             with st.container(border=True):
                 funcionarios_da_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_logada].copy()
-                
+
                 status_conclusao_df = status_df[
                     (status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] != 0)
                 ][['funcionario_id', 'Lancamentos Concluidos']].fillna(False)
@@ -123,45 +123,45 @@ def render_page():
 
                 pendentes_df = funcionarios_status_df[~funcionarios_status_df['Lancamentos Concluidos']]
                 concluidos_df = funcionarios_status_df[funcionarios_status_df['Lancamentos Concluidos']]
-                
+
                 pendentes = sorted(pendentes_df['NOME'].unique())
                 concluidos_marcados = sorted([f"✅ {nome}" for nome in concluidos_df['NOME'].unique()])
-                
+
                 opcoes_finais = pendentes + concluidos_marcados
-                
+
                 selected_option = st.selectbox(
                     "Selecione o Funcionário", options=opcoes_finais, index=None,
                     placeholder="Selecione um funcionário...", key="lf_func_select" 
                 )
-                
+
                 funcionario_selecionado = None
                 if selected_option:
                     funcionario_selecionado = selected_option.replace("✅ ", "")
-                
+
                 if funcionario_selecionado:
-                    # 1. Buscar dados
+
                     func_row = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado].iloc[0]
                     funcao_selecionada = func_row['FUNÇÃO']
-                    # Garante que é float para a comparação funcionar
-                    salario_base = utils.safe_float(func_row['SALARIO_BASE']) 
+                    salario_base = utils.safe_float(func_row['SALARIO_BASE'])
 
-                    # 2. Calcular produção do mês
+
+
                     producao_atual = 0.0
                     if not lancamentos_do_mes_df.empty:
                         lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
                         producao_atual = lancs_func['Valor Parcial'].sum()
 
                     c1, c2, c3 = st.columns(3)
-                    
-                    if salario_base > 0 and producao_atual >= salario_base:
-                        cor_prod = "#4caf50"
-                    else:
-                        cor_prod = "#ff9800" 
-                    
+
+                    cor_prod = "#4caf50" if producao_atual >= salario_base else "#ff9800"
+
+
+
+
                     with c1:
-                        st.markdown(display_info_card("Função", funcao_selecionada, color="#A0A0A0"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Função", funcao_selecionada, color="#6c757d"), unsafe_allow_html=True)
                     with c2:
-                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#FFFFFF"), unsafe_allow_html=True)
+                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#3b82f6"), unsafe_allow_html=True)
                     with c3:
                         st.markdown(display_info_card("Produção Mês", utils.format_currency(producao_atual), color=cor_prod), unsafe_allow_html=True)
                     st.markdown("")
@@ -170,11 +170,11 @@ def render_page():
             with st.container(border=True):
                 disciplinas = sorted(precos_df['DISCIPLINA'].unique())
                 disciplina_idx = disciplinas.index(st.session_state.get("lf_disciplina_select")) if st.session_state.get("lf_disciplina_select") in disciplinas else None
-                
+
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     disciplina_selecionada = st.selectbox("Disciplina", options=disciplinas, index=None, placeholder="Selecione...", key="lf_disciplina_select")
-                
+
                 opcoes_servico = []
                 servico_idx = None
                 if disciplina_selecionada:
@@ -183,16 +183,16 @@ def render_page():
 
                 with c2:
                     servico_selecionado = st.selectbox("Descrição do Serviço", options=opcoes_servico, index=None, placeholder="Selecione disciplina primeiro...", disabled=not disciplina_selecionada, key="lf_servico_select")
-                
+
                 quantidade_principal = 0.0 
                 valor_parcial_servico = 0.0
                 if servico_selecionado:
                     servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == servico_selecionado].iloc[0]
-                    
+
                     kpi1, kpi2 = st.columns(2)
                     kpi1.metric(label="Unidade", value=servico_info['UNIDADE'])
                     kpi2.metric(label="Valor Unitário", value=utils.format_currency(servico_info['VALOR']))
-                    
+
                     col_qtd, col_parcial = st.columns(2)
                     with col_qtd:
                         quantidade_principal = st.number_input(
@@ -203,13 +203,13 @@ def render_page():
                         valor_unitario = utils.safe_float(servico_info.get('VALOR'))
                         valor_parcial_servico = quantidade_principal * valor_unitario
                         st.metric(label="Subtotal do Serviço", value=utils.format_currency(valor_parcial_servico))
-                    
+
                     col_data_princ, col_obs_princ = st.columns(2)
                     with col_data_princ:
                         data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="lf_data_principal", format="DD/MM/YYYY")
                     with col_obs_princ:
                         obs_principal = st.text_area("Observação", key="lf_obs_principal")
-            
+
             with st.expander("Lançar Item Diverso"):
                 descricao_diverso = st.text_input("Descrição do Item Diverso", key="lf_desc_diverso")
                 col_valor_div, col_qtd_div = st.columns(2)
@@ -241,7 +241,7 @@ def render_page():
                     data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
                 with col_obs_grat:
                     obs_grat = st.text_area("Observação", key="lf_obs_grat")
-                
+
             if st.button("Adicionar Lançamento(s)", use_container_width=True, type="primary", key="lf_add_btn"):
                 if not funcionario_selecionado:
                     st.warning("Por favor, selecione um funcionário.")
@@ -250,7 +250,7 @@ def render_page():
                     current_quantidade_principal = st.session_state.get("lf_qty_principal", 0.0)
                     current_obs_principal = st.session_state.get("lf_obs_principal", "")
                     current_data_servico_principal = st.session_state.get("lf_data_principal", datetime.now().date())
-                    
+
                     current_descricao_diverso = st.session_state.get("lf_desc_diverso", "")
                     current_quantidade_diverso = st.session_state.get("lf_qty_diverso", 0.0)
                     current_valor_diverso = st.session_state.get("lf_valor_diverso", 0.0)
@@ -284,12 +284,12 @@ def render_page():
                         novos_lancamentos = []
                         fuso_horario = timezone(timedelta(hours=-3)) 
                         agora = datetime.now(fuso_horario) 
-                        
+
                         func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
                         if func_id_info.empty: st.error("Funcionário não encontrado.")
                         else:
                             func_id = int(func_id_info.iloc[0])
-                            
+
                             if add_serv:
                                 servico_info = precos_df[precos_df['DESCRIÇÃO DO SERVIÇO'] == current_servico_selecionado].iloc[0]
                                 novos_lancamentos.append({'data_servico': current_data_servico_principal, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': int(servico_info['id']), 'servico_diverso_descricao': None, 'quantidade': current_quantidade_principal, 'valor_unitario': utils.safe_float(servico_info['VALOR']), 'observacao': current_obs_principal, 'data_lancamento': agora})
@@ -297,10 +297,10 @@ def render_page():
                                 novos_lancamentos.append({'data_servico': current_data_servico_diverso, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': current_descricao_diverso, 'quantidade': current_quantidade_diverso, 'valor_unitario': current_valor_diverso, 'observacao': current_obs_diverso, 'data_lancamento': agora})
                             if add_grat:
                                 novos_lancamentos.append({'data_servico': current_data_grat, 'obra_id': obra_logada_id, 'funcionario_id': func_id, 'servico_id': None, 'servico_diverso_descricao': f"[GRATIFICACAO] {current_desc_grat}", 'quantidade': 1, 'valor_unitario': current_val_grat, 'observacao': current_obs_grat, 'data_lancamento': agora})
-                            
+
                             if novos_lancamentos:
                                 df_para_salvar = pd.DataFrame(novos_lancamentos)
-                                
+
                                 if db_utils.salvar_novos_lancamentos(df_para_salvar): 
                                     st.success(f"{len(novos_lancamentos)} lançamento(s) adicionado(s)!")
                                     st.cache_data.clear() 
@@ -315,9 +315,9 @@ def render_page():
                                     for key in keys_to_delete:
                                         if key in st.session_state:
                                             del st.session_state[key]
-                                    
+
                                     st.rerun()
-                                
+
         with col_view:
             if funcionario_selecionado:
                 func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
@@ -326,7 +326,7 @@ def render_page():
                     status_row = status_df[(status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] == func_id)]
                     status_atual = status_row['Status'].iloc[0] if not status_row.empty else 'A Revisar'
                     comentario = status_row['Comentario'].iloc[0] if not status_row.empty and pd.notna(status_row['Comentario'].iloc[0]) else ""
-                    
+
                     with st.container(border=True):
                         st.markdown("##### Status de Auditoria")
                         utils.display_status_box(f"{funcionario_selecionado}", status_atual)
@@ -345,7 +345,7 @@ def render_page():
             if not lancamentos_da_obra.empty:
                 cols_display = ['Data', 'Funcionário','Disciplina', 'Serviço','Quantidade','Valor Parcial', 'Observação']
                 cols_existentes = [col for col in cols_display if col in lancamentos_da_obra.columns]
-                
+
                 st.dataframe(
                     lancamentos_da_obra.sort_values(by='Data', ascending=False).head(10)[cols_existentes], 
                     column_config={
@@ -369,7 +369,7 @@ def render_page():
                 func_id_info = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado, 'id']
                 if not func_id_info.empty:
                     func_id = int(func_id_info.iloc[0])
-                    
+
                     status_row = status_df[(status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] == func_id)]
                     is_concluded = status_row['Lancamentos Concluidos'].iloc[0] if not status_row.empty and 'Lancamentos Concluidos' in status_row.columns and pd.notna(status_row['Lancamentos Concluidos'].iloc[0]) else False
 
@@ -378,7 +378,7 @@ def render_page():
                             st.toast(f"'{funcionario_selecionado}' marcado como concluído.", icon="👍")
                             st.cache_data.clear() 
                             st.rerun()
-        
+
             funcionarios_concluidos_db = status_df[
                 (status_df['obra_id'] == obra_logada_id) & 
                 (status_df['Lancamentos Concluidos'] == True) &
@@ -390,11 +390,3 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
-
-
-
-
-
-
-
-
