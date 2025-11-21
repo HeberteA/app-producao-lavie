@@ -148,20 +148,16 @@ def render_page():
                         lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
                         producao_atual = lancs_func['Valor Parcial'].sum()
 
-                    col_info1, col_info2, col_info3 = st.columns(3)
+                    c1, c2, c3 = st.columns(3)
                     
-                    with col_info1:
-                        st.markdown("**Função**")
-                        st.caption(funcao_selecionada)
+                    cor_prod = "#4caf50" if producao_atual >= salario_base else "#ff9800"
                     
-                    with col_info2:
-                        st.markdown("**Salário Base**")
-                        st.markdown(f"<span style='color: #a0a0a0'>{utils.format_currency(salario_base)}</span>", unsafe_allow_html=True)
-                    
-                    with col_info3:
-                        cor_prod = "#4caf50" if producao_atual >= salario_base else "#ff9800"
-                        st.markdown("**Produção Mês**")
-                        st.markdown(f"<span style='color: {cor_prod}; font-weight:bold'>{utils.format_currency(producao_atual)}</span>", unsafe_allow_html=True)
+                    with c1:
+                        st.markdown(display_info_card("Função", funcao_selecionada, color="#6c757d", icon="👷"), unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(display_info_card("Salário Base", utils.format_currency(salario_base), color="#3b82f6", icon="💼"), unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(display_info_card("Produção Mês", utils.format_currency(producao_atual), color=cor_prod, icon="📈"), unsafe_allow_html=True)
 
             st.markdown("<div class='section-header'>Detalhes do Serviço</div>", unsafe_allow_html=True)
             with st.container(border=True):
@@ -387,6 +383,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
