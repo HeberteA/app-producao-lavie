@@ -235,11 +235,11 @@ def render_page():
     st.plotly_chart(style_fig(fig_hist), use_container_width=True)
 
     st.markdown("---")
-    st.subheader("Análise Avançada (Insights)")
+    st.subheader("Análise Avançada")
     
     c_adv1, c_adv2 = st.columns(2)
     with c_adv1:
-        fig_box = px.box(df_f[df_f['PRODUÇÃO BRUTA (R$)']>0], x='FUNÇÃO', y='PRODUÇÃO BRUTA (R$)', color='FUNÇÃO', title="Consistência das Equipes (Boxplot)")
+        fig_box = px.box(df_f[df_f['PRODUÇÃO BRUTA (R$)']>0], x='FUNÇÃO', y='PRODUÇÃO BRUTA (R$)', color='FUNÇÃO', title="Consistência das Equipes")
         fig_box.update_layout(showlegend=False)
         st.plotly_chart(style_fig(fig_box), use_container_width=True)
     
