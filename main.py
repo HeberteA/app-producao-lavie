@@ -83,6 +83,8 @@ def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.image("Lavie.png", use_container_width=True)
+
+    st.space("medium")
     st.header("Login")
     obras_df_login = db_utils.get_obras()
     acessos_df_login = db_utils.get_acessos()
@@ -439,6 +441,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
