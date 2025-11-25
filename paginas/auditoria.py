@@ -208,7 +208,7 @@ def render_page():
                     st.markdown(f"### {funcionario_nome} <span style='color:#E37026; font-size:0.8em'>| {row['FUNÇÃO']}</span>", unsafe_allow_html=True)
                     
                     c1, c2, c3, c4, c5 = st.columns(5)
-                    with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)'])), unsafe_allow_html=True)
+                    with c1: st.markdown(make_audit_stat("Sal. Base", utils.format_currency(row['SALÁRIO BASE (R$)']), "#FFFFFF"), unsafe_allow_html=True)
                     with c2: st.markdown(make_audit_stat("Prod. Bruta", utils.format_currency(row['PRODUÇÃO BRUTA (R$)']), "border-orange"), unsafe_allow_html=True)
                     with c3: st.markdown(make_audit_stat("Prod. Líquida", utils.format_currency(row['PRODUÇÃO LÍQUIDA (R$)']), "border-blue"), unsafe_allow_html=True)
                     with c4: st.markdown(make_audit_stat("Gratificações", utils.format_currency(row['TOTAL GRATIFICAÇÕES (R$)']), "border-purple"), unsafe_allow_html=True)
