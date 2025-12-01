@@ -207,7 +207,7 @@ def render_page():
                 key="rl_data_editor",
                 column_config={
                     "id": None, 
-                    "Remover": st.column_config.CheckboxColumn(width="medium"),
+        
                     "Editar": st.column_config.CheckboxColumn(width="small"),
                     "Data": st.column_config.DatetimeColumn("Data", format="DD/MM HH:mm"),
                     "Quantidade": st.column_config.NumberColumn("Qtd", format="%.2f"),
@@ -251,6 +251,7 @@ def render_page():
                             st.success("Removido com sucesso!")
                             st.cache_data.clear() 
                             st.rerun()
+
 
 
 
