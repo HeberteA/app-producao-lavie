@@ -88,6 +88,11 @@ def render_page():
         mes_selecionado_dt = pd.to_datetime(mes_selecionado).date().replace(day=1)
     except Exception:
         mes_selecionado_dt = date.today().replace(day=1) 
+    hoje = date.today()
+    if hoje.year == mes_selecionado_dt.year and hoje.month == mes_selecionado_dt.month:
+        data_padrao_input = hoje
+    else:
+        data_padrao_input = mes_selecionado_dt
 
     folha_do_mes = folhas_df[
         (folhas_df['obra_id'] == obra_logada_id) &
@@ -203,7 +208,7 @@ def render_page():
 
                     col_data_princ, col_obs_princ = st.columns(2)
                     with col_data_princ:
-                        data_servico_principal = st.date_input("Data do Serviço", value=datetime.now().date(), key="lf_data_principal", format="DD/MM/YYYY")
+                        data_servico_principal = st.date_input("Data do Serviço", value=data_padrao_input, key="lf_data_principal", format="DD/MM/YYYY")
                     with col_obs_princ:
                         obs_principal = st.text_area("Observação", key="lf_obs_principal")
 
@@ -221,7 +226,7 @@ def render_page():
                 st.metric(label="Subtotal Item Diverso", value=utils.format_currency(valor_parcial_diverso))
                 col_data_div, col_obs_div = st.columns(2)
                 with col_data_div:
-                    data_servico_diverso = st.date_input("Data Item Diverso", value=datetime.now().date(), key="lf_data_diverso", format="DD/MM/YYYY")
+                    data_servico_diverso = st.date_input("Data Item Diverso", value=data_padrao_input, key="lf_data_diverso", format="DD/MM/YYYY")
                 with col_obs_div:
                     obs_diverso = st.text_area("Observação", key="lf_obs_diverso")
 
@@ -235,7 +240,7 @@ def render_page():
                     st.metric(label="Subtotal Gratificação", value=utils.format_currency(val_grat)) 
                 col_data_grat, col_obs_grat = st.columns(2)
                 with col_data_grat:
-                    data_grat = st.date_input("Data da Gratificação", value=datetime.now().date(), key="lf_data_grat", format="DD/MM/YYYY")
+                    data_grat = st.date_input("Data da Gratificação", value=data_padrao_input, key="lf_data_grat", format="DD/MM/YYYY")
                 with col_obs_grat:
                     obs_grat = st.text_area("Observação", key="lf_obs_grat")
 
@@ -387,6 +392,7 @@ def render_page():
                         st.toast("Marcação de concluídos reiniciada.", icon="🧹")
                         st.cache_data.clear()
                         st.rerun()
+
 
 
 
