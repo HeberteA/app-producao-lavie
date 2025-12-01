@@ -48,7 +48,7 @@ def abrir_modal_edicao(row, precos_df):
 
     else:
         disciplinas = sorted(precos_df['DISCIPLINA'].unique())
-        idx_disc = disciplines.index(tipo_lancamento) if tipo_lancamento in disciplines else 0
+        idx_disc = disciplinas.index(tipo_lancamento) if tipo_lancamento in disciplinas else 0
         disciplina_sel = st.selectbox("Disciplina", options=disciplinas, index=idx_disc, key="edit_disc")
         
         opcoes_servico = []
@@ -251,4 +251,5 @@ def render_page():
                             st.success("Removido com sucesso!")
                             st.cache_data.clear() 
                             st.rerun()
+
 
