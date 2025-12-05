@@ -96,6 +96,9 @@ def render_page():
         return db_utils.get_lancamentos_do_mes(mes), db_utils.get_funcionarios(), db_utils.get_folhas_mensais(mes), db_utils.get_obras()
 
     lancamentos_df, funcionarios_df, folhas_df, obras_df = get_data(mes_selecionado)
+    
+    if lancamentos_df.empty:
+        st.info("Não há lançamentos no mês selecionado.")
 
     if funcionarios_df.empty:
         st.info("Sem dados de funcionários.")
