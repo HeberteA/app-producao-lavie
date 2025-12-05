@@ -99,6 +99,7 @@ def render_page():
     
     if lancamentos_df.empty:
         st.info("Não há lançamentos no mês selecionado.")
+        return
 
     if funcionarios_df.empty:
         st.info("Sem dados de funcionários.")
@@ -106,6 +107,7 @@ def render_page():
 
     lancamentos_df['Valor Parcial'] = pd.to_numeric(lancamentos_df['Valor Parcial'], errors='coerce').fillna(0)
     funcionarios_df['SALARIO_BASE'] = pd.to_numeric(funcionarios_df['SALARIO_BASE'], errors='coerce').fillna(0)
+    lancamentos_df.rename(columns={'data_servico': 'Data do Serviço'}, inplace=True)
     lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
     
     prod = lancamentos_df[lancamentos_df['Disciplina']!='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'})
