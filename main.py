@@ -39,7 +39,8 @@ st.set_page_config(
 APP_STYLE_CSS = """
 <style>
 [data-testid="stAppViewContainer"] {
-    background: radial-gradient(circle at 10% 20%, #3b3b3b 0%, #000000 100%);
+    background: radial-gradient(circle at 10% 20%, #1e1e24 0%, #050505 90%);
+    background-attachment: fixed;
     font-family: 'Inter', sans-serif;
     color: #ffffff;
 }
@@ -441,6 +442,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
