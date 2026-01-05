@@ -185,21 +185,30 @@ else:
 
         st.markdown("---")
         st.subheader("Mês de Referência")
+
         df['data_lancamento'] = pd.to_datetime(df['data_lancamento'])
         unique_months = df['data_lancamento'].dt.strftime('%Y-%m').unique()
         available_months = sorted(list(unique_months), reverse=True)
-        mes_selecionado = st.selectbox("Selecione o mês", available_months
-        try:
-            current_index = available_months.index(st.session_state.selected_month)
-        except ValueError:
-            available_months.append(st.session_state.selected_month)
-            available_months = sorted(list(set(available_months)), reverse=True)
-            current_index = available_months.index(st.session_state.selected_month)
-            
-        selected_month = st.selectbox("Selecione o Mês", options=available_months, index=current_index, label_visibility="collapsed")
+
+        if 'selected_month' not in st.session_state:
+            st.session_state.selected_month = available_months[0]
+
+        if st.session_state.selected_month not in available_months:
+            st.session_state.selected_month = available_months[0]
+
+        current_index = available_months.index(st.session_state.selected_month)
+
+        selected_month = st.selectbox(
+            "Selecione o Mês", 
+            options=available_months, 
+            index=current_index, 
+            label_visibility="collapsed"
+        )
+
         if selected_month != st.session_state.selected_month:
             st.session_state.selected_month = selected_month
-            st.rerun() 
+            st.rerun()
+
 
         st.markdown("---")
         
@@ -460,6 +469,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
