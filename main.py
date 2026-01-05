@@ -219,6 +219,7 @@ else:
             pages_to_show_keys = admin_pages if st.session_state.role == 'admin' else user_pages
             menu_titles = [page_definitions[key][0] for key in pages_to_show_keys]
             menu_icons = [page_definitions[key][1] for key in pages_to_show_keys]
+            
             current_page_key = st.session_state.get('page', pages_to_show_keys[0])
             try: default_index = pages_to_show_keys.index(current_page_key)
             except ValueError: default_index = 0
@@ -232,22 +233,33 @@ else:
                     "nav-link-selected": {"background-color": "#E37026"}, 
                 }
             )
+            
             title_to_key_map = {page_definitions[key][0]: key for key in pages_to_show_keys}
-            st.session_state.page = title_to_key_map[selected_title]
+            nova_pagina = title_to_key_map[selected_title]
+
+            if st.session_state.page != nova_pagina:
+                st.session_state.page = nova_pagina
+                st.rerun()
+
         else: 
             st.header("Navegação")
+            nova_pagina = st.session_state.page 
+
             if st.session_state.role == 'user':
-                if st.button("📝 Lançamento Folha", use_container_width=True): st.session_state.page = 'lancamento_folha'
+                if st.button("📝 Lançamento Folha", use_container_width=True): nova_pagina = 'lancamento_folha'
             if st.session_state.role == 'admin':
-                if st.button("✏️ Auditoria", use_container_width=True): st.session_state.page = 'auditoria'
-                if st.button("👥 Gerenciar Funcionários", use_container_width=True): st.session_state.page = 'gerenciar_funcionarios'
-                if st.button("🔧 Gerenciar Funções", use_container_width=True): st.session_state.page = 'gerenciar_funcoes'
-                if st.button("🛠️ Gerenciar Serviços", use_container_width=True): st.session_state.page = 'gerenciar_servicos'
-                if st.button("🏗️ Gerenciar Obras", use_container_width=True): st.session_state.page = 'gerenciar_obras'
-            if st.button("📊 Resumo da Folha", use_container_width=True): st.session_state.page = 'resumo_da_folha'
-            if st.button("🗑️ Remover Lançamentos", use_container_width=True): st.session_state.page = 'remover_lancamentos'
-            if st.button("📈 Dashboard de Análise", use_container_width=True): st.session_state.page = 'dashboard_de_analise'
-        
+                if st.button("✏️ Auditoria", use_container_width=True): nova_pagina = 'auditoria'
+                if st.button("👥 Gerenciar Funcionários", use_container_width=True): nova_pagina = 'gerenciar_funcionarios'
+                if st.button("🔧 Gerenciar Funções", use_container_width=True): nova_pagina = 'gerenciar_funcoes'
+                if st.button("🛠️ Gerenciar Serviços", use_container_width=True): nova_pagina = 'gerenciar_servicos'
+                if st.button("🏗️ Gerenciar Obras", use_container_width=True): nova_pagina = 'gerenciar_obras'
+            if st.button("📊 Resumo da Folha", use_container_width=True): nova_pagina = 'resumo_da_folha'
+            if st.button("🗑️ Remover Lançamentos", use_container_width=True): nova_pagina = 'remover_lancamentos'
+            if st.button("📈 Dashboard de Análise", use_container_width=True): nova_pagina = 'dashboard_de_analise'
+            
+            if st.session_state.page != nova_pagina:
+                st.session_state.page = nova_pagina
+                st.rerun()
  
 
         st.markdown("---")
@@ -442,6 +454,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
