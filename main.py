@@ -185,9 +185,10 @@ else:
 
         st.markdown("---")
         st.subheader("Mês de Referência")
-        current_month_str = datetime.now().strftime('%Y-%m')
-        last_month_str = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
-        available_months = sorted(list(set([current_month_str, last_month_str])), reverse=True)
+        df['data_lancamento'] = pd.to_datetime(df['data_lancamento'])
+        unique_months = df['data_lancamento'].dt.strftime('%Y-%m').unique()
+        available_months = sorted(list(unique_months), reverse=True)
+        mes_selecionado = st.selectbox("Selecione o mês", available_months
         try:
             current_index = available_months.index(st.session_state.selected_month)
         except ValueError:
@@ -459,6 +460,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
