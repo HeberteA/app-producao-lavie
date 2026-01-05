@@ -187,11 +187,10 @@ else:
         st.subheader("Mês de Referência")
 
         folhas_df_sidebar['Mes'] = pd.to_datetime(folhas_df_sidebar['Mes'])
-        unique_months = folhas_df_sidebar['Mes'].dt.strftime('%Y-%m').unique()
+        unique_months = set(folhas_df_sidebar['Mes'].dt.strftime('%Y-%m').unique())
+        current_month = datetime.now().strftime('%Y-%m')
+        unique_months.add(current_month)
         available_months = sorted(list(unique_months), reverse=True)
-
-        if not available_months:
-            available_months = [datetime.now().strftime('%Y-%m')]
 
         if 'selected_month' not in st.session_state:
             st.session_state.selected_month = available_months[0]
@@ -211,6 +210,7 @@ else:
         if selected_month != st.session_state.selected_month:
             st.session_state.selected_month = selected_month
             st.rerun()
+
 
 
         st.markdown("---")
@@ -240,8 +240,8 @@ else:
                 default_index = pages_to_show_keys.index(current_page_key)
             except ValueError: 
                 default_index = 0
-            def update_menu_callback():
-                selection = st.session_state["nav_menu_selection"]
+            def update_menu_callback(key):
+                selection = st.session_state[key]
                 st.session_state.page = title_to_key_map[selection]
 
             option_menu(
@@ -472,6 +472,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
