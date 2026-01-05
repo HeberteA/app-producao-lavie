@@ -173,6 +173,9 @@ def render_page():
     resumo = funcionarios_df.merge(prod, left_on='id', right_on='funcionario_id', how='left').merge(grat, left_on='id', right_on='funcionario_id', how='left')
     resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']] = resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']].fillna(0)
     
+    resumo['PRODUÇÃO LÍQUIDA (R$)'] = resumo.apply(utils.calcular_producao_liquida, axis=1)
+    resumo['Funcionário'] = resumo['NOME']
+
     df_f = resumo.copy()
     if sel_obras: df_f = df_f[df_f['OBRA'].isin(sel_obras)]
     if sel_func: df_f = df_f[df_f['FUNÇÃO'].isin(sel_func)]
@@ -180,9 +183,6 @@ def render_page():
     
     ids_validos = df_f['id'].unique()
     lancs_f = lancs_f[lancs_f['funcionario_id'].isin(ids_validos)]
-
-    resumo['PRODUÇÃO LÍQUIDA (R$)'] = resumo.apply(utils.calcular_producao_liquida, axis=1)
-    resumo['Funcionário'] = resumo['NOME']
 
     if df_f.empty: st.warning("Sem dados nos filtros selecionados."); return
 
