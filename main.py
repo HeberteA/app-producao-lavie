@@ -217,30 +217,35 @@ else:
             admin_pages = ['auditoria', 'resumo_da_folha', 'gerenciar_funcionarios', 'gerenciar_funcoes', 'gerenciar_servicos', 'gerenciar_obras', 'remover_lancamentos', 'dashboard_de_analise']
             user_pages = ['lancamento_folha', 'resumo_da_folha', 'remover_lancamentos', 'dashboard_de_analise']
             pages_to_show_keys = admin_pages if st.session_state.role == 'admin' else user_pages
+            
             menu_titles = [page_definitions[key][0] for key in pages_to_show_keys]
             menu_icons = [page_definitions[key][1] for key in pages_to_show_keys]
-            
+            title_to_key_map = {page_definitions[key][0]: key for key in pages_to_show_keys}
+
             current_page_key = st.session_state.get('page', pages_to_show_keys[0])
-            try: default_index = pages_to_show_keys.index(current_page_key)
-            except ValueError: default_index = 0
-            
-            selected_title = option_menu(
-                menu_title="Navegação", options=menu_titles, icons=menu_icons,
-                menu_icon="list-task", default_index=default_index,
+            try: 
+                default_index = pages_to_show_keys.index(current_page_key)
+            except ValueError: 
+                default_index = 0
+            def update_menu_callback():
+                selection = st.session_state["nav_menu_selection"]
+                st.session_state.page = title_to_key_map[selection]
+
+            option_menu(
+                menu_title="Navegação", 
+                options=menu_titles, 
+                icons=menu_icons,
+                menu_icon="list-task", 
+                default_index=default_index,
+                key="nav_menu_selection",       
+                on_change=update_menu_callback, 
                 styles={
                     "container": {"padding": "5px !important", "background-color": "transparent"},
-                    "icon": {"font-size": "18px"}, "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px"},
+                    "icon": {"font-size": "18px"}, 
+                    "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px"},
                     "nav-link-selected": {"background-color": "#E37026"}, 
                 }
             )
-            
-            title_to_key_map = {page_definitions[key][0]: key for key in pages_to_show_keys}
-            nova_pagina = title_to_key_map[selected_title]
-
-            if st.session_state.page != nova_pagina:
-                st.session_state.page = nova_pagina
-                st.rerun()
-
         else: 
             st.header("Navegação")
             nova_pagina = st.session_state.page 
@@ -454,6 +459,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
