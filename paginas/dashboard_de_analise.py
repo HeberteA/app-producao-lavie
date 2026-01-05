@@ -174,6 +174,11 @@ def render_page():
     resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']] = resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']].fillna(0)
     
     resumo['PRODUÇÃO LÍQUIDA (R$)'] = resumo.apply(utils.calcular_producao_liquida, axis=1)
+    
+    resumo['ROI'] = np.where(resumo['SALARIO_BASE'] > 0, resumo['PRODUÇÃO BRUTA (R$)'] / resumo['SALARIO_BASE'], 0)
+    resumo['ROI'] = pd.to_numeric(resumo['ROI'], errors='coerce').fillna(0)
+    resumo['ROI'] = resumo['ROI'].replace([np.inf, -np.inf], 0)
+    
     resumo['Funcionário'] = resumo['NOME']
 
     df_f = resumo.copy()
@@ -304,15 +309,27 @@ def render_page():
         st.subheader("Análise Avançada")
         c_adv1, c_adv2 = st.columns(2)
         with c_adv1:
-            fig_box = px.box(df_f[df_f['PRODUÇÃO BRUTA (R$)']>0], x='FUNÇÃO', y='PRODUÇÃO BRUTA (R$)', color='FUNÇÃO', title="Consistência das Equipes (Boxplot)")
-            fig_box.update_layout(showlegend=False)
-            st.plotly_chart(style_fig(fig_box), use_container_width=True)
+            df_bp = df_f[df_f['PRODUÇÃO BRUTA (R$)'] > 0]
+            if not df_bp.empty:
+                fig_box = px.box(df_bp, x='FUNÇÃO', y='PRODUÇÃO BRUTA (R$)', color='FUNÇÃO', title="Consistência das Equipes (Boxplot)")
+                fig_box.update_layout(showlegend=False)
+                st.plotly_chart(style_fig(fig_box), use_container_width=True)
+            else:
+                st.info("Sem dados suficientes para Boxplot.")
         
         with c_adv2:
-            fig_scat = px.scatter(df_f[df_f['PRODUÇÃO BRUTA (R$)']>0], x='SALARIO_BASE', y='PRODUÇÃO BRUTA (R$)', 
-                                size='ROI', color='FUNÇÃO', hover_name='Funcionário',
-                                title="Matriz Custo x Benefício")
-            st.plotly_chart(style_fig(fig_scat), use_container_width=True)
+            df_scatter = df_f[df_f['PRODUÇÃO BRUTA (R$)'] > 0].copy()
+            if not df_scatter.empty:
+                # Proteção extra para o scatter plot
+                df_scatter['ROI'] = df_scatter['ROI'].fillna(0)
+                df_scatter = df_scatter[df_scatter['ROI'] >= 0] # Tamanho não pode ser negativo
+
+                fig_scat = px.scatter(df_scatter, x='SALARIO_BASE', y='PRODUÇÃO BRUTA (R$)', 
+                                    size='ROI', color='FUNÇÃO', hover_name='Funcionário',
+                                    title="Matriz Custo x Benefício")
+                st.plotly_chart(style_fig(fig_scat), use_container_width=True)
+            else:
+                st.info("Sem dados suficientes para Matriz Custo x Benefício.")
 
         st.markdown("---")
         st.subheader("Detalhamento de Custos")
