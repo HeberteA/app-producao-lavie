@@ -186,9 +186,12 @@ else:
         st.markdown("---")
         st.subheader("Mês de Referência")
 
-        df['data_lancamento'] = pd.to_datetime(df['data_lancamento'])
-        unique_months = df['data_lancamento'].dt.strftime('%Y-%m').unique()
+        folhas_df_sidebar['Mes'] = pd.to_datetime(folhas_df_sidebar['Mes'])
+        unique_months = folhas_df_sidebar['Mes'].dt.strftime('%Y-%m').unique()
         available_months = sorted(list(unique_months), reverse=True)
+
+        if not available_months:
+            available_months = [datetime.now().strftime('%Y-%m')]
 
         if 'selected_month' not in st.session_state:
             st.session_state.selected_month = available_months[0]
@@ -469,6 +472,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
