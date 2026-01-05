@@ -10,7 +10,6 @@ from datetime import datetime, date
 def apply_theme():
     st.markdown("""
     <style>
-    /* Cards KPI */
     .kpi-card {
         background-color: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -46,11 +45,7 @@ def apply_theme():
         color: #888;
         margin-top: 4px;
     }
-    
-    /* Plotly Transparente */
     .js-plotly-plot .plotly .main-svg { background: rgba(0,0,0,0) !important; }
-    
-    /* Tabs customizadas para ficarem mais visíveis */
     button[data-baseweb="tab"] {
         font-size: 16px;
         font-weight: 600;
@@ -66,7 +61,7 @@ def style_fig(fig):
         title_font=dict(size=16, color='#FFF'),
         xaxis=dict(showgrid=False, color='#A0A0A0', gridcolor='rgba(255,255,255,0.05)'),
         yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', color='#A0A0A0'),
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=50, t=40, b=20),
         legend=dict(bgcolor='rgba(0,0,0,0)'),
         hoverlabel=dict(bgcolor="#333", font_size=12)
     )
@@ -88,107 +83,110 @@ def render_page():
     
     folhas_historico = db_utils.get_folhas_mensais()
     
-    opcoes_meses = []
+    opcoes_meses_reais = []
     if not folhas_historico.empty:
         folhas_historico['Mes'] = pd.to_datetime(folhas_historico['Mes'])
-        opcoes_meses = sorted(folhas_historico['Mes'].dt.strftime('%Y-%m').unique(), reverse=True)
+        opcoes_meses_reais = sorted(folhas_historico['Mes'].dt.strftime('%Y-%m').unique(), reverse=True)
     
     mes_atual = datetime.now().strftime('%Y-%m')
-    if mes_atual not in opcoes_meses:
-        opcoes_meses.insert(0, mes_atual)
+    if mes_atual not in opcoes_meses_reais:
+        opcoes_meses_reais.insert(0, mes_atual)
+    
+    opcoes_multiselect = ["Todos"] + opcoes_meses_reais
+    
+    default_mes = [mes_atual] if mes_atual in opcoes_multiselect else ["Todos"]
+    if 'selected_month' in st.session_state and st.session_state.selected_month in opcoes_multiselect:
+        default_mes = [st.session_state.selected_month]
+
+    with st.expander("Filtros Gerais", expanded=True):
+        c_mes, c_obra, c_func, c_nome = st.columns(4)
         
-    opcoes_com_todos = ["Todos os dados (Geral)"] + opcoes_meses
-    mes_sidebar = st.session_state.get('selected_month', mes_atual)
-    
-    try:
-        idx_padrao = opcoes_com_todos.index(mes_sidebar)
-    except ValueError:
-        idx_padrao = 1 if opcoes_meses else 0
+        sel_meses_brutos = c_mes.multiselect("Períodos", opcoes_multiselect, default=default_mes)
+        
+        meses_para_consulta = []
+        is_periodo_composto = False 
+        
+        if not sel_meses_brutos or "Todos" in sel_meses_brutos:
+            meses_para_consulta = opcoes_meses_reais
+            is_periodo_composto = True
+            texto_periodo = "Todo o Histórico"
+        else:
+            meses_para_consulta = sel_meses_brutos
+            is_periodo_composto = len(meses_para_consulta) > 1
+            texto_periodo = ", ".join(meses_para_consulta)
 
-    col_filtro_mes, col_vazia = st.columns([1, 3])
-    with col_filtro_mes:
-        periodo_selecionado = st.selectbox(
-            "Selecione o Período de Análise", 
-            options=opcoes_com_todos, 
-            index=idx_padrao
-        )
+        @st.cache_data
+        def get_data_multi(lista_meses):
+            dfs_lanc = []
+            dfs_folha = []
+            for m in lista_meses:
+                l = db_utils.get_lancamentos_do_mes(m)
+                f = db_utils.get_folhas_mensais(m)
+                if not l.empty: dfs_lanc.append(l)
+                if not f.empty: dfs_folha.append(f)
+            
+            lanc_final = pd.concat(dfs_lanc, ignore_index=True) if dfs_lanc else pd.DataFrame()
+            folha_final = pd.concat(dfs_folha, ignore_index=True) if dfs_folha else pd.DataFrame()
+            return lanc_final, folha_final
 
-    @st.cache_data
-    def get_data_specific(mes):
-        return db_utils.get_lancamentos_do_mes(mes), db_utils.get_folhas_mensais(mes)
+        funcionarios_df = db_utils.get_funcionarios()
+        
+        lancamentos_df, folhas_df = get_data_multi(meses_para_consulta)
 
-    @st.cache_data
-    def get_data_all(lista_meses):
-        dfs_lanc = []
-        dfs_folha = []
-        for m in lista_meses:
-            l, f = db_utils.get_lancamentos_do_mes(m), db_utils.get_folhas_mensais(m)
-            if not l.empty: dfs_lanc.append(l)
-            if not f.empty: dfs_folha.append(f)
-        lanc_final = pd.concat(dfs_lanc, ignore_index=True) if dfs_lanc else pd.DataFrame()
-        folha_final = pd.concat(dfs_folha, ignore_index=True) if dfs_folha else pd.DataFrame()
-        return lanc_final, folha_final
+        if not lancamentos_df.empty:
+            obras_disp = sorted(lancamentos_df['Obra'].unique())
+        else:
+            obras_disp = []
 
-    funcionarios_df = db_utils.get_funcionarios()
-    obras_df = db_utils.get_obras()
+        def_obras = obras_disp if st.session_state['role'] == 'admin' else [st.session_state['obra_logada']]
+        def_obras = [o for o in def_obras if o in obras_disp]
+        sel_obras = c_obra.multiselect("Obra", obras_disp, default=def_obras)
+        
+        lancs_f = lancamentos_df.copy()
+        if sel_obras and not lancs_f.empty:
+            lancs_f = lancs_f[lancs_f['Obra'].isin(sel_obras)]
 
-    if periodo_selecionado == "Todos os dados (Geral)":
-        lancamentos_df, folhas_df = get_data_all(opcoes_meses)
-        st.caption(f"Exibindo dados consolidados de {len(opcoes_meses)} meses.")
-    else:
-        lancamentos_df, folhas_df = get_data_specific(periodo_selecionado)
+        funcoes_disp = []
+        if not funcionarios_df.empty:
+            funcoes_disp = sorted(funcionarios_df['FUNÇÃO'].unique())
+            
+        sel_func = c_func.multiselect("Função", funcoes_disp)
+        
+        nomes_disp = []
+        if not funcionarios_df.empty:
+             nomes_disp = sorted(funcionarios_df['NOME'].unique())
+        sel_nome = c_nome.multiselect("Nome", nomes_disp)
 
-    if lancamentos_df.empty:
-        st.info(f"Não há lançamentos para o período: {periodo_selecionado}.")
+    if lancs_f.empty:
+        st.warning(f"Sem lançamentos encontrados para: {texto_periodo}")
         return
 
-    if funcionarios_df.empty:
-        st.info("Sem dados de funcionários.")
-        return
+    lancs_f['Valor Parcial'] = pd.to_numeric(lancs_f['Valor Parcial'], errors='coerce').fillna(0)
+    lancs_f.rename(columns={'data_servico': 'Data do Serviço'}, inplace=True)
+    lancs_f['Data do Serviço'] = pd.to_datetime(lancs_f['Data do Serviço'])
 
-    lancamentos_df['Valor Parcial'] = pd.to_numeric(lancamentos_df['Valor Parcial'], errors='coerce').fillna(0)
     funcionarios_df['SALARIO_BASE'] = pd.to_numeric(funcionarios_df['SALARIO_BASE'], errors='coerce').fillna(0)
-    lancamentos_df.rename(columns={'data_servico': 'Data do Serviço'}, inplace=True)
-    lancamentos_df['Data do Serviço'] = pd.to_datetime(lancamentos_df['Data do Serviço'])
     
-    prod = lancamentos_df[lancamentos_df['Disciplina']!='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'})
-    grat = lancamentos_df[lancamentos_df['Disciplina']=='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'})
+    prod = lancs_f[lancs_f['Disciplina']!='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'PRODUÇÃO BRUTA (R$)'})
+    grat = lancs_f[lancs_f['Disciplina']=='GRATIFICAÇÃO'].groupby('funcionario_id')['Valor Parcial'].sum().reset_index().rename(columns={'Valor Parcial': 'TOTAL GRATIFICAÇÕES (R$)'})
     
     resumo = funcionarios_df.merge(prod, left_on='id', right_on='funcionario_id', how='left').merge(grat, left_on='id', right_on='funcionario_id', how='left')
     resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']] = resumo[['PRODUÇÃO BRUTA (R$)', 'TOTAL GRATIFICAÇÕES (R$)']].fillna(0)
+    
+    df_f = resumo.copy()
+    if sel_obras: df_f = df_f[df_f['OBRA'].isin(sel_obras)]
+    if sel_func: df_f = df_f[df_f['FUNÇÃO'].isin(sel_func)]
+    if sel_nome: df_f = df_f[df_f['NOME'].isin(sel_nome)]
+    
+    ids_validos = df_f['id'].unique()
+    lancs_f = lancs_f[lancs_f['funcionario_id'].isin(ids_validos)]
+
     resumo['PRODUÇÃO LÍQUIDA (R$)'] = resumo.apply(utils.calcular_producao_liquida, axis=1)
     resumo['Funcionário'] = resumo['NOME']
-    resumo['ROI'] = np.where(resumo['SALARIO_BASE']>0, resumo['PRODUÇÃO BRUTA (R$)']/resumo['SALARIO_BASE'], 0)
 
-    with st.expander("Filtros Avançados (Obra, Função, Equipe)", expanded=False):
-        c1, c2, c3, c4 = st.columns(4)
-        obras_disp = sorted(list(set(lancamentos_df['Obra'].unique()) | set(resumo['OBRA'].unique())))
-        
-        def_obras = obras_disp if st.session_state['role'] == 'admin' else [st.session_state['obra_logada']]
-        def_obras = [o for o in def_obras if o in obras_disp]
-        
-        sel_obras = c1.multiselect("Obra", obras_disp, default=def_obras)
-        
-        df_f = resumo.copy()
-        lancs_f = lancamentos_df.copy()
+    if df_f.empty: st.warning("Sem dados nos filtros selecionados."); return
 
-        if sel_obras:
-            df_f = df_f[df_f['OBRA'].isin(sel_obras)]
-            lancs_f = lancs_f[lancs_f['Obra'].isin(sel_obras)]
-        
-        sel_func = c2.multiselect("Função", sorted(df_f['FUNÇÃO'].unique()))
-        if sel_func: 
-            df_f = df_f[df_f['FUNÇÃO'].isin(sel_func)]
-            ids = df_f['id'].unique()
-            lancs_f = lancs_f[lancs_f['funcionario_id'].isin(ids)]
-            
-        sel_tipo = c3.multiselect("Tipo", sorted(df_f['TIPO'].unique()))
-        if sel_tipo: df_f = df_f[df_f['TIPO'].isin(sel_tipo)]
-        
-        sel_nome = c4.multiselect("Nome", sorted(df_f['Funcionário'].unique()))
-        if sel_nome: df_f = df_f[df_f['Funcionário'].isin(sel_nome)]
-
-    if df_f.empty: st.warning("Sem dados nos filtros."); return
+    st.caption(f"Analisando dados de: {texto_periodo}")
 
     cor_bruta = '#E37026'
     cor_liquida = '#1E88E5'
@@ -221,12 +219,11 @@ def render_page():
         st.subheader("Indicadores Operacionais")
         try:
             dias_com_dados = lancs_f['Data do Serviço'].dt.date.nunique()
-            is_monthly = periodo_selecionado != "Todos os dados (Geral)"
             ultimo_dia = lancs_f['Data do Serviço'].max().day if not lancs_f.empty else 1
             
             projecao_val = 0
             projecao_txt = "N/A para Geral"
-            if is_monthly:
+            if not is_periodo_composto:
                 projecao_val = (tot_bruta / ultimo_dia) * 30 if ultimo_dia > 0 else 0
                 projecao_txt = f"Baseado em {ultimo_dia} dias"
 
@@ -243,7 +240,7 @@ def render_page():
 
             col_op = st.columns(4)
             with col_op[0]: 
-                if is_monthly:
+                if not is_periodo_composto:
                     st.markdown(kpi_html("Projeção (Mês)", utils.format_currency(projecao_val), projecao_txt, "#FFFFFF"), unsafe_allow_html=True)
                 else:
                     st.markdown(kpi_html("Dias Trabalhados", str(dias_com_dados), "Total no período", "#FFFFFF"), unsafe_allow_html=True)
@@ -276,12 +273,12 @@ def render_page():
             with c_o1:
                 g_obr_b = df_f.groupby('OBRA')['PRODUÇÃO BRUTA (R$)'].sum().reset_index().sort_values('PRODUÇÃO BRUTA (R$)', ascending=False)
                 fig = px.bar(g_obr_b, x='OBRA', y='PRODUÇÃO BRUTA (R$)', text_auto='.2s', title="Total Bruto por Obra")
-                fig.update_traces(marker_color=cor_bruta, textposition='outside')
+                fig.update_traces(marker_color=cor_bruta, textposition='outside', cliponaxis=False)
                 st.plotly_chart(style_fig(fig), use_container_width=True)
             with c_o2:
                 g_obr_l = df_f.groupby('OBRA')['PRODUÇÃO LÍQUIDA (R$)'].mean().reset_index().sort_values('PRODUÇÃO LÍQUIDA (R$)', ascending=False)
                 fig = px.bar(g_obr_l, x='OBRA', y='PRODUÇÃO LÍQUIDA (R$)', text_auto='.2f', title="Média Líquida por Funcionário")
-                fig.update_traces(marker_color=cor_liquida, textposition='outside')
+                fig.update_traces(marker_color=cor_liquida, textposition='outside', cliponaxis=False)
                 st.plotly_chart(style_fig(fig), use_container_width=True)
             st.markdown("---")
 
@@ -290,12 +287,12 @@ def render_page():
         with c_f1:
             top_b = df_f.nlargest(15, 'PRODUÇÃO BRUTA (R$)')
             fig = px.bar(top_b, x='Funcionário', y='PRODUÇÃO BRUTA (R$)', text_auto='.2s', title="Top 15 - Produção Bruta")
-            fig.update_traces(marker_color=cor_bruta, textposition='outside')
+            fig.update_traces(marker_color=cor_bruta, textposition='outside', cliponaxis=False)
             st.plotly_chart(style_fig(fig), use_container_width=True)
         with c_f2:
             top_l = df_f.nlargest(15, 'PRODUÇÃO LÍQUIDA (R$)')
             fig = px.bar(top_l, x='Funcionário', y='PRODUÇÃO LÍQUIDA (R$)', text_auto='.2s', title="Top 15 - Produção Líquida")
-            fig.update_traces(marker_color=cor_liquida, textposition='outside')
+            fig.update_traces(marker_color=cor_liquida, textposition='outside', cliponaxis=False)
             st.plotly_chart(style_fig(fig), use_container_width=True)
 
         st.subheader("Distribuição")
@@ -318,7 +315,7 @@ def render_page():
             st.plotly_chart(style_fig(fig_scat), use_container_width=True)
 
         st.markdown("---")
-        st.subheader("Detalhamento de Custos (Curva ABC)")
+        st.subheader("Detalhamento de Custos")
         c_det1, c_det2 = st.columns(2)
         
         with c_det1:
@@ -342,7 +339,7 @@ def render_page():
         with c_det2:
             lancs_hier = lancs_f[(lancs_f['Disciplina']!='GRATIFICAÇÃO') & (lancs_f['Valor Parcial'] > 50)]
             if not lancs_hier.empty:
-                fig_sun = px.sunburst(lancs_hier, path=['Obra', 'Disciplina', 'Serviço'], values='Valor Parcial', color='Valor Parcial', color_continuous_scale='Oranges', title="Hierarquia de Custos (Sunburst)")
+                fig_sun = px.sunburst(lancs_hier, path=['Obra', 'Disciplina', 'Serviço'], values='Valor Parcial', color='Valor Parcial', color_continuous_scale='Oranges', title="Hierarquia de Custos")
                 st.plotly_chart(style_fig(fig_sun), use_container_width=True)
 
     with tabs[3]:
@@ -374,12 +371,12 @@ def render_page():
                 with c_d1:
                     top_s = lancs_prod.groupby('Serviço')['Valor Parcial'].sum().nlargest(10).reset_index().sort_values('Valor Parcial', ascending=True)
                     fig = px.bar(top_s, y='Serviço', x='Valor Parcial', orientation='h', title="Top 10 Serviços (Custo Total)", text_auto='.2s')
-                    fig.update_traces(marker_color=cor_bruta, textposition='outside')
+                    fig.update_traces(marker_color=cor_bruta, textposition='outside', cliponaxis=False)
                     st.plotly_chart(style_fig(fig), use_container_width=True)
                 with c_d2:
                     top_d = lancs_prod.groupby('Disciplina')['Valor Parcial'].sum().nlargest(10).reset_index().sort_values('Valor Parcial', ascending=True)
                     fig = px.bar(top_d, y='Disciplina', x='Valor Parcial', orientation='h', title="Top 10 Disciplinas", text_auto='.2s')
-                    fig.update_traces(marker_color=cor_bruta, textposition='outside')
+                    fig.update_traces(marker_color=cor_bruta, textposition='outside', cliponaxis=False)
                     st.plotly_chart(style_fig(fig), use_container_width=True)
 
             if not folhas_df.empty:
@@ -406,8 +403,8 @@ def render_page():
                         folhas_env['atraso'] = folhas_env.apply(calc_delay, axis=1)
                         
                         atraso_med = folhas_env.groupby('Obra')['atraso'].mean().reset_index()
-                        fig = px.bar(atraso_med, x='Obra', y='atraso', title="Dias de Atraso Médio no Envio", text_auto=True)
-                        fig.update_traces(marker_color='#ef4444', textposition='outside')
+                        fig = px.bar(atraso_med, x='Obra', y='atraso', title="Dias de Atraso Médio no Envio", text_auto='.1f')
+                        fig.update_traces(marker_color='#ef4444', textposition='outside', cliponaxis=False)
                         st.plotly_chart(style_fig(fig), use_container_width=True)
                     else: st.info("Sem dados de envio para cálculo de atraso.")
                 
@@ -415,7 +412,15 @@ def render_page():
                     folhas_count = folhas_df.copy()
                     if sel_obras: folhas_count = folhas_count[folhas_count['Obra'].isin(sel_obras)]
                     if not folhas_count.empty:
-                        env_count = folhas_count.groupby('Obra')['contador_envios'].sum().reset_index()
-                        fig = px.bar(env_count, x='Obra', y='contador_envios', title="Quantidade de Revisões", text_auto=True)
-                        fig.update_traces(marker_color=cor_bruta, textposition='outside')
+                        if is_periodo_composto:
+                            env_count = folhas_count.groupby('Obra')['contador_envios'].mean().reset_index()
+                            titulo_rev = "Média de Revisões (por Mês)"
+                            formato_num = '.1f'
+                        else:
+                            env_count = folhas_count.groupby('Obra')['contador_envios'].sum().reset_index()
+                            titulo_rev = "Quantidade Total de Revisões"
+                            formato_num = 'd'
+
+                        fig = px.bar(env_count, x='Obra', y='contador_envios', title=titulo_rev, text_auto=formato_num)
+                        fig.update_traces(marker_color=cor_bruta, textposition='outside', cliponaxis=False)
                         st.plotly_chart(style_fig(fig), use_container_width=True)
