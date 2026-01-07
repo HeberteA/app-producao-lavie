@@ -13,20 +13,22 @@ class FolhaFechadaException(Exception):
 def get_db_connection():
     try:
         db_url = os.getenv("SUPABASE_URL")
-
         if not db_url:
             try:
                 db_url = st.secrets["database"]["url"]
             except (FileNotFoundError, KeyError):
-                st.error("Erro Crítico: Credenciais do banco não encontradas (Nem ENV, nem secrets.toml).")
-                return None
+                return 
+        if db_url and db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+
         engine = create_engine(db_url)
         return engine
 
     except Exception as e:
+        print(f"DEBUG - Erro na URL: {e}") 
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
-
+        
 @st.cache_data
 def get_funcionarios():
     engine = get_db_connection()
@@ -878,6 +880,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
