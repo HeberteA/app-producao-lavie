@@ -1,8 +1,7 @@
-providers = ["python"]
-
 [phases.setup]
 nixPkgs = [
-    "pango",
+    "python311",            
+    "pango",              
     "gobject-introspection",
     "cairo",
     "gdk-pixbuf",
