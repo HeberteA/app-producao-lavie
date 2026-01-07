@@ -3,6 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime, timezone, timedelta
 import base64
+import os
 import io
 
 class FolhaFechadaException(Exception):
@@ -11,8 +12,17 @@ class FolhaFechadaException(Exception):
 @st.cache_resource(ttl=60) 
 def get_db_connection():
     try:
-        engine = create_engine(st.secrets["database"]["url"])
+        db_url = os.getenv("SUPABASE_URL")
+
+        if not db_url:
+            try:
+                db_url = st.secrets["database"]["url"]
+            except (FileNotFoundError, KeyError):
+                st.error("Erro Crítico: Credenciais do banco não encontradas (Nem ENV, nem secrets.toml).")
+                return None
+        engine = create_engine(db_url)
         return engine
+
     except Exception as e:
         st.error(f"Erro ao conectar com o banco de dados: {e}")
         return None
@@ -868,6 +878,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
