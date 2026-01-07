@@ -13,21 +13,27 @@ class FolhaFechadaException(Exception):
 def get_db_connection():
     try:
         db_url = os.getenv("SUPABASE_URL")
+
         if not db_url:
             try:
                 db_url = st.secrets["database"]["url"]
             except (FileNotFoundError, KeyError):
-                return 
-        if db_url and db_url.startswith("postgres://"):
+                return None
+
+        if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
+            
+        if "?" not in db_url:
+            db_url += "?gssencmode=disable" 
 
         engine = create_engine(db_url)
         return engine
 
     except Exception as e:
-        print(f"DEBUG - Erro na URL: {e}") 
-        st.error(f"Erro ao conectar com o banco de dados: {e}")
+        print(f"DEBUG URL: {db_url.split('@')[-1] if db_url else 'Sem URL'}") # Mostra o host no log sem mostrar a senha
+        st.error(f"Erro de Conexão: {e}")
         return None
+
         
 @st.cache_data
 def get_funcionarios():
@@ -880,6 +886,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
