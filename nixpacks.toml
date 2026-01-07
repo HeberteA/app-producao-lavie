@@ -1,11 +1,12 @@
 # nixpacks.toml
 
 [phases.setup]
-# Usamos o Nix APENAS para garantir a versão correta do Python
-nixPkgs = ["python311"]
+# O Nix instala APENAS o Python e compiladores básicos.
+# NÃO coloque bibliotecas gráficas (cairo, pango, librsvg) aqui.
+nixPkgs = ["python311", "gcc", "gnumake"]
 
-# Usamos o APT (Ubuntu) para as bibliotecas do sistema.
-# O APT resolve conflitos de arquivos automaticamente.
+# O APT (Linux padrão) vai instalar as bibliotecas do WeasyPrint.
+# O APT sabe lidar com colisões de arquivos, o Nix não.
 aptPkgs = [
     "libcairo2",
     "libpango-1.0-0",
@@ -14,7 +15,8 @@ aptPkgs = [
     "libffi-dev",
     "shared-mime-info",
     "libxml2-dev",
-    "libxslt1-dev"
+    "libxslt1-dev",
+    "librsvg2-common" 
 ]
 
 [phases.install]
