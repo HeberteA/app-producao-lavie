@@ -1,12 +1,12 @@
 [phases.setup]
 nixPkgs = [
-    "python311",            
-    "pango",              
-    "gobject-introspection",
-    "cairo",
-    "gdk-pixbuf",
-    "harfbuzz",
-    "librsvg"
+    "python311",             # Força o Python 3.11
+    "pango",                 # Essencial para o WeasyPrint
+    "gobject-introspection", # Essencial para o WeasyPrint
+    "cairo",                 # Essencial para o WeasyPrint
+    "gdk-pixbuf",            # Ajuda com imagens no PDF
+    "harfbuzz",              # Renderização de fontes
+    "librsvg"                # Renderização de vetores
 ]
 
 [phases.install]
