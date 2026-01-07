@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = [
+    "python313",
+    "pango",
+    "gobject-introspection",
+    "cairo",
+    "gdk-pixbuf",
+    "harfbuzz",
+    "librsvg"
+]
+
+[phases.install]
+cmds = ["python -m pip install -r requirements.txt"]
+
+[start]
+cmd = "streamlit run main.py"
