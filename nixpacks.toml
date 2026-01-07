@@ -1,21 +1,19 @@
+# nixpacks.toml
+
 [phases.setup]
-# Removemos 'gdk-pixbuf' para evitar a colisão com 'librsvg'
-# O Pango e o Cairo geralmente já resolvem as dependências gráficas necessárias
+# Usamos apenas as bibliotecas "topo de cadeia".
+# Adicionar 'librsvg' explicitamente resolve o conflito de loaders.cache
 nixPkgs = [
     "python311",
-    "gobject-introspection",
-    "pango",
-    "harfbuzz",
-    "cairo",
     "libffi",
-    "zlib",
-    "glib",
-    "xml2",
-    "libxml2",
-    "libxslt"
+    "cairo",
+    "pango",
+    "gobject-introspection",
+    "librsvg" 
 ]
 
 [phases.install]
+# Garante que estamos usando o pip correto
 cmds = [
     "python -m venv .venv",
     ". .venv/bin/activate",
