@@ -21,7 +21,3 @@ cmds = [
     ".venv/bin/pip install --upgrade pip",
     ".venv/bin/pip install -r requirements.txt"
 ]
-
-[start]
-# MUDANÇA AQUI: Chamada direta, sem "activate", forçando a porta certa
-cmd = ".venv/bin/python -m streamlit run main.py --server.port $PORT --server.address 0.0.0.0"
