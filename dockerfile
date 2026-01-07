@@ -1,33 +1,35 @@
-# Usamos uma imagem Python leve e oficial baseada em Debian
-FROM python:3.11-slim
+# USAMOS A VERSÃO "BOOKWORM" (ESTÁVEL) PARA EVITAR MUDANÇAS DE PACOTES
+FROM python:3.11-slim-bookworm
 
-# Evita que o Python grave arquivos pyc no disco e bufferize stdout
+# Configurações do Python
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Instala as dependências do sistema operacional para o WeasyPrint
-# Aqui instalamos explicitamente o que estava faltando
+# Instalação das dependências do sistema
+# Note a correção em libgdk-pixbuf-2.0-0 (com hífen)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libgobject-2.0-0 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
     libcairo2 \
     libpangoft2-1.0-0 \
     shared-mime-info \
+    libxml2-dev \
+    libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Define a pasta de trabalho
+# Pasta de trabalho
 WORKDIR /app
 
-# Copia e instala as dependências do Python
+# Instalação dos requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o restante do código do projeto
+# Cópia do código
 COPY . .
 
-# Comando para iniciar o Streamlit na porta que o Railway exige
+# Comando de inicialização
 CMD streamlit run main.py --server.port $PORT --server.address 0.0.0.0
