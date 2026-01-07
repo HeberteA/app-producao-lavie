@@ -98,10 +98,10 @@ def render_page():
     if 'selected_month' in st.session_state and st.session_state.selected_month in opcoes_multiselect:
         default_mes = [st.session_state.selected_month]
 
-    with st.expander("Filtros Gerais", expanded=True):
+    with st.expander("Filtros Gerais"):
         c_mes, c_obra, c_func, c_nome = st.columns(4)
         
-        sel_meses_brutos = c_mes.multiselect("Períodos", opcoes_multiselect, default=default_mes)
+        sel_meses_brutos = c_mes.multiselect("Períodos", opcoes_multiselect, default=opcoes_multiselect)
         
         meses_para_consulta = []
         is_periodo_composto = False 
