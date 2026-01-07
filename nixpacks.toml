@@ -1,6 +1,6 @@
 [phases.setup]
 nixPkgs = [
-    "python313",
+    "python311",
     "pango",
     "gobject-introspection",
     "cairo",
