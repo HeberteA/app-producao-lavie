@@ -1,12 +1,10 @@
 # nixpacks.toml
 
 [phases.setup]
-# O Nix instala APENAS o Python e compiladores básicos.
-# NÃO coloque bibliotecas gráficas (cairo, pango, librsvg) aqui.
+# Instala Python 3.11 e compiladores básicos
 nixPkgs = ["python311", "gcc", "gnumake"]
 
-# O APT (Linux padrão) vai instalar as bibliotecas do WeasyPrint.
-# O APT sabe lidar com colisões de arquivos, o Nix não.
+# Bibliotecas do sistema (Ubuntu) para o WeasyPrint
 aptPkgs = [
     "libcairo2",
     "libpango-1.0-0",
@@ -16,16 +14,19 @@ aptPkgs = [
     "shared-mime-info",
     "libxml2-dev",
     "libxslt1-dev",
-    "librsvg2-common" 
+    "librsvg2-common"
 ]
 
 [phases.install]
+dependsOn = ["setup"]
 cmds = [
     "python -m venv .venv",
-    ". .venv/bin/activate",
-    "pip install --upgrade pip",
-    "pip install -r requirements.txt"
+    # Usamos o caminho completo (.venv/bin/pip) para garantir que
+    # estamos instalando no lugar certo sem depender da ativação do shell
+    ".venv/bin/pip install --upgrade pip",
+    ".venv/bin/pip install -r requirements.txt"
 ]
 
 [start]
+# Aqui ativamos o venv antes de rodar o streamlit
 cmd = ". .venv/bin/activate && streamlit run main.py --server.port $PORT --server.address 0.0.0.0"
