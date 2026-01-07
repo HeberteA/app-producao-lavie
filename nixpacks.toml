@@ -1,19 +1,21 @@
 [phases.setup]
-# Força o Python 3.11 e instala as dependências de sistema do WeasyPrint/GTK
+# Removemos 'gdk-pixbuf' para evitar a colisão com 'librsvg'
+# O Pango e o Cairo geralmente já resolvem as dependências gráficas necessárias
 nixPkgs = [
     "python311",
     "gobject-introspection",
     "pango",
     "harfbuzz",
     "cairo",
-    "gdk-pixbuf",
     "libffi",
     "zlib",
-    "glib"
+    "glib",
+    "xml2",
+    "libxml2",
+    "libxslt"
 ]
 
 [phases.install]
-# Instala as dependências do Python
 cmds = [
     "python -m venv .venv",
     ". .venv/bin/activate",
@@ -22,5 +24,4 @@ cmds = [
 ]
 
 [start]
-# Comando para iniciar o app (ajuste o nome do arquivo se não for main.py)
 cmd = ". .venv/bin/activate && streamlit run main.py --server.port $PORT --server.address 0.0.0.0"
