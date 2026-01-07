@@ -84,19 +84,31 @@ def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.image("Lavie.png", use_container_width=True)
-
-    st.space("medium")
+    st.write("") 
     st.header("Login")
+    
     obras_df_login = db_utils.get_obras()
     acessos_df_login = db_utils.get_acessos()
-    if obras_df_login.empty or acessos_df_login.empty:
-        st.error("Não foi possível carregar os dados das obras para o login.")
-        return
+    
+    if obras_df_login.empty and acessos_df_login.empty:
+        st.warning("Aguardando conexão com banco de dados ou banco vazio...")
+        
     admin_login = st.checkbox("Entrar como Administrador")
+    
     if admin_login:
         admin_password = st.text_input("Senha de Administrador", type="password")
         if st.button("Entrar como Admin", use_container_width=True, type="primary"):
-            if 'admin' in st.secrets and st.secrets.admin.password == admin_password:
+            
+            senha_real = os.getenv("ADMIN_PASSWORD")
+            
+            if not senha_real:
+                try:
+                    if 'admin' in st.secrets:
+                        senha_real = st.secrets["admin"]["password"]
+                except (FileNotFoundError, KeyError):
+                    pass
+            
+            if senha_real and admin_password == senha_real:
                 st.session_state.logged_in = True
                 st.session_state.role = 'admin'
                 st.session_state.obra_logada = 'Todas' 
@@ -104,12 +116,18 @@ def login_page():
                 st.session_state.page = 'auditoria' 
                 st.rerun()
             else:
-                st.error("Senha de administrador incorreta.")
+                st.error("Senha de administrador incorreta (ou não configurada no Railway).")
+                
     else:
+        if obras_df_login.empty:
+             st.error("Não foi possível carregar as obras. Verifique a conexão.")
+             return
+
         obras_ativas_login = obras_df_login[obras_df_login['status'] == 'Ativa'] 
         if obras_ativas_login.empty:
              st.error("Nenhuma obra ativa encontrada para login.")
              return
+             
         obras_com_acesso = pd.merge(obras_ativas_login, acessos_df_login, left_on='id', right_on='obra_id')
         if obras_com_acesso.empty:
              st.error("Nenhuma obra configurada com código de acesso.")
@@ -117,11 +135,12 @@ def login_page():
              
         obra_login = st.selectbox("Selecione a Obra", options=obras_com_acesso['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
         codigo_login = st.text_input("Código de Acesso", type="password")
+        
         if st.button("Entrar", use_container_width=True, type="primary"):
             if obra_login and codigo_login:
                 try:
                     codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
-                    if codigo_correto == codigo_login:
+                    if str(codigo_correto).strip() == str(codigo_login).strip():
                         st.session_state.logged_in = True
                         st.session_state.role = 'user'
                         st.session_state.obra_logada = obra_login 
@@ -129,9 +148,9 @@ def login_page():
                         st.session_state.page = 'lancamento_folha' 
                         st.rerun()
                     else:
-                        st.error("Obra ou código de acesso incorreto.")
+                        st.error("Código de acesso incorreto.")
                 except IndexError:
-                    st.error("Obra ou código de acesso incorreto.") 
+                    st.error("Erro ao validar obra.") 
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
@@ -472,6 +491,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
