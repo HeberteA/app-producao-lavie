@@ -1,19 +1,23 @@
 # nixpacks.toml
 
 [phases.setup]
-# Usamos apenas as bibliotecas "topo de cadeia".
-# Adicionar 'librsvg' explicitamente resolve o conflito de loaders.cache
-nixPkgs = [
-    "python311",
-    "libffi",
-    "cairo",
-    "pango",
-    "gobject-introspection",
-    "librsvg" 
+# Usamos o Nix APENAS para garantir a versão correta do Python
+nixPkgs = ["python311"]
+
+# Usamos o APT (Ubuntu) para as bibliotecas do sistema.
+# O APT resolve conflitos de arquivos automaticamente.
+aptPkgs = [
+    "libcairo2",
+    "libpango-1.0-0",
+    "libpangoft2-1.0-0",
+    "libgdk-pixbuf2.0-0",
+    "libffi-dev",
+    "shared-mime-info",
+    "libxml2-dev",
+    "libxslt1-dev"
 ]
 
 [phases.install]
-# Garante que estamos usando o pip correto
 cmds = [
     "python -m venv .venv",
     ". .venv/bin/activate",
