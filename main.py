@@ -272,14 +272,15 @@ else:
                 key="nav_menu_selection",       
                 on_change=update_menu_callback, 
                 styles={
-                "container": {"padding": "0!important", "background": "transparent"},
-                "nav-link": {"color": "#aaa", "font-size": "0.9rem", "margin":"6px", "text-align": "left"},
-                "nav-link-selected": {
-                    "background-color": "rgba(227, 112, 38, 0.15)", 
-                    "color": "#E37026", 
-                    "border-left": "3px solid #E37026"
-                },
-                "icon": {"font-size": "1.1rem"}
+                    "container": {"padding": "0!important", "background": "transparent"},
+                    "nav-link": {"color": "#aaa", "font-size": "0.9rem", "margin":"6px", "text-align": "left"},
+                    "nav-link-selected": {
+                        "background-color": "rgba(227, 112, 38, 0.15)", 
+                        "color": "#E37026", 
+                        "border-left": "3px solid #E37026"
+                    },
+                    "icon": {"font-size": "1.1rem"}
+                    }
             )
         else: 
             st.header("Navegação")
@@ -494,6 +495,7 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
+
 
 
 
