@@ -97,7 +97,7 @@ def render_page():
                             key=f"salario_{funcao_id}"
                         )
                         
-                        submit_edit = st.form_submit_button("Salvar Alterações"c)
+                        submit_edit = st.form_submit_button("Salvar Alterações", use_container_width=True, type="primary")
                         
                         if submit_edit:
                             if not edit_nome.strip():
