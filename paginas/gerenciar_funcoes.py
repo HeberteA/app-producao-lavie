@@ -9,20 +9,21 @@ def render_page():
     st.markdown("""
         <style>
         div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            background-color: #ffffff;
+            border-radius: 16px;
+            border: 1px solid rgba(150, 150, 150, 0.2) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 0.5rem;
+            background-color: transparent;
+            transition: all 0.25s ease;
         }
         div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-color: rgba(150, 150, 150, 0.4) !important;
         }
-        @media (prefers-color-scheme: dark) {
-            div[data-testid="stVerticalBlockBorderWrapper"] {
-                background-color: #1e1e1e;
-                box-shadow: 0 4px 6px rgba(255, 255, 255, 0.05);
-            }
+        [data-testid="stMetricValue"] {
+            font-size: 1.5rem;
+            font-weight: 600;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -57,11 +58,13 @@ def render_page():
             for index, row in active_funcoes_df.iterrows():
                 with cols[index % 3]:
                     with st.container(border=True):
-                        st.markdown(f"### {row['FUNÇÃO']}")
-                        st.write(f"**Tipo:** {row['TIPO']}")
-                        st.write(f"**Salário Base:** R$ {row['SALARIO_BASE']:.2f}")
+                        st.markdown(f"#### {row['FUNÇÃO']}")
+                        st.caption(f"{row['TIPO']}")
                         
-                        with st.expander("Editar Função"):
+                        salario_formatado = f"R$ {row['SALARIO_BASE']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        st.metric(label="Salário Base", value=salario_formatado)
+                        
+                        with st.popover("Editar Função", use_container_width=True):
                             with st.form(key=f"edit_form_{row['id']}", clear_on_submit=False):
                                 edit_nome = st.text_input("Nome", value=row['FUNÇÃO'])
                                 
