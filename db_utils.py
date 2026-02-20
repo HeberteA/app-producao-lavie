@@ -3,6 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime, timezone, timedelta
 import base64
+import os
 import io
 
 class FolhaFechadaException(Exception):
@@ -11,12 +12,29 @@ class FolhaFechadaException(Exception):
 @st.cache_resource(ttl=60) 
 def get_db_connection():
     try:
-        engine = create_engine(st.secrets["database"]["url"])
+        db_url = os.getenv("SUPABASE_URL")
+
+        if not db_url:
+            try:
+                db_url = st.secrets["database"]["url"]
+            except (FileNotFoundError, KeyError):
+                return None
+
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+            
+        if "?" not in db_url:
+            db_url += "?gssencmode=disable" 
+
+        engine = create_engine(db_url)
         return engine
+
     except Exception as e:
-        st.error(f"Erro ao conectar com o banco de dados: {e}")
+        print(f"DEBUG URL: {db_url.split('@')[-1] if db_url else 'Sem URL'}") # Mostra o host no log sem mostrar a senha
+        st.error(f"Erro de Conexão: {e}")
         return None
 
+        
 @st.cache_data
 def get_funcionarios():
     engine = get_db_connection()
@@ -67,7 +85,7 @@ def get_lancamentos_do_mes(mes_referencia):
     LEFT JOIN funcionarios f ON l.funcionario_id = f.id
     LEFT JOIN servicos s ON l.servico_id = s.id
     LEFT JOIN disciplinas d ON s.disciplina_id = d.id 
-    WHERE l.arquivado = FALSE AND to_char(l.data_servico, 'YYYY-MM') = :mes;
+    WHERE to_char(l.data_servico, 'YYYY-MM') = :mes;
     """)
     df = pd.read_sql(query, engine, params={'mes': mes_referencia})
     if not df.empty:
@@ -189,7 +207,39 @@ def get_folhas_mensais(mes_referencia=None):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
-
+def atualizar_lancamento_completo(lancamento_id, data_servico, servico_id, servico_diverso_desc, quantidade, valor_unitario, observacao):
+    engine = get_db_connection()
+    if engine is None: return False
+    try:
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE lancamentos 
+                    SET data_servico = :data, 
+                        servico_id = :serv_id, 
+                        servico_diverso_descricao = :serv_div, 
+                        quantidade = :qtd, 
+                        valor_unitario = :val, 
+                        observacao = :obs 
+                    WHERE id = :id
+                """)
+                connection.execute(query, {
+                    'data': data_servico,
+                    'serv_id': servico_id,
+                    'serv_div': servico_diverso_desc,
+                    'qtd': quantidade,
+                    'val': valor_unitario,
+                    'obs': observacao,
+                    'id': lancamento_id
+                })
+        
+        registrar_log(st.session_state.get('user_identifier', 'unknown'), "EDITAR_LANCAMENTO", f"Lançamento ID {lancamento_id} editado completamente.")
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao atualizar lançamento: {e}")
+        return False
+        
 def registrar_log(usuario, acao, detalhes="", tabela_afetada=None, id_registro_afetado=None):
     engine = get_db_connection()
     if engine is None: return
@@ -836,6 +886,13 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
+
+
+
+
+
+
 
 
 
