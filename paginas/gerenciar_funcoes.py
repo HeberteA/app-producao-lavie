@@ -53,7 +53,7 @@ def render_page():
             
             card_html = f"""
             <div style="
-                border-left: 6px solid #ff8c00; 
+                border-left: 6px solid #E37026; 
                 background-color: transparent; 
                 border-top: 1px solid rgba(150, 150, 150, 0.2);
                 border-right: 1px solid rgba(150, 150, 150, 0.2);
@@ -73,10 +73,10 @@ def render_page():
             """
             st.markdown(card_html, unsafe_allow_html=True)
             
-            col_btn1, col_btn2 = st.columns([1, 1])
+            col_btn1, col_btn2 = st.columns([3, 1])
             
             with col_btn1:
-                with st.popover("Editar Função", use_container_width=True):
+                with st.popover("Editar Função", use_container_width=True, type="primary"):
                     with st.form(key=f"edit_form_{funcao_id}", clear_on_submit=False):
                         edit_nome = st.text_input("Nome", value=row['FUNÇÃO'])
                         
