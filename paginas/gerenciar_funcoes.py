@@ -25,7 +25,7 @@ def render_page():
             tipo_display = st.selectbox("Tipo de Contrato", options=["PRODUCAO", "BONUS"])
             tipo_valor = "PRODUCAO" if tipo_display == "PRODUCAO" else "BONUS"
             
-            submitted = st.form_submit_button("Adicionar Função")
+            submitted = st.form_submit_button("Adicionar Função", use_container_width=True, type="primary")
             if submitted:
                 if not nome_funcao.strip():
                     st.warning("O nome da função é obrigatório.")
@@ -65,7 +65,7 @@ def render_page():
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             ">
                 <h4 style="margin-top: 0; margin-bottom: 8px;">{row['FUNÇÃO']}</h4>
-                <p style="margin: 0; font-size: 15px;">
+                <p style="margin: 0; font-size: 17px;">
                     <strong>Tipo:</strong> {row['TIPO']} &nbsp;&nbsp;|&nbsp;&nbsp; 
                     <strong>Salário Base:</strong> R$ {row['SALARIO_BASE']:.2f}
                 </p>
@@ -97,7 +97,7 @@ def render_page():
                             key=f"salario_{funcao_id}"
                         )
                         
-                        submit_edit = st.form_submit_button("Salvar Alterações", type="primary", use_container_width=True)
+                        submit_edit = st.form_submit_button("Salvar Alterações"c)
                         
                         if submit_edit:
                             if not edit_nome.strip():
