@@ -582,9 +582,9 @@ def adicionar_funcao(nome, tipo, salario_base):
 def atualizar_funcao(funcao_id, novo_nome, novo_tipo, novo_salario):
     try:
         data = {
-            "FUNÇÃO": novo_nome,
-            "TIPO": novo_tipo,
-            "SALARIO_BASE": novo_salario
+            "funcao": novo_nome,
+            "tipo": novo_tipo,
+            "salario_base": novo_salario
         }
         
         response = supabase.table("funcoes").update(data).eq("id", funcao_id).execute()
@@ -901,6 +901,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
