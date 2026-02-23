@@ -97,7 +97,7 @@ def render_page():
                             key=f"salario_{funcao_id}"
                         )
                         
-                        submit_edit = st.form_submit_button("Salvar Alterações", use_container_width=True, type="primary")
+                        submit_edit = st.form_submit_button("Salvar Alterações", type="primary", use_container_width=True)
                         
                         if submit_edit:
                             if not edit_nome.strip():
@@ -114,6 +114,8 @@ def render_page():
                                         st.success("Atualizado!")
                                         st.cache_data.clear()
                                         st.rerun()
+                                    else:
+                                        st.error("Falha ao salvar no banco de dados.")
 
             with col_btn2:
                 with st.popover("Inativar Função", use_container_width=True):
