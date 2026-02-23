@@ -104,19 +104,16 @@ def render_page():
                                 st.error("O nome não pode ficar vazio.")
                             else:
                                 with st.spinner("Salvando..."):
-                                    resultado = db_utils.atualizar_funcao(
+                                    sucesso = db_utils.atualizar_funcao(
                                         funcao_id=funcao_id, 
                                         novo_nome=edit_nome, 
                                         novo_tipo=edit_tipo_display, 
                                         novo_salario=edit_salario
                                     )
-                                    if resultado == "sucesso":
+                                    if sucesso:
                                         st.success("Atualizado!")
                                         st.cache_data.clear()
                                         st.rerun()
-                                    else:
-                                        st.error(f"Erro retornado pelo banco de dados: {resultado}")
-
             with col_btn2:
                 with st.popover("Inativar Função", use_container_width=True):
                     funcionarios_usando = funcionarios_df[funcionarios_df['funcao_id'] == funcao_id]
