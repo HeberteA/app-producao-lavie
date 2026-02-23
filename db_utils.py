@@ -579,6 +579,21 @@ def adicionar_funcao(nome, tipo, salario_base):
             st.error(f"Erro ao adicionar função no banco de dados: {e}")
         return False
 
+def atualizar_funcao(funcao_id, novo_nome, novo_tipo, novo_salario):
+    try:
+        data = {
+            "FUNÇÃO": novo_nome,
+            "TIPO": novo_tipo,
+            "SALARIO_BASE": novo_salario
+        }
+        
+        response = supabase.table("funcoes").update(data).eq("id", funcao_id).execute()
+        return True
+        
+    except Exception as e:
+        print(e)
+        return False
+
 def inativar_funcao(funcao_id):
     engine = get_db_connection()
     if engine is None: return False
@@ -886,6 +901,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
