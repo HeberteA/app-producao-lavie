@@ -580,18 +580,35 @@ def adicionar_funcao(nome, tipo, salario_base):
         return False
 
 def atualizar_funcao(funcao_id, novo_nome, novo_tipo, novo_salario):
+    engine = get_db_connection()
+    if engine is None: return False
+    
     try:
-        data = {
-            "funcao": novo_nome,
-            "tipo": novo_tipo,
-            "salario_base": novo_salario
-        }
+        with engine.connect() as connection:
+            with connection.begin() as transaction:
+                query = text("""
+                    UPDATE funcoes 
+                    SET funcao = :nome, 
+                        tipo = :tipo, 
+                        salario_base = :salario_base 
+                    WHERE id = :id
+                """)
+                connection.execute(query, {
+                    'nome': novo_nome,
+                    'tipo': novo_tipo,
+                    'salario_base': novo_salario,
+                    'id': funcao_id
+                })
         
-        response = supabase.table("funcoes").update(data).eq("id", funcao_id).execute()
-        return "sucesso"
+        registrar_log(st.session_state.get('user_identifier', 'admin'), 
+                      "ATUALIZAR_FUNCAO", 
+                      f"Função ID {funcao_id} ('{novo_nome}') atualizada.")
+        st.cache_data.clear() 
+        return True
         
     except Exception as e:
-        return str(e)
+        st.error(f"Erro ao atualizar função no banco de dados: {e}")
+        return False
 
 def inativar_funcao(funcao_id):
     engine = get_db_connection()
@@ -900,6 +917,7 @@ def editar_disciplina(disciplina_id, novo_nome):
         else:
             st.error(f"Erro ao editar disciplina: {e}")
         return False
+
 
 
 
