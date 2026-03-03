@@ -9,3 +9,4 @@ psycopg2-binary
 xlsxwriter
 matplotlib
 weasyprint
+libgdk-pixbuf-2.0-0
