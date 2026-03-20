@@ -71,6 +71,16 @@ def render_page():
         return funcionarios_df, precos_df, obras_df, lancamentos_do_mes_df, status_df, folhas_df
 
     funcionarios_df, precos_df, obras_df, lancamentos_do_mes_df, status_df, folhas_df = get_launch_page_data(mes_selecionado)
+    snapshots_df = db_utils.get_snapshot_salarios(mes_selecionado)
+    
+    if not funcionarios_df.empty and 'data_admissao' in funcionarios_df.columns:
+        funcionarios_df['data_admissao'] = pd.to_datetime(funcionarios_df['data_admissao']).dt.date
+        
+        ano, mes = map(int, mes_selecionado.split('-'))
+        import calendar
+        ultimo_dia_do_mes = date(ano, mes, calendar.monthrange(ano, mes)[1])
+        
+        funcionarios_df = funcionarios_df[funcionarios_df['data_admissao'] <= ultimo_dia_do_mes]
 
     if 'current_month_for_concluded' not in st.session_state or st.session_state.current_month_for_concluded != mes_selecionado:
         st.session_state.current_month_for_concluded = mes_selecionado
@@ -145,9 +155,16 @@ def render_page():
 
                 if funcionario_selecionado:
                     func_row = funcionarios_df.loc[funcionarios_df['NOME'] == funcionario_selecionado].iloc[0]
-                    funcao_selecionada = func_row['FUNÇÃO']
-                    salario_base = utils.safe_float(func_row['SALARIO_BASE']) 
-
+                    func_id = func_row['id']
+                    snapshot_row = snapshots_df[snapshots_df['funcionario_id'] == func_id] if not snapshots_df.empty else pd.DataFrame()
+                    
+                    if not snapshot_row.empty and status_folha != "Aberta":
+                        funcao_selecionada = snapshot_row.iloc[0]['funcao_na_epoca']
+                        salario_base = utils.safe_float(snapshot_row.iloc[0]['salario_base_na_epoca'])
+                    else:
+                        funcao_selecionada = func_row['FUNÇÃO']
+                        salario_base = utils.safe_float(func_row['SALARIO_BASE'])
+                    
                     producao_atual = 0.0
                     if not lancamentos_do_mes_df.empty:
                         lancs_func = lancamentos_do_mes_df[lancamentos_do_mes_df['Funcionário'] == funcionario_selecionado]
