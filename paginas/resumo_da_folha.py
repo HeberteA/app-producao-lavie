@@ -67,9 +67,25 @@ def render_page():
         lancamentos_df = db_utils.get_lancamentos_do_mes(mes)
         obras_df = db_utils.get_obras()
         status_df = db_utils.get_status_do_mes(mes)
-        return funcionarios_df, lancamentos_df, obras_df, status_df
+        folhas_df = db_utils.get_folhas_mensais(mes) 
+        return funcionarios_df, lancamentos_df, obras_df, status_df, folhas_df
 
-    funcionarios_df, lancamentos_df, obras_df, status_df = get_resumo_data(mes_selecionado)
+    funcionarios_df, lancamentos_df, obras_df, status_df, folhas_df = get_resumo_data(mes_selecionado)
+    
+    funcionarios_df = utils.filtrar_funcionarios_por_mes(funcionarios_df, mes_selecionado)
+    
+    snapshots_df = db_utils.get_snapshot_salarios(mes_selecionado)
+    if not snapshots_df.empty and not funcionarios_df.empty:
+        for index, func in funcionarios_df.iterrows():
+            folha_obra = folhas_df[folhas_df['obra_id'] == func['obra_id']]
+            status_folha_atual = folha_obra['status'].iloc[0] if not folha_obra.empty else "Aberta"
+            
+            if status_folha_atual != "Aberta":
+                snap = snapshots_df[snapshots_df['funcionario_id'] == func['id']]
+                if not snap.empty:
+                    funcionarios_df.at[index, 'SALARIO_BASE'] = snap['salario_base_na_epoca'].iloc[0]
+                    funcionarios_df.at[index, 'FUNÇÃO'] = snap['funcao_na_epoca'].iloc[0]
+
 
     if funcionarios_df.empty:
         st.info("Nenhum funcionário ativo encontrado.")
