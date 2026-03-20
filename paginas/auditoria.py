@@ -59,17 +59,30 @@ def render_page():
         return db_utils.get_lancamentos_do_mes(mes), db_utils.get_funcionarios(), db_utils.get_obras(), db_utils.get_status_do_mes(mes), db_utils.get_folhas_mensais(mes)
 
     lancamentos_df, funcionarios_df, obras_df, status_df, folhas_df = get_audit_data(mes_selecionado)
+    funcionarios_df = utils.filtrar_funcionarios_por_mes(funcionarios_df, mes_selecionado)
+    
+    snapshots_df = db_utils.get_snapshot_salarios(mes_selecionado)
+    if not snapshots_df.empty and not funcionarios_df.empty:
+        for index, func in funcionarios_df.iterrows():
+            folha_obra = folhas_df[folhas_df['obra_id'] == func['obra_id']]
+            status_folha_atual = folha_obra['status'].iloc[0] if not folha_obra.empty else "Aberta"
+            
+            if status_folha_atual != "Aberta":
+                snap = snapshots_df[snapshots_df['funcionario_id'] == func['id']]
+                if not snap.empty:
+                    funcionarios_df.at[index, 'SALARIO_BASE'] = snap['salario_base_na_epoca'].iloc[0]
+                    funcionarios_df.at[index, 'FUNÇÃO'] = snap['funcao_na_epoca'].iloc[0]
 
     st.header(f"Auditoria de Lançamentos - {mes_selecionado}")
 
     col_filtro1, col_filtro2 = st.columns(2)
-    obra_selecionada = col_filtro1.selectbox("1. Selecione a Obra", options=sorted(obras_df['NOME DA OBRA'].unique()), index=None, placeholder="Selecione...", key="aud_obra_select")
+    obra_selecionada = col_filtro1.selectbox("Selecione a Obra", options=sorted(obras_df['NOME DA OBRA'].unique()), index=None, placeholder="Selecione...", key="aud_obra_select")
     
     if not obra_selecionada: st.info("Selecione uma obra para começar."); st.stop()
 
     funcionarios_filtrados_nomes = []
     funcionarios_da_obra = sorted(funcionarios_df[funcionarios_df['OBRA'] == obra_selecionada]['NOME'].unique())
-    funcionarios_filtrados_nomes = col_filtro2.multiselect("2. Filtrar Funcionário (Opcional)", options=funcionarios_da_obra, key="aud_func_multiselect")
+    funcionarios_filtrados_nomes = col_filtro2.multiselect("Filtrar Funcionário", options=funcionarios_da_obra, key="aud_func_multiselect")
 
     obra_id_selecionada = int(obras_df.loc[obras_df['NOME DA OBRA'] == obra_selecionada, 'id'].iloc[0])
     lancamentos_obra_df = lancamentos_df[lancamentos_df['Obra'] == obra_selecionada]
