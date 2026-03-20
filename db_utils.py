@@ -40,13 +40,13 @@ def get_funcionarios():
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
     query = """
-        SELECT f.id, f.obra_id, f.funcao_id, f.nome as "NOME", o.nome_obra as "OBRA",
-               fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE",
-               f.data_admissao -- <-- ADICIONE ISTO AQUI
-        FROM funcionarios f
-        JOIN obras o ON f.obra_id = o.id
-        JOIN funcoes fn ON f.funcao_id = fn.id
-        WHERE f.ativo = TRUE;
+    SELECT f.id, f.obra_id, f.funcao_id, f.nome as "NOME", o.nome_obra as "OBRA",
+           fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE",
+           f.data_admissao  -- <-- Nova coluna adicionada aqui
+    FROM funcionarios f
+    JOIN obras o ON f.obra_id = o.id
+    JOIN funcoes fn ON f.funcao_id = fn.id
+    WHERE f.ativo = TRUE;
     """
     return pd.read_sql(query, engine)
 
@@ -668,8 +668,8 @@ def adicionar_funcionario(nome, funcao_id, obra_id, data_admissao):
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query = text("""
-                    INSERT INTO funcionarios (nome, funcao_id, obra_id, ativo, data_admissao)
-                    VALUES (:nome, :funcao_id, :obra_id, TRUE, :data_admissao)
+                INSERT INTO funcionarios (nome, funcao_id, obra_id, ativo, data_admissao)
+                VALUES (:nome, :funcao_id, :obra_id, TRUE, :data_admissao)
                 """)
                 connection.execute(query, {
                     'nome': nome,
@@ -677,13 +677,12 @@ def adicionar_funcionario(nome, funcao_id, obra_id, data_admissao):
                     'obra_id': obra_id,
                     'data_admissao': data_admissao 
                 })
-        
-        registrar_log(st.session_state.get('user_identifier', 'admin'), 
-                      "ADICIONAR_FUNCIONARIO", 
-                      f"Funcionário '{nome}' adicionado.")
-        st.cache_data.clear() 
+
+                registrar_log(st.session_state.get('user_identifier', 'admin'),
+                              "ADICIONAR_FUNCIONARIO",
+                              f"Funcionário '{nome}' adicionado.")
+        st.cache_data.clear()
         return True
-        
     except Exception as e:
         if 'unique constraint' in str(e).lower():
             st.error(f"Erro: Já existe um funcionário ativo com o nome '{nome}'. Por favor, escolha um nome diferente.")
