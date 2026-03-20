@@ -40,12 +40,13 @@ def get_funcionarios():
     engine = get_db_connection()
     if engine is None: return pd.DataFrame()
     query = """
-    SELECT f.id, f.obra_id, f.funcao_id, f.nome as "NOME", o.nome_obra as "OBRA", 
-           fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE"
-    FROM funcionarios f
-    JOIN obras o ON f.obra_id = o.id
-    JOIN funcoes fn ON f.funcao_id = fn.id
-    WHERE f.ativo = TRUE;
+        SELECT f.id, f.obra_id, f.funcao_id, f.nome as "NOME", o.nome_obra as "OBRA",
+               fn.funcao as "FUNÇÃO", fn.tipo as "TIPO", fn.salario_base as "SALARIO_BASE",
+               f.data_admissao -- <-- ADICIONE ISTO AQUI
+        FROM funcionarios f
+        JOIN obras o ON f.obra_id = o.id
+        JOIN funcoes fn ON f.funcao_id = fn.id
+        WHERE f.ativo = TRUE;
     """
     return pd.read_sql(query, engine)
 
@@ -207,6 +208,17 @@ def get_folhas_mensais(mes_referencia=None):
         df['Mes'] = pd.to_datetime(df['Mes']).dt.date
     return df
 
+@st.cache_data
+def get_snapshot_salarios(mes_referencia_str):
+    engine = get_db_connection()
+    if engine is None: return pd.DataFrame()
+    query = text("""
+        SELECT funcionario_id, funcao_na_epoca, salario_base_na_epoca 
+        FROM holerites_snapshot 
+        WHERE to_char(mes_referencia, 'YYYY-MM') = :mes
+    """)
+    return pd.read_sql(query, engine, params={'mes': mes_referencia_str})
+    
 def atualizar_lancamento_completo(lancamento_id, data_servico, servico_id, servico_diverso_desc, quantidade, valor_unitario, observacao):
     engine = get_db_connection()
     if engine is None: return False
@@ -337,6 +349,7 @@ def launch_monthly_sheet(obra_id, mes_referencia_dt, obra_nome):
     engine = get_db_connection()
     if engine is None: return False
     mes_inicio = mes_referencia_dt.strftime('%Y-%m-01')
+
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
@@ -345,9 +358,20 @@ def launch_monthly_sheet(obra_id, mes_referencia_dt, obra_nome):
 
                 query_update_status = text("UPDATE folhas_mensais SET status = 'Finalizada' WHERE obra_id = :obra_id AND mes_referencia = :mes_inicio;")
                 connection.execute(query_update_status, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
-        registrar_log(st.session_state.get('user_identifier', 'unknown'), "FINALIZAR_FOLHA", f"Folha para {obra_nome} ({mes_referencia_dt.strftime('%Y-%m')}) finalizada.")
-        
-        st.cache_data.clear() 
+                
+                query_snapshot = text("""
+                    INSERT INTO holerites_snapshot (mes_referencia, funcionario_id, funcao_na_epoca, salario_base_na_epoca)
+                    SELECT :mes_inicio, f.id, fn.funcao, fn.salario_base
+                    FROM funcionarios f
+                    JOIN funcoes fn ON f.funcao_id = fn.id
+                    WHERE f.obra_id = :obra_id AND f.ativo = TRUE
+                    ON CONFLICT (mes_referencia, funcionario_id) DO NOTHING;
+                """)
+                connection.execute(query_snapshot, {'obra_id': obra_id, 'mes_inicio': mes_inicio})
+
+                registrar_log(st.session_state.get('user_identifier', 'unknown'), "FINALIZAR_FOLHA", f"Folha para {obra_nome} ({mes_referencia_dt.strftime('%Y-%m')}) finalizada com snapshot gravado.")
+
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Ocorreu um erro ao finalizar a folha: {e}")
@@ -636,21 +660,22 @@ def inativar_funcao(funcao_id):
         st.error(f"Erro ao inativar função no banco de dados: {e}")
         return False
 
-def adicionar_funcionario(nome, funcao_id, obra_id):
+def adicionar_funcionario(nome, funcao_id, obra_id, data_admissao):
     engine = get_db_connection()
     if engine is None: return False
-    
+
     try:
         with engine.connect() as connection:
             with connection.begin() as transaction:
                 query = text("""
-                    INSERT INTO funcionarios (nome, funcao_id, obra_id, ativo)
-                    VALUES (:nome, :funcao_id, :obra_id, TRUE)
+                    INSERT INTO funcionarios (nome, funcao_id, obra_id, ativo, data_admissao)
+                    VALUES (:nome, :funcao_id, :obra_id, TRUE, :data_admissao)
                 """)
                 connection.execute(query, {
-                    'nome': nome, 
-                    'funcao_id': funcao_id, 
-                    'obra_id': obra_id
+                    'nome': nome,
+                    'funcao_id': funcao_id,
+                    'obra_id': obra_id,
+                    'data_admissao': data_admissao 
                 })
         
         registrar_log(st.session_state.get('user_identifier', 'admin'), 
@@ -658,6 +683,7 @@ def adicionar_funcionario(nome, funcao_id, obra_id):
                       f"Funcionário '{nome}' adicionado.")
         st.cache_data.clear() 
         return True
+        
     except Exception as e:
         if 'unique constraint' in str(e).lower():
             st.error(f"Erro: Já existe um funcionário ativo com o nome '{nome}'. Por favor, escolha um nome diferente.")
