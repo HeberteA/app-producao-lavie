@@ -2,6 +2,8 @@ import streamlit as st
 import io
 import pandas as pd
 from datetime import datetime, timezone, timedelta
+import calendar
+from datetime import date
 import base64
 
 try:
@@ -187,6 +189,25 @@ def add_css_classes_to_td(html_table, df_columns, currency_cols, number_cols):
          new_body_rows.append(''.join(new_cells))
      new_tbody = '<tbody>' + '<tr>'.join(new_body_rows) + '</tbody>'
      return html_table.split('<tbody>')[0] + new_tbody + html_table.split('</tbody>')[1]
+
+def filtrar_funcionarios_por_mes(funcionarios_df, mes_selecionado_str):
+    """
+    Filtra o DataFrame de funcionários para mostrar apenas aqueles
+    cuja data de admissão é anterior ou igual ao último dia do mês selecionado.
+    """
+    if funcionarios_df.empty or 'data_admissao' not in funcionarios_df.columns:
+        return funcionarios_df
+
+    df_filtrado = funcionarios_df.copy()
+    
+    df_filtrado['data_admissao'] = pd.to_datetime(df_filtrado['data_admissao']).dt.date
+    
+    ano, mes = map(int, str(mes_selecionado_str).split('-'))
+    ultimo_dia_do_mes = date(ano, mes, calendar.monthrange(ano, mes)[1])
+    
+    df_filtrado = df_filtrado[df_filtrado['data_admissao'] <= ultimo_dia_do_mes]
+    
+    return df_filtrado
 
 
 
