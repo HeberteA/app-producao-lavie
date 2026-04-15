@@ -129,15 +129,31 @@ def render_page():
 
                 status_conclusao_df = status_df[
                     (status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] != 0)
-                ][['funcionario_id', 'Lancamentos Concluidos']].fillna(False)
-
+                ].copy()
+                
+                # 2. Garantimos que as colunas necessárias existam no DataFrame de status
+                if 'Lancamentos Concluidos' not in status_conclusao_df.columns:
+                    status_conclusao_df['Lancamentos Concluidos'] = False
+                
+                # 3. Selecionamos apenas as colunas que vamos usar para o merge
+                status_conclusao_df = status_conclusao_df[['funcionario_id', 'Lancamentos Concluidos']]
+                
+                # 4. Fazemos o merge com os funcionários da obra
                 funcionarios_status_df = pd.merge(
-                    funcionarios_da_obra_df, status_conclusao_df,
-                    left_on='id', right_on='funcionario_id', how='left'
-                ).fillna({'Lancamentos Concluidos': False})
-
+                    funcionarios_da_obra_df, 
+                    status_conclusao_df,
+                    left_on='id', 
+                    right_on='funcionario_id', 
+                    how='left'
+                )
+                
+                # 5. Preenchemos os valores nulos (funcionários sem registro de status) como False
+                funcionarios_status_df['Lancamentos Concluidos'] = funcionarios_status_df['Lancamentos Concluidos'].fillna(False)
+                
+                # 6. Agora o filtro funcionará sem erro
                 pendentes_df = funcionarios_status_df[~funcionarios_status_df['Lancamentos Concluidos']]
                 concluidos_df = funcionarios_status_df[funcionarios_status_df['Lancamentos Concluidos']]
+# -----------------------
 
                 pendentes = sorted(pendentes_df['NOME'].unique())
                 concluidos_marcados = sorted([f"✅ {nome}" for nome in concluidos_df['NOME'].unique()])
