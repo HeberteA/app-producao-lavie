@@ -127,32 +127,32 @@ def render_page():
             with st.container(border=True):
                 funcionarios_da_obra_df = funcionarios_df[funcionarios_df['OBRA'] == obra_logada].copy()
 
+                # --- INÍCIO DA CORREÇÃO ---
+# 1. Filtrar status da obra
                 status_conclusao_df = status_df[
                     (status_df['obra_id'] == obra_logada_id) & (status_df['funcionario_id'] != 0)
                 ].copy()
                 
-                # 2. Garantimos que as colunas necessárias existam no DataFrame de status
+                # 2. Garantir que a coluna exista antes do merge (evita o KeyError)
                 if 'Lancamentos Concluidos' not in status_conclusao_df.columns:
                     status_conclusao_df['Lancamentos Concluidos'] = False
                 
-                # 3. Selecionamos apenas as colunas que vamos usar para o merge
-                status_conclusao_df = status_conclusao_df[['funcionario_id', 'Lancamentos Concluidos']]
-                
-                # 4. Fazemos o merge com os funcionários da obra
+                # 3. Realizar o merge
                 funcionarios_status_df = pd.merge(
                     funcionarios_da_obra_df, 
-                    status_conclusao_df,
+                    status_conclusao_df[['funcionario_id', 'Lancamentos Concluidos']],
                     left_on='id', 
                     right_on='funcionario_id', 
                     how='left'
                 )
                 
-                # 5. Preenchemos os valores nulos (funcionários sem registro de status) como False
-                funcionarios_status_df['Lancamentos Concluidos'] = funcionarios_status_df['Lancamentos Concluidos'].fillna(False)
+                # 4. Tratar valores nulos (funcionários que ainda não possuem registro de status no banco)
+                funcionarios_status_df['Lancamentos Concluidos'] = funcionarios_status_df['Lancamentos Concluidos'].fillna(False).astype(bool)
                 
-                # 6. Agora o filtro funcionará sem erro
+                # 5. Filtragem segura
                 pendentes_df = funcionarios_status_df[~funcionarios_status_df['Lancamentos Concluidos']]
                 concluidos_df = funcionarios_status_df[funcionarios_status_df['Lancamentos Concluidos']]
+                # --- FIM DA CORREÇÃO ---
 # -----------------------
 
                 pendentes = sorted(pendentes_df['NOME'].unique())
