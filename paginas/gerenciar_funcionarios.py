@@ -2,6 +2,7 @@ import streamlit as st
 import db_utils
 import utils
 import pandas as pd
+from datetime import date
 
 def render_page():
     st.header("Gerenciar Funcionários")
@@ -45,9 +46,11 @@ def render_page():
             col_salario.text_input("Salário Base", value=utils.format_currency(info_funcao['SALARIO_BASE']), disabled=True, key="gf_salario_input_add")
         
         with st.form("gf_add_funcionario_form", clear_on_submit=True):
-            nome = st.text_input("2. Nome do Funcionário", key="gf_nome_input")
-            obra_selecionada_nome = st.selectbox("3. Alocar na Obra", options=sorted(lista_obras.keys()), key="gf_obra_select_add")
+            nome = st.text_input("Nome do Funcionário", key="gf_nome_input")
+            obra_selecionada_nome = st.selectbox("Alocar na Obra", options=sorted(lista_obras.keys()), key="gf_obra_select_add")
             
+            data_admissao = st.date_input("Data de Admissão", value=date.today(), format="DD/MM/YYYY")
+
             submitted = st.form_submit_button("Adicionar Funcionário")
             if submitted:
                 if not nome.strip() or not funcao_selecionada_nome or not obra_selecionada_nome:
@@ -60,7 +63,7 @@ def render_page():
                         funcao_id = lista_funcoes[funcao_selecionada_nome]
                         
                         with st.spinner("Adicionando funcionário..."):
-                            if db_utils.adicionar_funcionario(nome, funcao_id, obra_id):
+                            if db_utils.adicionar_funcionario(nome, funcao_id, obra_id, data_admissao):
                                 st.success(f"Funcionário '{nome}' adicionado com sucesso!")
                                 st.cache_data.clear() 
                                 st.rerun()

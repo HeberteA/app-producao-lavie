@@ -41,6 +41,8 @@ APP_STYLE_CSS = """
 [data-testid="stAppViewContainer"] {
     background: radial-gradient(circle at 10% 20%, #1e1e24 0%, #050505 90%);
     background-attachment: fixed;
+    font-family: 'Inter', sans-serif;
+    color: #ffffff;
 }
 /* Ajustes de Inputs para contraste */
 div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
@@ -77,22 +79,35 @@ if not hasattr(utils, 'gerar_relatorio_pdf'):
 else:
      gerar_relatorio_pdf = utils.gerar_relatorio_pdf
 
-
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("Lavie.png", width=1000)
+        st.image("Lavie.png", use_container_width=True)
+    st.write("") 
     st.header("Login")
+    
     obras_df_login = db_utils.get_obras()
     acessos_df_login = db_utils.get_acessos()
-    if obras_df_login.empty or acessos_df_login.empty:
-        st.error("Não foi possível carregar os dados das obras para o login.")
-        return
+    
+    if obras_df_login.empty and acessos_df_login.empty:
+        st.warning("Aguardando conexão com banco de dados ou banco vazio...")
+
     admin_login = st.checkbox("Entrar como Administrador")
+    
     if admin_login:
         admin_password = st.text_input("Senha de Administrador", type="password")
         if st.button("Entrar como Admin", use_container_width=True, type="primary"):
-            if 'admin' in st.secrets and st.secrets.admin.password == admin_password:
+            
+            senha_real = os.getenv("ADMIN_PASSWORD")
+
+            if not senha_real:
+                try:
+                    if 'admin' in st.secrets:
+                        senha_real = st.secrets["admin"]["password"]
+                except (FileNotFoundError, KeyError):
+                    pass
+            
+            if senha_real and admin_password == senha_real:
                 st.session_state.logged_in = True
                 st.session_state.role = 'admin'
                 st.session_state.obra_logada = 'Todas' 
@@ -100,12 +115,18 @@ def login_page():
                 st.session_state.page = 'auditoria' 
                 st.rerun()
             else:
-                st.error("Senha de administrador incorreta.")
+                st.error("Senha de administrador incorreta (ou não configurada no Railway).")
+
     else:
+        if obras_df_login.empty:
+             st.error("Não foi possível carregar as obras. Verifique a conexão.")
+             return
+
         obras_ativas_login = obras_df_login[obras_df_login['status'] == 'Ativa'] 
         if obras_ativas_login.empty:
              st.error("Nenhuma obra ativa encontrada para login.")
              return
+             
         obras_com_acesso = pd.merge(obras_ativas_login, acessos_df_login, left_on='id', right_on='obra_id')
         if obras_com_acesso.empty:
              st.error("Nenhuma obra configurada com código de acesso.")
@@ -113,11 +134,12 @@ def login_page():
              
         obra_login = st.selectbox("Selecione a Obra", options=obras_com_acesso['NOME DA OBRA'].unique(), index=None, placeholder="Escolha a obra...")
         codigo_login = st.text_input("Código de Acesso", type="password")
+        
         if st.button("Entrar", use_container_width=True, type="primary"):
             if obra_login and codigo_login:
                 try:
                     codigo_correto = obras_com_acesso.loc[obras_com_acesso['NOME DA OBRA'] == obra_login, 'codigo_acesso'].iloc[0]
-                    if codigo_correto == codigo_login:
+                    if str(codigo_correto).strip() == str(codigo_login).strip():
                         st.session_state.logged_in = True
                         st.session_state.role = 'user'
                         st.session_state.obra_logada = obra_login 
@@ -125,9 +147,9 @@ def login_page():
                         st.session_state.page = 'lancamento_folha' 
                         st.rerun()
                     else:
-                        st.error("Obra ou código de acesso incorreto.")
+                        st.error("Código de acesso incorreto.")
                 except IndexError:
-                    st.error("Obra ou código de acesso incorreto.") 
+                    st.error("Erro ao validar obra.") 
             else:
                 st.warning("Por favor, selecione a obra e insira o código.")
 
@@ -168,10 +190,11 @@ else:
                 obra_id = int(obra_info.iloc[0]['id'])
                 hoje = date.today()
                 mes_referencia_status = hoje.replace(day=1)
-                
                 status_geral_obra_row = status_df_sidebar[(status_df_sidebar['obra_id'] == obra_id) & (status_df_sidebar['funcionario_id'] == 0)]
                 status_auditoria = status_geral_obra_row['Status'].iloc[0] if not status_geral_obra_row.empty else "A Revisar"
-                
+
+
+
                 utils.display_status_box("Status Auditoria", status_auditoria) 
 
                 if 'aviso' in obra_info.columns:
@@ -181,21 +204,32 @@ else:
 
         st.markdown("---")
         st.subheader("Mês de Referência")
-        current_month_str = datetime.now().strftime('%Y-%m')
-        last_month_str = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
-        available_months = sorted(list(set([current_month_str, last_month_str])), reverse=True)
-        try:
-            current_index = available_months.index(st.session_state.selected_month)
-        except ValueError:
-            available_months.append(st.session_state.selected_month)
-            available_months = sorted(list(set(available_months)), reverse=True)
-            current_index = available_months.index(st.session_state.selected_month)
-            
-        selected_month = st.selectbox("Selecione o Mês", options=available_months, index=current_index, label_visibility="collapsed")
+
+        folhas_df_sidebar['Mes'] = pd.to_datetime(folhas_df_sidebar['Mes'])
+        unique_months = set(folhas_df_sidebar['Mes'].dt.strftime('%Y-%m').unique())
+        current_month = datetime.now().strftime('%Y-%m')
+        unique_months.add(current_month)
+        available_months = sorted(list(unique_months), reverse=True)
+
+        if 'selected_month' not in st.session_state:
+            st.session_state.selected_month = available_months[0]
+
+        if st.session_state.selected_month not in available_months:
+            st.session_state.selected_month = available_months[0]
+
+        current_index = available_months.index(st.session_state.selected_month)
+
+        selected_month = st.selectbox(
+            "Selecione o Mês", 
+            options=available_months, 
+            index=current_index, 
+            label_visibility="collapsed"
+        )
+        
         if selected_month != st.session_state.selected_month:
             st.session_state.selected_month = selected_month
-            st.rerun() 
-
+            st.rerun()
+            
         st.markdown("---")
         
         if STREAMLIT_OPTION_MENU_AVAILABLE:
@@ -213,37 +247,58 @@ else:
             admin_pages = ['auditoria', 'resumo_da_folha', 'gerenciar_funcionarios', 'gerenciar_funcoes', 'gerenciar_servicos', 'gerenciar_obras', 'remover_lancamentos', 'dashboard_de_analise']
             user_pages = ['lancamento_folha', 'resumo_da_folha', 'remover_lancamentos', 'dashboard_de_analise']
             pages_to_show_keys = admin_pages if st.session_state.role == 'admin' else user_pages
+
             menu_titles = [page_definitions[key][0] for key in pages_to_show_keys]
             menu_icons = [page_definitions[key][1] for key in pages_to_show_keys]
-            current_page_key = st.session_state.get('page', pages_to_show_keys[0])
-            try: default_index = pages_to_show_keys.index(current_page_key)
-            except ValueError: default_index = 0
-            
-            selected_title = option_menu(
-                menu_title="Navegação", options=menu_titles, icons=menu_icons,
-                menu_icon="list-task", default_index=default_index,
-                styles={
-                    "container": {"padding": "5px !important", "background-color": "transparent"},
-                    "icon": {"font-size": "18px"}, "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px"},
-                    "nav-link-selected": {"background-color": "#E37026"}, 
-                }
-            )
             title_to_key_map = {page_definitions[key][0]: key for key in pages_to_show_keys}
-            st.session_state.page = title_to_key_map[selected_title]
+
+            current_page_key = st.session_state.get('page', pages_to_show_keys[0])
+            try: 
+                default_index = pages_to_show_keys.index(current_page_key)
+            except ValueError: 
+                default_index = 0
+            def update_menu_callback(key):
+                selection = st.session_state[key]
+                st.session_state.page = title_to_key_map[selection]
+
+            option_menu(
+                menu_title="Navegação", 
+                options=menu_titles, 
+                icons=menu_icons,
+                menu_icon="list-task", 
+                default_index=default_index,
+                key="nav_menu_selection",       
+                on_change=update_menu_callback, 
+                styles={
+                    "container": {"padding": "0!important", "background": "transparent"},
+                    "nav-link": {"color": "#aaa", "font-size": "0.9rem", "margin":"6px", "text-align": "left"},
+                    "nav-link-selected": {
+                        "background-color": "rgba(227, 112, 38, 0.15)", 
+                        "color": "#E37026", 
+                        "border-left": "3px solid #E37026"
+                    },
+                    "icon": {"font-size": "1.1rem"}
+                    }
+            )
         else: 
             st.header("Navegação")
+            nova_pagina = st.session_state.page 
+
             if st.session_state.role == 'user':
-                if st.button("📝 Lançamento Folha", use_container_width=True): st.session_state.page = 'lancamento_folha'
+                if st.button("📝 Lançamento Folha", use_container_width=True): nova_pagina = 'lancamento_folha'
             if st.session_state.role == 'admin':
-                if st.button("✏️ Auditoria", use_container_width=True): st.session_state.page = 'auditoria'
-                if st.button("👥 Gerenciar Funcionários", use_container_width=True): st.session_state.page = 'gerenciar_funcionarios'
-                if st.button("🔧 Gerenciar Funções", use_container_width=True): st.session_state.page = 'gerenciar_funcoes'
-                if st.button("🛠️ Gerenciar Serviços", use_container_width=True): st.session_state.page = 'gerenciar_servicos'
-                if st.button("🏗️ Gerenciar Obras", use_container_width=True): st.session_state.page = 'gerenciar_obras'
-            if st.button("📊 Resumo da Folha", use_container_width=True): st.session_state.page = 'resumo_da_folha'
-            if st.button("🗑️ Remover Lançamentos", use_container_width=True): st.session_state.page = 'remover_lancamentos'
-            if st.button("📈 Dashboard de Análise", use_container_width=True): st.session_state.page = 'dashboard_de_analise'
-        
+                if st.button("✏️ Auditoria", use_container_width=True): nova_pagina = 'auditoria'
+                if st.button("👥 Gerenciar Funcionários", use_container_width=True): nova_pagina = 'gerenciar_funcionarios'
+                if st.button("🔧 Gerenciar Funções", use_container_width=True): nova_pagina = 'gerenciar_funcoes'
+                if st.button("🛠️ Gerenciar Serviços", use_container_width=True): nova_pagina = 'gerenciar_servicos'
+                if st.button("🏗️ Gerenciar Obras", use_container_width=True): nova_pagina = 'gerenciar_obras'
+            if st.button("📊 Resumo da Folha", use_container_width=True): nova_pagina = 'resumo_da_folha'
+            if st.button("🗑️ Remover Lançamentos", use_container_width=True): nova_pagina = 'remover_lancamentos'
+            if st.button("📈 Dashboard de Análise", use_container_width=True): nova_pagina = 'dashboard_de_analise'
+
+            if st.session_state.page != nova_pagina:
+                st.session_state.page = nova_pagina
+                st.rerun()
  
 
         st.markdown("---")
@@ -259,9 +314,7 @@ else:
                 except Exception as e:
                     st.error(f"Erro ao processar data: {e}")
                     mes_referencia_envio = date.today().replace(day=1) 
-                
                 st.subheader(f"Envio da Folha ({mes_referencia_envio.strftime('%m/%Y')})")
-
                 folha_do_mes = folhas_df_sidebar[
                     (folhas_df_sidebar['obra_id'] == obra_id_envio) &
                     (folhas_df_sidebar['Mes'] == mes_referencia_envio)
@@ -287,7 +340,7 @@ else:
                 if not folha_do_mes.empty and pd.notna(folha_do_mes.iloc[0]['data_lancamento']):
                     data_envio = pd.to_datetime(folha_do_mes.iloc[0]['data_lancamento'])
                     st.caption(f"Último envio em: {data_envio.strftime('%d/%m/%Y às %H:%M')}")
-
+                    
                 btn_enviar_desabilitado = status_folha in ['Enviada para Auditoria', 'Finalizada']
                 
                 if st.button("Enviar para Auditoria", use_container_width=True, type="primary", disabled=btn_enviar_desabilitado):
@@ -419,7 +472,7 @@ else:
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
-            
+
     page_to_render = st.session_state.page
     page_map = {
         'lancamento_folha': lancamento_folha,
@@ -438,10 +491,3 @@ else:
         st.error(f"Página '{page_to_render}' não encontrada. Redirecionando...")
         st.session_state.page = 'auditoria' if st.session_state.role == 'admin' else 'lancamento_folha'
         st.rerun()
-
-
-
-
-
-
-
